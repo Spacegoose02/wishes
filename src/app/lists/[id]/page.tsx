@@ -7,7 +7,7 @@ import { aiEnabled } from "@/lib/ai";
 import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Purchase } from "@/lib/types";
-import { addItem, autofill, claimItem, deleteItem, recordPurchase, refreshItem, undoPurchase, updateItem } from "../../actions/app";
+import { addItem, autofill, claimItem, compareStores, deleteItem, recordPurchase, refreshItem, undoPurchase, updateItem } from "../../actions/app";
 import { ItemForm } from "@/components/ItemForm";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
@@ -57,7 +57,15 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const maxPrice = Number(sp.max) || 0;
 
   const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? ORDER BY purchased, priority DESC, created_at DESC", list.id);
-  const purchases = recipient ? [] : all<Purchase>("SELECT * FROM purchases WHERE list_id = ? AND status != 'rejected' ORDER BY created_at", list.id);
+  // The list's own person only sees what they marked themselves.
+  const purchases = recipient
+    ? all<Purchase>("SELECT * FROM purchases WHERE list_id = ? AND buyer_user_id = ? ORDER BY created_at", list.id, user.id)
+    : all<Purchase>("SELECT * FROM purchases WHERE list_id = ? AND status != 'rejected' ORDER BY created_at", list.id);
+  const offerRows = all<{ item_id: number; store: string; title: string; url: string; price_cents: number; ai_checked: number }>(
+    "SELECT o.* FROM offers o JOIN items i ON i.id = o.item_id WHERE i.list_id = ? ORDER BY o.price_cents", list.id,
+  );
+  const offersByItem = new Map<number, typeof offerRows>();
+  for (const o of offerRows) offersByItem.set(o.item_id, [...(offersByItem.get(o.item_id) ?? []), o]);
   const byItem = new Map<number, Purchase[]>();
   for (const p of purchases) if (p.item_id) byItem.set(p.item_id, [...(byItem.get(p.item_id) ?? []), p]);
 
@@ -192,6 +200,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
                 const ps = byItem.get(it.id) ?? [];
                 const boughtQty = ps.reduce((s, p) => s + p.quantity, 0);
                 const remaining = Math.max(0, it.quantity - boughtQty);
+                const offers = offersByItem.get(it.id) ?? [];
+                const cheaper = it.price_cents ? offers.find((o) => o.price_cents < it.price_cents! * 0.97) : undefined;
                 const details = [it.variant, it.color && `Color: ${it.color}`, it.size && `Size: ${it.size}`].filter(Boolean);
                 return (
                   <div key={it.id} id={`item-${it.id}`} className={`card item ${showClaims && it.purchased ? "claimed" : ""}`}>
@@ -213,7 +223,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       </div>
                       {details.length > 0 && <p className="small" style={{ margin: "6px 0 0", fontWeight: 600 }}>{details.join(" · ")}</p>}
                       {it.notes && <p className="small muted" style={{ margin: "4px 0 0", whiteSpace: "pre-wrap" }}>{it.notes}</p>}
-                      {showClaims && (claimed || ps.length > 0) && (
+                      {(claimed || ps.length > 0) && (
                         <div className="small" style={{ margin: "6px 0 0", fontWeight: 700, color: "var(--good)" }}>
                           {ps.map((p) => (
                             <div key={p.id}>
@@ -232,7 +242,18 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         </div>
                       )}
                       {it.created_by_guest && owner && <p className="tiny muted" style={{ margin: "4px 0 0" }}>Added by {it.created_by_guest}</p>}
-                      {it.url && it.price_checked_at ? <p className="tiny muted" style={{ margin: "4px 0 0" }}>Price checked {ago(it.price_checked_at)}</p> : null}
+                      {offers.length > 0 && (
+                        <div className="offers">
+                          {cheaper && <span className="pill good">💰 {formatMoney(it.price_cents! - cheaper.price_cents)} cheaper at {cheaper.store}</span>}
+                          {offers.map((o) => (
+                            <a key={o.url} href={o.url} target="_blank" rel="noopener noreferrer nofollow" className="offer" title={o.title}>
+                              {o.store} <strong>{formatMoney(o.price_cents)}</strong> ↗
+                            </a>
+                          ))}
+                          <span className="tiny muted">{offers[0].ai_checked ? "Matches confirmed by AI." : "Close matches; check it's the same item."}</span>
+                        </div>
+                      )}
+                      {it.url && it.price_checked_at ? <p className="tiny muted" style={{ margin: "4px 0 0" }}>Price checked {ago(it.price_checked_at)}{it.offers_checked_at ? `, stores compared ${ago(it.offers_checked_at)}` : ""}</p> : null}
                     </div>
                     <div className="item-actions">
                       {showClaims && !it.claimed_by && !it.purchased && (
@@ -244,10 +265,18 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       {it.url && (
                         <form action={refreshItem}><Hidden item={it.id} /><button className="btn small ghost" title="Check the store's current price">↻ Check price</button></form>
                       )}
+                      <form action={compareStores}><Hidden item={it.id} /><button className="btn small ghost" title="Look for this at Walmart and Amazon">⚖️ Compare stores</button></form>
                       {owner && (
                         <form action={deleteItem}><Hidden item={it.id} /><button className="btn small danger">Remove</button></form>
                       )}
                     </div>
+                    {recipient && remaining > 0 && (
+                      <form action={recordPurchase} style={{ gridColumn: "1 / -1" }}>
+                        <Hidden item={it.id} />
+                        <input type="hidden" name="note" value="Got it myself" />
+                        <button className="btn small ghost">✔ I got this myself</button>
+                      </form>
+                    )}
                     {showClaims && remaining > 0 && (!it.claimed_by || claimedByMe || owner) && (
                       <details className="buy" style={{ gridColumn: "1 / -1" }}>
                         <summary className="small" style={{ cursor: "pointer", fontWeight: 700, color: "var(--accent)" }}>🛍️ I bought this</summary>

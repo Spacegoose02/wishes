@@ -7,6 +7,8 @@ import { getList, isManager, isRecipient, listAccess, listManagers, shareableFam
 import { randomToken } from "@/lib/crypto";
 import { fetchProduct, normalizeUrl, type ProductInfo } from "@/lib/scrape";
 import { storeFromHost, storeSearch } from "@/lib/scrape/stores";
+import { bestMatches, searchStores } from "@/lib/scrape/search";
+import { compareItem } from "@/lib/compare";
 import { formatMoney, parseMoney, ageFrom } from "@/lib/format";
 import { guessCategory, validCategory } from "@/lib/categories";
 import { generateIdeas, PROVIDERS, type AiProvider } from "@/lib/ai";
@@ -224,7 +226,9 @@ export async function refreshItem(form: FormData) {
   }
   run("UPDATE items SET price_checked_at = unixepoch() WHERE id = ?", item.id);
   const kept = item.price_cents ? ` Kept ${formatMoney(item.price_cents)}.` : "";
-  if (info.blocked) return back("error", `${info.store} blocked the price check.${kept} You can update the price by editing the wish.`);
+  if (info.problem === "blocked") return back("error", `${info.store} blocked the price check.${kept} You can update the price by editing the wish, or try Compare stores.`);
+  if (info.problem === "missing") return back("error", `That ${info.store} page doesn't exist anymore.${kept} Try Compare stores to find it somewhere else.`);
+  if (info.problem === "unavailable") return back("error", `${info.store} lists it as currently unavailable, so there's no price to read.${kept}`);
   if (!info.price_cents) return back("error", `Couldn't find a price on that ${info.store} page.${kept}`);
   run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", item.id, info.price_cents, info.store);
   run(
@@ -240,6 +244,24 @@ export async function refreshItem(form: FormData) {
     : `${info.store} price: ${formatMoney(info.price_cents)}.`);
 }
 
+export async function compareStores(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { list } = await viewList(item.list_id);
+  let count = 0;
+  try {
+    count = (await compareItem(item)).length;
+  } catch {
+    redirect(`/lists/${list.id}?error=${encodeURIComponent("Couldn't search the stores right now.")}#item-${item.id}`);
+  }
+  const msg = count ? `Found it at ${count} other store${count === 1 ? "" : "s"}.` : "No close matches at Walmart or Amazon.";
+  redirect(`/lists/${list.id}?ok=${encodeURIComponent(msg)}#item-${item.id}`);
+}
+
+function isSearchLink(url: string): boolean {
+  return /\/s\?k=|\/search|searchTerm=|searchpage/.test(url);
+}
+
 // ---------- Purchases ----------
 
 function recomputePurchased(itemId: number) {
@@ -253,23 +275,23 @@ export async function recordPurchase(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
   const { user, list } = await viewList(item.list_id);
-  if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
+  const self = isRecipient(user.id, list); // the list's own person marking "I got it myself"
   const manager = isManager(user.id, list);
-  const pending = !!list.review_purchases && !manager;
+  const pending = !!list.review_purchases && !manager && !self;
   const qty = Math.min(99, Math.max(1, n(form, "quantity") || 1));
   run(
     "INSERT INTO purchases (item_id, list_id, item_title, buyer_user_id, buyer_name, quantity, price_cents, store, note, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     item.id, list.id, item.title, user.id, user.name, qty, parseMoney(form.get("price")) ?? item.price_cents, s(form, "store") || item.store,
     s(form, "note").slice(0, 300), pending ? "pending" : "confirmed",
   );
-  if (!item.claimed_by) run("UPDATE items SET claimed_by = ?, claimed_name = ? WHERE id = ?", user.id, user.name, item.id);
+  if (!item.claimed_by && !self) run("UPDATE items SET claimed_by = ?, claimed_name = ? WHERE id = ?", user.id, user.name, item.id);
   recomputePurchased(item.id);
   if (pending) {
     for (const uid of listManagers(list)) {
       if (!isRecipient(uid, list)) notify(uid, "purchase", `${user.name} bought ${item.title}. Please review it.`, `/lists/${list.id}/purchases`);
     }
   }
-  redirect(`/lists/${list.id}?ok=${encodeURIComponent(pending ? "Marked bought. A list manager will review it." : "Marked bought")}#item-${item.id}`);
+  redirect(`/lists/${list.id}?ok=${encodeURIComponent(pending ? "Marked bought. A list manager will review it." : self ? "Marked as got it" : "Marked bought")}#item-${item.id}`);
 }
 
 export async function reviewPurchase(form: FormData) {
@@ -358,12 +380,21 @@ export async function requestSuggestions(form: FormData) {
       existing,
       hint: s(form, "hint"),
     });
-    for (const i of ideas) {
-      const { store, url } = storeSearch(i.store, i.search || i.title);
+    // Turn each idea into a real listing when a store search finds it; otherwise keep a search link.
+    const resolved = await Promise.all(ideas.map(async (i) => {
+      const query = i.search || i.title;
+      const prefer = /walmart/i.test(i.store ?? "") ? ["Walmart", "Amazon"] as const : ["Amazon", "Walmart"] as const;
+      const found = await searchStores(query, [...prefer]).catch(() => []);
+      const hit = bestMatches(i.title, found, 0.5)[0] ?? bestMatches(query, found, 0.6)[0];
+      return { i, hit };
+    }));
+    for (const { i, hit } of resolved) {
+      const fallback = storeSearch(i.store, i.search || i.title);
       run(
-        "INSERT INTO suggestions (list_id, title, reason, est_price_cents, source, store, category, url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        list.id, i.title, i.reason, i.est_price ? Math.round(i.est_price * 100) : null, source,
-        store, validCategory(i.category ?? "") || guessCategory(i.title), url,
+        "INSERT INTO suggestions (list_id, title, reason, est_price_cents, source, store, category, url, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        list.id, hit?.title.slice(0, 200) ?? i.title, i.reason,
+        hit?.price_cents ?? (i.est_price ? Math.round(i.est_price * 100) : null), source,
+        hit?.store ?? fallback.store, validCategory(i.category ?? "") || guessCategory(i.title), hit?.url ?? fallback.url, hit?.image_url ?? "",
       );
     }
   } catch (e) {
@@ -373,15 +404,15 @@ export async function requestSuggestions(form: FormData) {
 }
 
 export async function reviewSuggestion(form: FormData) {
-  const sug = get<{ id: number; list_id: number; title: string; reason: string; est_price_cents: number | null; url: string; store: string; category: string }>(
+  const sug = get<{ id: number; list_id: number; title: string; reason: string; est_price_cents: number | null; url: string; store: string; category: string; image_url: string }>(
     "SELECT * FROM suggestions WHERE id = ? AND status = 'pending'", n(form, "suggestion_id"),
   );
   if (!sug) redirect("/");
   const { list } = await ownList(sug.list_id);
   if (s(form, "decision") === "accept") {
     run(
-      "INSERT INTO items (list_id, title, notes, price_cents, url, store, category) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      list.id, sug.title, sug.reason, sug.est_price_cents, sug.url, sug.store, sug.category,
+      "INSERT INTO items (list_id, title, notes, price_cents, url, store, category, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      list.id, sug.title, sug.reason, sug.est_price_cents, isSearchLink(sug.url) ? "" : sug.url, sug.store, sug.category, sug.image_url,
     );
     run("UPDATE suggestions SET status = 'accepted' WHERE id = ?", sug.id);
   } else {

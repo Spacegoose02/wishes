@@ -62,9 +62,14 @@ export default async function EditListPage({ params, searchParams }: { params: P
 
         <div className="card stack">
           <h2>Purchases</h2>
+          <p className="small" style={{ margin: 0 }}>When someone who doesn&apos;t manage this list marks a gift as bought:</p>
           <label className="inline">
-            <input type="checkbox" name="review_purchases" defaultChecked={!!list.review_purchases} />
-            Review purchases made by people who don&apos;t manage this list
+            <input type="radio" name="review_purchases" value="" defaultChecked={!list.review_purchases} />
+            Approve it automatically
+          </label>
+          <label className="inline">
+            <input type="radio" name="review_purchases" value="1" defaultChecked={!!list.review_purchases} />
+            Send it to a list manager to review first
           </label>
           <p className="tiny muted" style={{ margin: 0 }}>
             When someone else marks a gift as bought, it shows as &quot;waiting for review&quot; until a list manager confirms it.

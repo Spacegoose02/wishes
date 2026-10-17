@@ -5,7 +5,7 @@ import { decodeEntities, toCents, type Parsed } from "./generic";
 export type StoreKey = "amazon" | "walmart" | "target" | "kohls" | "bestbuy" | "etsy" | "lego" | "other";
 
 const STORES: { key: StoreKey; name: string; match: RegExp }[] = [
-  { key: "amazon", name: "Amazon", match: /(^|\.)amazon\.|(^|\.)amzn\./ },
+  { key: "amazon", name: "Amazon", match: /(^|\.)amazon\.|(^|\.)amzn\.|^a\.co$/ },
   { key: "walmart", name: "Walmart", match: /(^|\.)walmart\.com$/ },
   { key: "target", name: "Target", match: /(^|\.)target\.com$/ },
   { key: "kohls", name: "Kohl's", match: /(^|\.)kohls\.com$/ },
@@ -51,12 +51,15 @@ export const adapters: Partial<Record<StoreKey, (html: string) => Parsed>> = {
       .map((id) => html.indexOf(`id="${id}"`))
       .find((i) => i >= 0);
     const region = anchor !== undefined ? html.slice(anchor, anchor + 30000) : html;
-    let price = toCents(first(html, /customerVisiblePrice\]\[amount\]" value="([\d.]+)"/));
-    if (!price) {
+    // Order matters: the visible buy-box price first, then the cart's hidden price field.
+    let price: number | undefined;
+    if (anchor !== undefined) {
       const whole = first(region, /class="a-price-whole">([\d,]+)/);
       const frac = first(region, /class="a-price-fraction">(\d+)/);
       if (whole) price = toCents(`${whole}.${frac ?? "00"}`);
     }
+    if (!price) price = toCents(first(html, /customerVisiblePrice\]\[amount\]" value="([\d.]+)"/));
+    if (!price) price = toCents(first(region, /class="aok-offscreen[^"]*">\s*\$?([\d,]+\.\d{2})/, /"priceAmount":\s*([\d.]+)/));
     if (!price) for (const m of region.matchAll(/class="a-offscreen">([^<]*)</g)) {
       price = toCents(m[1]);
       if (price) break;

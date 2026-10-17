@@ -15,7 +15,7 @@ Self-hosted family wishlists for kids and grown-ups. Raccoons and geese welcome.
 - **Co-owners**: add family members as co-owners of a list (two parents running a kid's list).
 - **Categories, filters and sorting**: Electronics, Clothes, Toys, Perfume & Cologne, Beauty and more (guessed automatically from the name). Filter by category, status, price or search; sort by most wanted, price, newest, name or category. Each wish also has type/style, color and size fields.
 - **Link autofill**: paste a link and Wishes fills name, price, image and store. Generic JSON-LD/OpenGraph parsing works on most shops (Shopify, LEGO, Etsy…), with extra adapters for **Amazon, Walmart, Target, Kohl's**. Stores that block bots (Kohl's and Best Buy often do) fall back gracefully so you fill in details by hand.
-- **Price tracking & deal alerts**: linked items are re-checked every `PRICE_CHECK_HOURS`; a 5%+ drop sends an alert to whoever claimed it (or the owner). Cross-store checking has a plug-in point: `priceSources` in `src/lib/scrape/index.ts`.
+- **Price tracking, store comparison & deal alerts**: linked items are re-checked every `PRICE_CHECK_HOURS`, and each wish is also looked up at **Walmart and Amazon** ("Compare stores"). A 5% drop at the same link, or the same item 10% cheaper at another store, sends an alert to whoever claimed it (or the list's managers). With AI turned on, the model double-checks that store matches are really the same product (pack size, model, not an accessory). Target and Kohl's put their search behind bot walls, so they're link-only.
 - **AI gift ideas (optional)**: Claude, OpenAI, Gemini, Meta Llama API, or a local LLM (Ollama / LM Studio / any OpenAI-compatible endpoint). Ideas land in a **review list** with a store, category and a store search link; nothing is added without a yes. Configure in **Settings → Server**.
 - **Avatars**: raccoons, geese and friends, plus "Roll a random critter" with Common, Rare and Epic accessories. **Space Goose** is the Legendary roll. Rolls build a collection.
 - **Themes**: Auto (follows OS dark mode), Sunny, Night, Candy, Forest, Ocean, Arcade. Mobile-first layout with a bottom tab bar, installable as a home-screen app.
@@ -46,6 +46,7 @@ All settings are environment variables; see [.env.example](.env.example).
 | `TRUSTED_EMAIL_HEADER` | Forward-auth header with the signed-in email, e.g. `Remote-Email`. Only set this when Wishes is reachable *only* through your proxy. |
 | `DISABLE_PASSWORD_LOGIN` | `true` for SSO-only. |
 | `PRICE_CHECK_HOURS` | Price re-check interval per item (default 24, `0` off). |
+| `COMPARE_STORES` | `false` stops the background sweep from searching Walmart/Amazon for cheaper matches. |
 | `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY`, `AI_BASE_URL` | Fallbacks for the Admin AI settings. |
 
 ### Tinyauth

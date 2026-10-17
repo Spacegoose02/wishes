@@ -21,7 +21,7 @@ export default async function IdeasPage({ params, searchParams }: { params: Prom
     <div style={{ maxWidth: 760, margin: "0 auto" }}>
       <p><Link href={`/lists/${list.id}`}>← Back to {list.title}</Link></p>
       <h1>✨ Gift ideas</h1>
-      <p className="muted">Ideas wait here for you to review. Nothing is added to the list until you say yes. Each idea comes with a store search link, so you can pick the exact product and paste its link into the wish later.</p>
+      <p className="muted">Ideas wait here for you to review. Nothing is added to the list until you say yes. Each idea is looked up at Walmart and Amazon, so most come with the real product link, price and photo. When no exact match turns up you get a store search link instead.</p>
       <Flash searchParams={searchParams} />
       {aiEnabled() ? (
         <form action={requestSuggestions} className="card stack">
@@ -42,12 +42,13 @@ export default async function IdeasPage({ params, searchParams }: { params: Prom
         <div className="items">
           {pending.map((sg) => (
             <div key={sg.id} className="card row between" style={{ alignItems: "flex-start" }}>
+              {sg.image_url ? <div className="item-img"><img src={sg.image_url} alt="" referrerPolicy="no-referrer" /></div> : null}
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div className="item-title">{sg.title}</div>
                 <div className="row" style={{ gap: 6, marginTop: 4 }}>
                   {sg.est_price_cents ? <span className="pill">~{formatMoney(sg.est_price_cents)}</span> : null}
                   {sg.category && <span className="pill">{categoryIcon(sg.category)} {categoryLabel(sg.category)}</span>}
-                  {sg.url && <a className="pill accent" href={sg.url} target="_blank" rel="noopener noreferrer nofollow">Find it at {sg.store} ↗</a>}
+                  {sg.url && <a className="pill accent" href={sg.url} target="_blank" rel="noopener noreferrer nofollow">{/\/s\?k=|\/search|searchTerm=|searchpage/.test(sg.url) ?`Search ${sg.store} ↗` : `View at ${sg.store} ↗`}</a>}
                 </div>
                 {sg.reason && <p className="small muted" style={{ margin: "6px 0 0" }}>{sg.reason}</p>}
               </div>

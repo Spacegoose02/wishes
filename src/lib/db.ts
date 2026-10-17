@@ -183,6 +183,24 @@ const MIGRATIONS: string[] = [
     SELECT id, list_id, title, claimed_by, COALESCE(claimed_name, 'Someone'), quantity, price_cents, store
     FROM items WHERE purchased = 1;
   `,
+  // 3: cross-store offers and product details for AI ideas
+  `
+  CREATE TABLE offers (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    store TEXT NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    price_cents INTEGER NOT NULL,
+    image_url TEXT NOT NULL DEFAULT '',
+    score REAL NOT NULL DEFAULT 0,
+    ai_checked INTEGER NOT NULL DEFAULT 0,
+    checked_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE INDEX idx_offers_item ON offers(item_id);
+  ALTER TABLE items ADD COLUMN offers_checked_at INTEGER;
+  ALTER TABLE suggestions ADD COLUMN image_url TEXT NOT NULL DEFAULT '';
+  `,
 ];
 
 function open(): DatabaseSync {

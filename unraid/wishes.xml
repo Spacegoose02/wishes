@@ -19,6 +19,7 @@
   <Config Name="OIDC button name" Target="OIDC_NAME" Default="Single sign-on" Mode="" Description="Label on the sign-in button" Type="Variable" Display="advanced" Required="false" Mask="false">Single sign-on</Config>
   <Config Name="Trusted email header" Target="TRUSTED_EMAIL_HEADER" Default="" Mode="" Description="Forward-auth header with the user's email (e.g. Remote-Email). Only set if Wishes is reachable solely through your proxy." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="Price check hours" Target="PRICE_CHECK_HOURS" Default="24" Mode="" Description="How often each linked item's price is re-checked for deal alerts (0 = off)" Type="Variable" Display="advanced" Required="false" Mask="false">24</Config>
+  <Config Name="Compare stores" Target="COMPARE_STORES" Default="true" Mode="" Description="Look for each wish at Walmart and Amazon during price checks" Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
 </Container>

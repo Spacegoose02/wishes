@@ -65,6 +65,7 @@ export type Item = {
   variant: string;
   color: string;
   size: string;
+  offers_checked_at: number | null;
   created_at: number;
 };
 
@@ -78,6 +79,7 @@ export type Suggestion = {
   source: string;
   store: string;
   category: string;
+  image_url: string;
   status: "pending" | "accepted" | "rejected";
 };
 
