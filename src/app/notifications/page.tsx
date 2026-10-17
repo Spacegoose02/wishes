@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { markAllRead } from "../actions/app";
 
-const ICON: Record<string, string> = { deal: "🏷️", family: "🏡", info: "💡" };
+const ICON: Record<string, string> = { deal: "🏷️", family: "🏡", purchase: "🧾", info: "💡" };
 
 export default async function NotificationsPage() {
   const user = await requireUser();

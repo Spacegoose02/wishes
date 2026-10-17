@@ -68,31 +68,31 @@ export async function logout() {
 export async function startTotp() {
   const user = await requireUser();
   run("UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE id = ?", newTotpSecret(), user.id);
-  redirect("/settings/security");
+  redirect("/settings?tab=security");
 }
 
 export async function confirmTotp(form: FormData) {
   const user = await requireUser();
-  if (!user.totp_secret || !verifyTotp(user.totp_secret, s(form, "code"))) redirect("/settings/security?error=That+code+didn't+match.+Try+the+newest+one.");
+  if (!user.totp_secret || !verifyTotp(user.totp_secret, s(form, "code"))) redirect("/settings?tab=security&error=That+code+didn't+match.+Try+the+newest+one.");
   run("UPDATE users SET totp_enabled = 1 WHERE id = ?", user.id);
-  redirect("/settings/security?ok=Two-factor+sign-in+is+on");
+  redirect("/settings?tab=security&ok=Two-factor+sign-in+is+on");
 }
 
 export async function disableTotp(form: FormData) {
   const user = await requireUser();
   if (user.totp_enabled && (!user.totp_secret || !verifyTotp(user.totp_secret, s(form, "code")))) {
-    redirect("/settings/security?error=Enter+a+current+code+to+turn+it+off");
+    redirect("/settings?tab=security&error=Enter+a+current+code+to+turn+it+off");
   }
   run("UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?", user.id);
-  redirect("/settings/security?ok=Two-factor+sign-in+is+off");
+  redirect("/settings?tab=security&ok=Two-factor+sign-in+is+off");
 }
 
 export async function changePassword(form: FormData) {
   const user = await requireUser();
-  if (user.password_hash && !verifyPassword(s(form, "current"), user.password_hash)) redirect("/settings/security?error=Current+password+is+wrong");
+  if (user.password_hash && !verifyPassword(s(form, "current"), user.password_hash)) redirect("/settings?tab=security&error=Current+password+is+wrong");
   const next = s(form, "password");
-  if (next.length < 8) redirect("/settings/security?error=Password+must+be+at+least+8+characters");
+  if (next.length < 8) redirect("/settings?tab=security&error=Password+must+be+at+least+8+characters");
   run("UPDATE users SET password_hash = ? WHERE id = ?", hashPassword(next), user.id);
   run("DELETE FROM sessions WHERE user_id = ? AND pending_2fa = 0 AND rowid NOT IN (SELECT MAX(rowid) FROM sessions WHERE user_id = ?)", user.id, user.id);
-  redirect("/settings/security?ok=Password+updated");
+  redirect("/settings?tab=security&ok=Password+updated");
 }

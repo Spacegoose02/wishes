@@ -40,7 +40,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <Link href="/notifications">
                     Alerts{unread > 0 && <span className="badge">{unread}</span>}
                   </Link>
-                  {user.is_admin ? <Link href="/admin">Admin</Link> : null}
                   <Link href="/settings" aria-label="Settings">
                     <Avatar id={user.avatar} size={30} />
                   </Link>

@@ -3,25 +3,32 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { all, get, run, setSetting, tx } from "@/lib/db";
 import { requireAdmin, requireUser } from "@/lib/auth";
-import { getList, listAccess, ownerSeesClaims, shareableFamilies } from "@/lib/access";
+import { getList, isManager, isRecipient, listAccess, listManagers, shareableFamilies, familyPeople } from "@/lib/access";
 import { randomToken } from "@/lib/crypto";
 import { fetchProduct, normalizeUrl, type ProductInfo } from "@/lib/scrape";
-import { storeFromHost } from "@/lib/scrape/stores";
-import { parseMoney, ageFrom } from "@/lib/format";
+import { storeFromHost, storeSearch } from "@/lib/scrape/stores";
+import { formatMoney, parseMoney, ageFrom } from "@/lib/format";
+import { guessCategory, validCategory } from "@/lib/categories";
 import { generateIdeas, PROVIDERS, type AiProvider } from "@/lib/ai";
 import { notify } from "@/lib/prices";
 import type { Item, Profile, User } from "@/lib/types";
-import { AVATARS } from "@/components/Avatar";
+import { isValidAvatar, rollAvatar as roll, AVATARS } from "@/components/Avatar";
+import { parseCollection } from "@/components/AvatarPicker";
 
 const s = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const n = (f: FormData, k: string) => Number(f.get(k) ?? 0);
 const THEMES = ["system", "light", "dark", "candy", "forest", "ocean", "arcade"];
-const avatarOr = (v: string, d: string) => (AVATARS.some((a) => a.id === v) ? v : d);
+
+function avatarFor(user: User, v: string, fallback: string): string {
+  if (!isValidAvatar(v)) return fallback;
+  const isStatic = AVATARS.some((a) => a.id === v);
+  return isStatic || parseCollection(user.unlocked_avatars).includes(v) || v === user.avatar ? v : fallback;
+}
 
 async function ownList(listId: number) {
   const user = await requireUser();
   const list = getList(listId);
-  if (!list || list.owner_user_id !== user.id) redirect("/?error=List+not+found");
+  if (!list || !isManager(user.id, list)) redirect("/?error=List+not+found");
   return { user, list };
 }
 
@@ -37,6 +44,14 @@ function inviteCode(): string {
   return `${words[Math.floor(Math.random() * words.length)]}-${randomToken(4).toUpperCase().replace(/[^A-Z0-9]/g, "X").slice(0, 5)}`;
 }
 
+function setHiddenUsers(listId: number, ownerId: number, ids: number[]) {
+  run("DELETE FROM list_hidden_users WHERE list_id = ?", listId);
+  const allowed = new Set(familyPeople(ownerId).map((p) => p.id));
+  for (const uid of ids) {
+    if (allowed.has(uid)) run("INSERT OR IGNORE INTO list_hidden_users (list_id, user_id) VALUES (?, ?)", listId, uid);
+  }
+}
+
 // ---------- Lists ----------
 
 export async function createList(form: FormData) {
@@ -46,49 +61,73 @@ export async function createList(form: FormData) {
   const title = s(form, "title");
   if (!title) redirect("/lists/new?error=Give+your+list+a+name");
   const vis = ["private", "family"].includes(s(form, "visibility")) ? s(form, "visibility") : "family";
-  const r = run(
-    "INSERT INTO lists (profile_id, title, description, emoji, occasion, event_date, visibility) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    profile.id, title, s(form, "description"), s(form, "emoji") || "🎁", s(form, "occasion"), s(form, "event_date") || null, vis,
-  );
-  redirect(`/lists/${r.lastInsertRowid}`);
+  const id = tx(() => {
+    const r = run(
+      "INSERT INTO lists (profile_id, title, description, emoji, occasion, event_date, visibility) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      profile.id, title, s(form, "description"), s(form, "emoji") || "🎁", s(form, "occasion"), s(form, "event_date") || null, vis,
+    );
+    const listId = Number(r.lastInsertRowid);
+    setHiddenUsers(listId, user.id, form.getAll("hidden").map(Number));
+    return listId;
+  });
+  redirect(`/lists/${id}`);
 }
 
 export async function updateList(form: FormData) {
   const { user, list } = await ownList(n(form, "list_id"));
   const vis = ["private", "family", "custom"].includes(s(form, "visibility")) ? s(form, "visibility") : "family";
-  const allowedFamilies = new Set(shareableFamilies(user.id).map((f) => f.id));
+  const allowedFamilies = new Set(shareableFamilies(list.owner_user_id).map((f) => f.id));
   const profileId = n(form, "profile_id");
-  const profileOk = get("SELECT 1 FROM profiles WHERE id = ? AND user_id = ?", profileId, user.id);
+  const profileOk = get("SELECT 1 FROM profiles WHERE id = ? AND user_id = ?", profileId, list.owner_user_id);
+  const people = new Set(familyPeople(list.owner_user_id).map((p) => p.id));
   tx(() => {
     run(
-      "UPDATE lists SET title = ?, description = ?, emoji = ?, occasion = ?, event_date = ?, visibility = ?, profile_id = ? WHERE id = ?",
+      "UPDATE lists SET title = ?, description = ?, emoji = ?, occasion = ?, event_date = ?, visibility = ?, profile_id = ?, review_purchases = ? WHERE id = ?",
       s(form, "title") || list.title, s(form, "description"), s(form, "emoji") || "🎁", s(form, "occasion"),
-      s(form, "event_date") || null, vis, profileOk ? profileId : list.profile_id, list.id,
+      s(form, "event_date") || null, vis, profileOk ? profileId : list.profile_id, form.get("review_purchases") ? 1 : 0, list.id,
     );
     run("DELETE FROM list_families WHERE list_id = ?", list.id);
     for (const fid of form.getAll("families").map(Number)) {
       if (allowedFamilies.has(fid)) run("INSERT OR IGNORE INTO list_families (list_id, family_id) VALUES (?, ?)", list.id, fid);
     }
-    run("DELETE FROM list_hidden_users WHERE list_id = ?", list.id);
-    for (const uid of form.getAll("hidden").map(Number)) {
-      if (uid && uid !== user.id) run("INSERT OR IGNORE INTO list_hidden_users (list_id, user_id) VALUES (?, ?)", list.id, uid);
+    setHiddenUsers(list.id, list.owner_user_id, form.getAll("hidden").map(Number).filter((id) => id !== user.id));
+    // Only the profile's owner decides who else co-owns the list.
+    if (list.owner_user_id === user.id) {
+      run("DELETE FROM list_owners WHERE list_id = ?", list.id);
+      for (const uid of form.getAll("owners").map(Number)) {
+        if (people.has(uid)) run("INSERT OR IGNORE INTO list_owners (list_id, user_id) VALUES (?, ?)", list.id, uid);
+      }
     }
   });
   redirect(`/lists/${list.id}?ok=Saved`);
 }
 
-export async function deleteList(form: FormData) {
+export async function quickHide(form: FormData) {
   const { list } = await ownList(n(form, "list_id"));
+  const uid = n(form, "user_id");
+  if (s(form, "action") === "unhide") run("DELETE FROM list_hidden_users WHERE list_id = ? AND user_id = ?", list.id, uid);
+  else if (familyPeople(list.owner_user_id).some((p) => p.id === uid)) run("INSERT OR IGNORE INTO list_hidden_users (list_id, user_id) VALUES (?, ?)", list.id, uid);
+  revalidatePath(`/lists/${list.id}/share`);
+}
+
+export async function deleteList(form: FormData) {
+  const { user, list } = await ownList(n(form, "list_id"));
+  if (list.owner_user_id !== user.id) redirect(`/lists/${list.id}?error=Only+the+main+owner+can+delete+this+list`);
   run("DELETE FROM lists WHERE id = ?", list.id);
   redirect("/?ok=List+deleted");
 }
 
 // ---------- Items ----------
 
-export async function autofill(url: string): Promise<{ ok: true; info: ProductInfo } | { ok: false; error: string }> {
+export async function autofill(url: string): Promise<{ ok: true; info: ProductInfo & { category: string } } | { ok: false; error: string }> {
   await requireUser();
+  return doAutofill(url);
+}
+
+async function doAutofill(url: string): Promise<{ ok: true; info: ProductInfo & { category: string } } | { ok: false; error: string }> {
   try {
-    return { ok: true, info: await fetchProduct(url) };
+    const info = await fetchProduct(url);
+    return { ok: true, info: { ...info, category: guessCategory(info.title ?? "", info.store) } };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
@@ -99,8 +138,9 @@ function itemFields(form: FormData) {
   const url = rawUrl ? normalizeUrl(rawUrl)?.toString() ?? "" : "";
   const store = s(form, "store") || (url ? storeFromHost(new URL(url).hostname).name : "");
   const image = s(form, "image_url");
+  const title = s(form, "title").slice(0, 200);
   return {
-    title: s(form, "title").slice(0, 200),
+    title,
     url,
     store,
     price: parseMoney(form.get("price")),
@@ -108,13 +148,19 @@ function itemFields(form: FormData) {
     notes: s(form, "notes").slice(0, 1000),
     priority: Math.min(3, Math.max(1, n(form, "priority") || 2)),
     quantity: Math.min(99, Math.max(1, n(form, "quantity") || 1)),
+    category: validCategory(s(form, "category")) || guessCategory(title, store),
+    variant: s(form, "variant").slice(0, 100),
+    color: s(form, "color").slice(0, 60),
+    size: s(form, "size").slice(0, 60),
   };
 }
 
 function insertItem(listId: number, f: ReturnType<typeof itemFields>, guest: string | null = null) {
   const r = run(
-    "INSERT INTO items (list_id, title, url, store, price_cents, image_url, notes, priority, quantity, created_by_guest, price_checked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    listId, f.title, f.url, f.store, f.price, f.image_url, f.notes, f.priority, f.quantity, guest, f.price ? Math.floor(Date.now() / 1000) : null,
+    `INSERT INTO items (list_id, title, url, store, price_cents, image_url, notes, priority, quantity, created_by_guest, price_checked_at, category, variant, color, size)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    listId, f.title, f.url, f.store, f.price, f.image_url, f.notes, f.priority, f.quantity, guest,
+    null, f.category, f.variant, f.color, f.size,
   );
   if (f.price) run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", Number(r.lastInsertRowid), f.price, f.store);
 }
@@ -132,10 +178,14 @@ export async function updateItem(form: FormData) {
   if (!item) redirect("/");
   const { list } = await ownList(item.list_id);
   const f = itemFields(form);
+  if (f.price && f.price !== item.price_cents) {
+    run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", item.id, f.price, `${f.store} (edited)`);
+  }
   run(
-    "UPDATE items SET title = ?, url = ?, store = ?, price_cents = ?, image_url = ?, notes = ?, priority = ?, quantity = ? WHERE id = ?",
-    f.title || item.title, f.url, f.store, f.price, f.image_url, f.notes, f.priority, f.quantity, item.id,
+    "UPDATE items SET title = ?, url = ?, store = ?, price_cents = ?, image_url = ?, notes = ?, priority = ?, quantity = ?, category = ?, variant = ?, color = ?, size = ? WHERE id = ?",
+    f.title || item.title, f.url, f.store, f.price, f.image_url, f.notes, f.priority, f.quantity, f.category, f.variant, f.color, f.size, item.id,
   );
+  recomputePurchased(item.id);
   redirect(`/lists/${list.id}?ok=Updated#item-${item.id}`);
 }
 
@@ -151,15 +201,12 @@ export async function claimItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
   const { user, list } = await viewList(item.list_id);
-  const isOwner = list.owner_user_id === user.id;
-  if (isOwner && !ownerSeesClaims(list)) redirect(`/lists/${list.id}`);
+  if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
   const action = s(form, "action");
   if (action === "claim" && !item.claimed_by) {
     run("UPDATE items SET claimed_by = ?, claimed_name = ? WHERE id = ?", user.id, user.name, item.id);
   } else if (action === "unclaim" && item.claimed_by === user.id) {
-    run("UPDATE items SET claimed_by = NULL, claimed_name = NULL, purchased = 0 WHERE id = ?", item.id);
-  } else if (action === "purchased" && item.claimed_by === user.id) {
-    run("UPDATE items SET purchased = 1 - purchased WHERE id = ?", item.id);
+    run("UPDATE items SET claimed_by = NULL, claimed_name = NULL WHERE id = ?", item.id);
   }
   revalidatePath(`/lists/${list.id}`);
 }
@@ -168,21 +215,86 @@ export async function refreshItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item || !item.url) redirect("/");
   const { list } = await viewList(item.list_id);
+  const back = (key: "ok" | "error", msg: string) => redirect(`/lists/${list.id}?${key}=${encodeURIComponent(msg)}#item-${item.id}`);
+  let info: ProductInfo;
   try {
-    const info = await fetchProduct(item.url);
-    if (info.price_cents) {
-      if (item.price_cents && info.price_cents < item.price_cents) {
-        notify(list.owner_user_id, "deal", `Price drop on ${item.title}`, `/lists/${list.id}#item-${item.id}`);
-      }
-      run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", item.id, info.price_cents, info.store);
-      run("UPDATE items SET price_cents = ?, price_checked_at = unixepoch(), image_url = CASE WHEN image_url = '' THEN ? ELSE image_url END WHERE id = ?", info.price_cents, info.image_url ?? "", item.id);
-    } else {
-      run("UPDATE items SET price_checked_at = unixepoch() WHERE id = ?", item.id);
-    }
+    info = await fetchProduct(item.url);
   } catch {
-    redirect(`/lists/${list.id}?error=Couldn't+reach+that+store+right+now#item-${item.id}`);
+    return back("error", "Couldn't reach that store right now. Try again in a bit.");
   }
-  redirect(`/lists/${list.id}?ok=Price+checked#item-${item.id}`);
+  run("UPDATE items SET price_checked_at = unixepoch() WHERE id = ?", item.id);
+  const kept = item.price_cents ? ` Kept ${formatMoney(item.price_cents)}.` : "";
+  if (info.blocked) return back("error", `${info.store} blocked the price check.${kept} You can update the price by editing the wish.`);
+  if (!info.price_cents) return back("error", `Couldn't find a price on that ${info.store} page.${kept}`);
+  run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", item.id, info.price_cents, info.store);
+  run(
+    "UPDATE items SET price_cents = ?, image_url = CASE WHEN image_url = '' THEN ? ELSE image_url END WHERE id = ?",
+    info.price_cents, info.image_url ?? "", item.id,
+  );
+  if (item.price_cents === info.price_cents) return back("ok", `${info.store} still has it for ${formatMoney(info.price_cents)}.`);
+  if (item.price_cents && info.price_cents < item.price_cents) {
+    for (const uid of listManagers(list)) if (!isRecipient(uid, list)) notify(uid, "deal", `Price drop on ${item.title}: ${formatMoney(info.price_cents)}`, `/lists/${list.id}#item-${item.id}`);
+  }
+  back("ok", item.price_cents
+    ? `Updated from ${formatMoney(item.price_cents)} to ${formatMoney(info.price_cents)} (${info.store}).`
+    : `${info.store} price: ${formatMoney(info.price_cents)}.`);
+}
+
+// ---------- Purchases ----------
+
+function recomputePurchased(itemId: number) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", itemId);
+  if (!item) return;
+  const bought = get<{ q: number }>("SELECT COALESCE(SUM(quantity), 0) AS q FROM purchases WHERE item_id = ? AND status != 'rejected'", itemId)!.q;
+  run("UPDATE items SET purchased = ? WHERE id = ?", bought >= item.quantity ? 1 : 0, itemId);
+}
+
+export async function recordPurchase(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { user, list } = await viewList(item.list_id);
+  if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
+  const manager = isManager(user.id, list);
+  const pending = !!list.review_purchases && !manager;
+  const qty = Math.min(99, Math.max(1, n(form, "quantity") || 1));
+  run(
+    "INSERT INTO purchases (item_id, list_id, item_title, buyer_user_id, buyer_name, quantity, price_cents, store, note, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    item.id, list.id, item.title, user.id, user.name, qty, parseMoney(form.get("price")) ?? item.price_cents, s(form, "store") || item.store,
+    s(form, "note").slice(0, 300), pending ? "pending" : "confirmed",
+  );
+  if (!item.claimed_by) run("UPDATE items SET claimed_by = ?, claimed_name = ? WHERE id = ?", user.id, user.name, item.id);
+  recomputePurchased(item.id);
+  if (pending) {
+    for (const uid of listManagers(list)) {
+      if (!isRecipient(uid, list)) notify(uid, "purchase", `${user.name} bought ${item.title}. Please review it.`, `/lists/${list.id}/purchases`);
+    }
+  }
+  redirect(`/lists/${list.id}?ok=${encodeURIComponent(pending ? "Marked bought. A list manager will review it." : "Marked bought")}#item-${item.id}`);
+}
+
+export async function reviewPurchase(form: FormData) {
+  const p = get<{ id: number; list_id: number; item_id: number | null; buyer_user_id: number | null; item_title: string }>(
+    "SELECT * FROM purchases WHERE id = ?", n(form, "purchase_id"),
+  );
+  if (!p) redirect("/");
+  const { user, list } = await ownList(p.list_id);
+  if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
+  const approve = s(form, "decision") === "approve";
+  run("UPDATE purchases SET status = ?, reviewed_by = ? WHERE id = ?", approve ? "confirmed" : "rejected", user.id, p.id);
+  if (p.item_id) recomputePurchased(p.item_id);
+  if (!approve && p.buyer_user_id) notify(p.buyer_user_id, "purchase", `${user.name} didn't confirm your purchase of ${p.item_title}.`, `/lists/${list.id}`);
+  revalidatePath(`/lists/${list.id}/purchases`);
+}
+
+export async function undoPurchase(form: FormData) {
+  const p = get<{ id: number; list_id: number; item_id: number | null; buyer_user_id: number | null }>("SELECT * FROM purchases WHERE id = ?", n(form, "purchase_id"));
+  if (!p) redirect("/");
+  const { user, list } = await viewList(p.list_id);
+  if (p.buyer_user_id !== user.id && !(isManager(user.id, list) && !isRecipient(user.id, list))) redirect(`/lists/${list.id}`);
+  run("DELETE FROM purchases WHERE id = ?", p.id);
+  if (p.item_id) recomputePurchased(p.item_id);
+  revalidatePath(`/lists/${list.id}`);
+  revalidatePath(`/lists/${list.id}/purchases`);
 }
 
 // ---------- Guests (whitelisted emails editing without an account) ----------
@@ -225,14 +337,10 @@ export async function guestDeleteItem(form: FormData) {
   redirect(`/s/${token}`);
 }
 
-export async function guestAutofill(token: string, url: string): Promise<{ ok: true; info: ProductInfo } | { ok: false; error: string }> {
+export async function guestAutofill(token: string, url: string) {
   const g = guestByToken(token);
-  if (!g || !g.can_edit) return { ok: false, error: "This link no longer works." };
-  try {
-    return { ok: true, info: await fetchProduct(url) };
-  } catch (e) {
-    return { ok: false, error: (e as Error).message };
-  }
+  if (!g || !g.can_edit) return { ok: false as const, error: "This link no longer works." };
+  return doAutofill(url);
 }
 
 // ---------- AI suggestions (review list) ----------
@@ -251,9 +359,11 @@ export async function requestSuggestions(form: FormData) {
       hint: s(form, "hint"),
     });
     for (const i of ideas) {
+      const { store, url } = storeSearch(i.store, i.search || i.title);
       run(
-        "INSERT INTO suggestions (list_id, title, reason, est_price_cents, source) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO suggestions (list_id, title, reason, est_price_cents, source, store, category, url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         list.id, i.title, i.reason, i.est_price ? Math.round(i.est_price * 100) : null, source,
+        store, validCategory(i.category ?? "") || guessCategory(i.title), url,
       );
     }
   } catch (e) {
@@ -263,15 +373,15 @@ export async function requestSuggestions(form: FormData) {
 }
 
 export async function reviewSuggestion(form: FormData) {
-  const sug = get<{ id: number; list_id: number; title: string; reason: string; est_price_cents: number | null }>(
+  const sug = get<{ id: number; list_id: number; title: string; reason: string; est_price_cents: number | null; url: string; store: string; category: string }>(
     "SELECT * FROM suggestions WHERE id = ? AND status = 'pending'", n(form, "suggestion_id"),
   );
   if (!sug) redirect("/");
   const { list } = await ownList(sug.list_id);
   if (s(form, "decision") === "accept") {
     run(
-      "INSERT INTO items (list_id, title, notes, price_cents) VALUES (?, ?, ?, ?)",
-      list.id, sug.title, sug.reason, sug.est_price_cents,
+      "INSERT INTO items (list_id, title, notes, price_cents, url, store, category) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      list.id, sug.title, sug.reason, sug.est_price_cents, sug.url, sug.store, sug.category,
     );
     run("UPDATE suggestions SET status = 'accepted' WHERE id = ?", sug.id);
   } else {
@@ -370,38 +480,46 @@ export async function disconnectFamily(form: FormData) {
 export async function saveAccount(form: FormData) {
   const user = await requireUser();
   const name = s(form, "name") || user.name;
-  const avatar = avatarOr(s(form, "avatar"), user.avatar);
+  const avatar = avatarFor(user, s(form, "avatar"), user.avatar);
   const theme = THEMES.includes(s(form, "theme")) ? s(form, "theme") : user.theme;
   run("UPDATE users SET name = ?, avatar = ?, theme = ? WHERE id = ?", name, avatar, theme, user.id);
   run("UPDATE profiles SET name = ?, avatar = ?, birthday = ? WHERE user_id = ? AND is_primary = 1", name, avatar, s(form, "birthday") || null, user.id);
   redirect("/settings?ok=Saved");
 }
 
-export async function setTheme(form: FormData) {
+// Roll a random critter into the user's collection (and wear it). Space Goose is the 2% legendary.
+export async function rollAvatar(form: FormData) {
   const user = await requireUser();
-  const theme = s(form, "theme");
-  if (THEMES.includes(theme)) run("UPDATE users SET theme = ? WHERE id = ?", theme, user.id);
-  revalidatePath("/", "layout");
+  const got = roll();
+  const collection = [got, ...parseCollection(user.unlocked_avatars).filter((a) => a !== got)].slice(0, 24);
+  run("UPDATE users SET unlocked_avatars = ? WHERE id = ?", collection.join(","), user.id);
+  const profileId = n(form, "profile_id");
+  if (profileId) run("UPDATE profiles SET avatar = ? WHERE id = ? AND user_id = ?", got, profileId, user.id);
+  else {
+    run("UPDATE users SET avatar = ? WHERE id = ?", got, user.id);
+    run("UPDATE profiles SET avatar = ? WHERE user_id = ? AND is_primary = 1", got, user.id);
+  }
+  redirect(`/settings?tab=${profileId ? "profiles" : "me"}&rolled=${encodeURIComponent(got)}`);
 }
 
 export async function saveProfile(form: FormData) {
   const user = await requireUser();
   const id = n(form, "profile_id");
   const name = s(form, "name");
-  if (!name) redirect("/settings?error=Profiles+need+a+name");
-  const avatar = avatarOr(s(form, "avatar"), "goose");
+  if (!name) redirect("/settings?tab=profiles&error=Profiles+need+a+name");
+  const avatar = avatarFor(user, s(form, "avatar"), "goose");
   if (id) {
     run("UPDATE profiles SET name = ?, avatar = ?, birthday = ? WHERE id = ? AND user_id = ? AND is_primary = 0", name, avatar, s(form, "birthday") || null, id, user.id);
   } else {
     run("INSERT INTO profiles (user_id, name, avatar, birthday) VALUES (?, ?, ?, ?)", user.id, name, avatar, s(form, "birthday") || null);
   }
-  redirect("/settings?ok=Profile+saved");
+  redirect("/settings?tab=profiles&ok=Profile+saved");
 }
 
 export async function deleteProfile(form: FormData) {
   const user = await requireUser();
   run("DELETE FROM profiles WHERE id = ? AND user_id = ? AND is_primary = 0", n(form, "profile_id"), user.id);
-  redirect("/settings?ok=Profile+removed");
+  redirect("/settings?tab=profiles&ok=Profile+removed");
 }
 
 export async function markAllRead() {
@@ -415,22 +533,23 @@ export async function markAllRead() {
 export async function saveAiSettings(form: FormData) {
   await requireAdmin();
   const provider = s(form, "provider") as AiProvider;
-  if (!PROVIDERS.some((p) => p.id === provider)) redirect("/admin?error=Unknown+provider");
+  if (!PROVIDERS.some((p) => p.id === provider)) redirect("/settings?tab=admin&error=Unknown+provider");
   setSetting("ai_provider", provider);
   setSetting("ai_model", s(form, "model"));
   setSetting("ai_base_url", s(form, "base_url"));
   if (s(form, "api_key")) setSetting("ai_api_key", s(form, "api_key"));
   if (form.get("clear_key")) setSetting("ai_api_key", "");
-  redirect("/admin?ok=AI+settings+saved");
+  redirect("/settings?tab=admin&ok=AI+settings+saved");
 }
 
 export async function adminUser(form: FormData) {
   const admin = await requireAdmin();
   const uid = n(form, "user_id");
-  if (uid === admin.id) redirect("/admin?error=You+can't+change+your+own+admin+account+here");
+  if (uid === admin.id) redirect("/settings?tab=admin&error=You+can't+change+your+own+admin+account+here");
   const action = s(form, "action");
   if (action === "delete") run("DELETE FROM users WHERE id = ?", uid);
   if (action === "toggle-admin") run("UPDATE users SET is_admin = 1 - is_admin WHERE id = ?", uid);
   if (action === "reset-2fa") run("UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?", uid);
-  redirect("/admin?ok=Done");
+  redirect("/settings?tab=admin&ok=Done");
 }
+

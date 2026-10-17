@@ -89,3 +89,22 @@ export const adapters: Partial<Record<StoreKey, (html: string) => Parsed>> = {
     };
   },
 };
+
+// Search links for AI ideas: real store searches are better than links a model might invent.
+const SEARCH: Record<string, (q: string) => string> = {
+  amazon: (q) => `https://www.amazon.com/s?k=${q}`,
+  walmart: (q) => `https://www.walmart.com/search?q=${q}`,
+  target: (q) => `https://www.target.com/s?searchTerm=${q}`,
+  kohls: (q) => `https://www.kohls.com/search.jsp?search=${q}`,
+  bestbuy: (q) => `https://www.bestbuy.com/site/searchpage.jsp?st=${q}`,
+  etsy: (q) => `https://www.etsy.com/search?q=${q}`,
+  lego: (q) => `https://www.lego.com/en-us/search?q=${q}`,
+};
+
+export const SEARCH_STORES = ["Amazon", "Walmart", "Target", "Kohl's", "Best Buy", "Etsy", "LEGO"];
+
+export function storeSearch(store: string | undefined, query: string): { store: string; url: string } {
+  const norm = (v: string) => v.toLowerCase().replace(/[^a-z]/g, "");
+  const hit = STORES.find((x) => norm(x.name) === norm(store ?? "")) ?? STORES[0];
+  return { store: hit.name, url: SEARCH[hit.key]?.(encodeURIComponent(query.trim())) ?? "" };
+}

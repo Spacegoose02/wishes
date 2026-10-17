@@ -13,7 +13,10 @@ export default async function SharedPage() {
   }
   return (
     <>
-      <h1>Family lists</h1>
+      <div className="section-head">
+        <h1 style={{ margin: 0 }}>Family lists</h1>
+        <Link href="/purchases" className="btn small secondary">🛍️ What I&apos;ve bought</Link>
+      </div>
       <p className="muted">Lists your families shared with you. Claim a gift so nobody doubles up; the list owner won&apos;t see it.</p>
       {lists.length === 0 && (
         <div className="card empty"><div className="big">🏡</div>Nothing shared yet. <Link href="/families">Join or create a family</Link> to see their lists.</div>

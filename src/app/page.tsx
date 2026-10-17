@@ -36,6 +36,13 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
         </div>
       )}
 
+      {lists.some((l) => l.owner_user_id !== user.id) && (
+        <section className="section">
+          <div className="section-head"><h2 style={{ margin: 0 }}>🤝 Lists I help manage</h2></div>
+          <div className="grid">{lists.filter((l) => l.owner_user_id !== user.id).map((l) => <ListCard key={l.id} list={l} showOwner />)}</div>
+        </section>
+      )}
+
       {profiles.map((p) => {
         const pl = lists.filter((l) => l.profile_id === p.id);
         return (

@@ -9,6 +9,7 @@ export type User = {
   totp_secret: string | null;
   totp_enabled: number;
   is_admin: number;
+  unlocked_avatars: string;
   created_at: number;
 };
 
@@ -39,6 +40,7 @@ export type WishList = {
   occasion: string;
   event_date: string | null;
   visibility: Visibility;
+  review_purchases: number;
   created_at: number;
 };
 
@@ -59,6 +61,10 @@ export type Item = {
   purchased: number;
   price_checked_at: number | null;
   created_by_guest: string | null;
+  category: string;
+  variant: string;
+  color: string;
+  size: string;
   created_at: number;
 };
 
@@ -70,5 +76,23 @@ export type Suggestion = {
   url: string;
   est_price_cents: number | null;
   source: string;
+  store: string;
+  category: string;
   status: "pending" | "accepted" | "rejected";
+};
+
+export type Purchase = {
+  id: number;
+  item_id: number | null;
+  list_id: number;
+  item_title: string;
+  buyer_user_id: number | null;
+  buyer_name: string;
+  quantity: number;
+  price_cents: number | null;
+  store: string;
+  note: string;
+  status: "confirmed" | "pending" | "rejected";
+  reviewed_by: number | null;
+  created_at: number;
 };

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { getList } from "@/lib/access";
+import { familyPeople, getList, isManager } from "@/lib/access";
 import { all } from "@/lib/db";
-import { addGuest, removeGuest } from "../../../actions/app";
+import { addGuest, quickHide, removeGuest } from "../../../actions/app";
+import { Avatar } from "@/components/Avatar";
 import { CopyButton } from "@/components/CopyButton";
 import { Flash, type SP } from "@/components/Flash";
 
@@ -16,7 +17,9 @@ const VIS: Record<string, string> = {
 export default async function SharePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SP }) {
   const user = await requireUser();
   const list = getList(Number((await params).id));
-  if (!list || list.owner_user_id !== user.id) notFound();
+  if (!list || !isManager(user.id, list)) notFound();
+  const people = familyPeople(list.owner_user_id).filter((p) => p.id !== user.id);
+  const hidden = new Set(all<{ user_id: number }>("SELECT user_id FROM list_hidden_users WHERE list_id = ?", list.id).map((r) => r.user_id));
   const guests = all<{ id: number; email: string; token: string; can_edit: number }>(
     "SELECT * FROM list_guests WHERE list_id = ? ORDER BY created_at", list.id,
   );
@@ -29,6 +32,30 @@ export default async function SharePage({ params, searchParams }: { params: Prom
         <h2>Families</h2>
         <p className="muted">{VIS[list.visibility]}</p>
         <Link href={`/lists/${list.id}/edit`} className="btn small secondary">Change who can see it</Link>
+      </div>
+      <div className="card stack">
+        <h2>Hide from specific people</h2>
+        <p className="small muted" style={{ margin: 0 }}>
+          Keep this list away from someone even though they&apos;re in your family, like a partner you&apos;re shopping for or the kids.
+        </p>
+        {people.length === 0 && <p className="small muted" style={{ margin: 0 }}>Nobody else is in your families yet.</p>}
+        {people.map((p) => {
+          const isHidden = hidden.has(p.id);
+          return (
+            <div key={p.id} className="row between">
+              <span className="row" style={{ gap: 8 }}>
+                <Avatar id={p.avatar} size={30} /> {p.name}
+                {isHidden && <span className="pill">🙈 Hidden</span>}
+              </span>
+              <form action={quickHide}>
+                <input type="hidden" name="list_id" value={list.id} />
+                <input type="hidden" name="user_id" value={p.id} />
+                <input type="hidden" name="action" value={isHidden ? "unhide" : "hide"} />
+                <button className={`btn small ${isHidden ? "secondary" : "ghost"}`}>{isHidden ? "Let them see it" : "Hide from them"}</button>
+              </form>
+            </div>
+          );
+        })}
       </div>
       <div className="card stack">
         <h2>Guests without an account</h2>

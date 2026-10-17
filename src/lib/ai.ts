@@ -1,6 +1,8 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { getSetting } from "./db";
+import { CATEGORIES } from "./categories";
+import { SEARCH_STORES } from "./scrape/stores";
 
 // Optional AI gift ideas. Every provider returns plain suggestions that are stored for
 // review; nothing is ever added to a list automatically.
@@ -35,7 +37,7 @@ export function aiEnabled(): boolean {
   return c.provider !== "none" && (!meta.needsKey || !!c.apiKey);
 }
 
-export type Idea = { title: string; reason: string; est_price?: number };
+export type Idea = { title: string; reason: string; est_price?: number; store?: string; search?: string; category?: string };
 
 export type IdeaContext = {
   listTitle: string;
@@ -53,7 +55,8 @@ function prompt(ctx: IdeaContext): string {
     ctx.existing.length ? `Items already on the list:\n- ${ctx.existing.slice(0, 40).join("\n- ")}` : "The list is empty so far.",
     ctx.hint ? `Extra guidance from the user: ${ctx.hint}` : "",
     "Suggest things that fit their tastes but are not duplicates. Be specific (brand or product line when helpful).",
-    'Reply with only JSON in this shape: {"ideas":[{"title":"...","reason":"one short sentence","est_price":25}]}',
+    `For each idea pick the store most likely to carry it from: ${SEARCH_STORES.join(", ")}. Give a short search phrase that finds it there, and a category id from: ${CATEGORIES.map((c) => c.id).join(", ")}.`,
+    'Reply with only JSON in this shape: {"ideas":[{"title":"...","reason":"one short sentence","est_price":25,"store":"Target","search":"lego botanical bonsai 10281","category":"toys"}]}',
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -66,7 +69,14 @@ function parseIdeas(text: string): Idea[] {
   return (data.ideas ?? [])
     .filter((i) => i && typeof i.title === "string" && i.title.trim())
     .slice(0, 10)
-    .map((i) => ({ title: i.title.trim().slice(0, 200), reason: String(i.reason ?? "").slice(0, 400), est_price: Number(i.est_price) || undefined }));
+    .map((i) => ({
+      title: i.title.trim().slice(0, 200),
+      reason: String(i.reason ?? "").slice(0, 400),
+      est_price: Number(i.est_price) || undefined,
+      store: typeof i.store === "string" ? i.store.slice(0, 40) : undefined,
+      search: typeof i.search === "string" ? i.search.slice(0, 120) : undefined,
+      category: typeof i.category === "string" ? i.category : undefined,
+    }));
 }
 
 async function openAiCompatible(c: AiConfig, text: string): Promise<string> {

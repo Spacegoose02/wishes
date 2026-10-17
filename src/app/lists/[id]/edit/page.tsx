@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { familyPeople, getList, myProfiles, shareableFamilies } from "@/lib/access";
+import { familyPeople, getList, isManager, myProfiles, shareableFamilies } from "@/lib/access";
 import { all } from "@/lib/db";
 import { deleteList, updateList } from "../../../actions/app";
 import { EmojiPicker } from "@/components/EmojiPicker";
@@ -11,10 +11,12 @@ import { Flash, type SP } from "@/components/Flash";
 export default async function EditListPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SP }) {
   const user = await requireUser();
   const list = getList(Number((await params).id));
-  if (!list || list.owner_user_id !== user.id) notFound();
-  const families = shareableFamilies(user.id);
-  const people = familyPeople(user.id);
-  const profiles = myProfiles(user.id);
+  if (!list || !isManager(user.id, list)) notFound();
+  const mainOwner = list.owner_user_id === user.id;
+  const families = shareableFamilies(list.owner_user_id);
+  const people = familyPeople(list.owner_user_id);
+  const profiles = myProfiles(list.owner_user_id);
+  const owners = new Set(all<{ user_id: number }>("SELECT user_id FROM list_owners WHERE list_id = ?", list.id).map((r) => r.user_id));
   const chosen = new Set(all<{ family_id: number }>("SELECT family_id FROM list_families WHERE list_id = ?", list.id).map((r) => r.family_id));
   const hidden = new Set(all<{ user_id: number }>("SELECT user_id FROM list_hidden_users WHERE list_id = ?", list.id).map((r) => r.user_id));
 
@@ -28,7 +30,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
         <div className="card stack">
           <label>List name<input name="title" defaultValue={list.title} required /></label>
           <label>For
-            <select name="profile_id" defaultValue={list.profile_id}>
+            <select name="profile_id" defaultValue={list.profile_id} disabled={!mainOwner}>
               {profiles.map((p) => <option key={p.id} value={p.id}>{p.is_primary ? `${p.name} (me)` : p.name}</option>)}
             </select>
           </label>
@@ -58,6 +60,31 @@ export default async function EditListPage({ params, searchParams }: { params: P
           )}
         </div>
 
+        <div className="card stack">
+          <h2>Purchases</h2>
+          <label className="inline">
+            <input type="checkbox" name="review_purchases" defaultChecked={!!list.review_purchases} />
+            Review purchases made by people who don&apos;t manage this list
+          </label>
+          <p className="tiny muted" style={{ margin: 0 }}>
+            When someone else marks a gift as bought, it shows as &quot;waiting for review&quot; until a list manager confirms it.
+            {list.profile_is_primary ? " Reviews go to co-owners. You won't see them on your own list, so the surprise stays safe." : ""}
+          </p>
+        </div>
+
+        {mainOwner && people.length > 0 && (
+          <div className="card stack">
+            <h2>Co-owners</h2>
+            <p className="small muted" style={{ margin: 0 }}>Co-owners can add, edit and remove wishes, change sharing, and review purchases. Great for two parents running a kid&apos;s list.</p>
+            {people.map((p) => (
+              <label key={p.id} className="inline">
+                <input type="checkbox" name="owners" value={p.id} defaultChecked={owners.has(p.id)} />
+                <Avatar id={p.avatar} size={26} /> {p.name}
+              </label>
+            ))}
+          </div>
+        )}
+
         {people.length > 0 && (
           <div className="card stack">
             <h2>Hide from specific people</h2>
@@ -73,13 +100,13 @@ export default async function EditListPage({ params, searchParams }: { params: P
         <button className="btn">Save</button>
       </form>
 
-      <form action={deleteList} className="card" style={{ marginTop: 24 }}>
+      {mainOwner && <form action={deleteList} className="card" style={{ marginTop: 24 }}>
         <input type="hidden" name="list_id" value={list.id} />
         <div className="row between">
           <span className="muted small">Deleting removes the list and all its wishes.</span>
           <button className="btn danger small">Delete list</button>
         </div>
-      </form>
+      </form>}
     </div>
   );
 }

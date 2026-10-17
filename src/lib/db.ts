@@ -144,6 +144,45 @@ const MIGRATIONS: string[] = [
   CREATE INDEX idx_lists_profile ON lists(profile_id);
   CREATE INDEX idx_notifications_user ON notifications(user_id, read);
   `,
+  // 2: item details & categories, co-owners, purchases with review, avatar unlocks
+  `
+  ALTER TABLE items ADD COLUMN category TEXT NOT NULL DEFAULT '';
+  ALTER TABLE items ADD COLUMN variant TEXT NOT NULL DEFAULT '';
+  ALTER TABLE items ADD COLUMN color TEXT NOT NULL DEFAULT '';
+  ALTER TABLE items ADD COLUMN size TEXT NOT NULL DEFAULT '';
+  ALTER TABLE suggestions ADD COLUMN store TEXT NOT NULL DEFAULT '';
+  ALTER TABLE suggestions ADD COLUMN category TEXT NOT NULL DEFAULT '';
+  ALTER TABLE lists ADD COLUMN review_purchases INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN unlocked_avatars TEXT NOT NULL DEFAULT '';
+  -- Extra people who can manage a list besides the profile's owner.
+  CREATE TABLE list_owners (
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (list_id, user_id)
+  );
+  CREATE TABLE purchases (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER REFERENCES items(id) ON DELETE SET NULL,
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    item_title TEXT NOT NULL,
+    buyer_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    buyer_name TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    price_cents INTEGER,
+    store TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    -- confirmed | pending (waiting for a list manager) | rejected
+    status TEXT NOT NULL DEFAULT 'confirmed',
+    reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE INDEX idx_purchases_list ON purchases(list_id);
+  CREATE INDEX idx_purchases_item ON purchases(item_id);
+  -- Carry over items already marked bought.
+  INSERT INTO purchases (item_id, list_id, item_title, buyer_user_id, buyer_name, quantity, price_cents, store)
+    SELECT id, list_id, title, claimed_by, COALESCE(claimed_name, 'Someone'), quantity, price_cents, store
+    FROM items WHERE purchased = 1;
+  `,
 ];
 
 function open(): DatabaseSync {

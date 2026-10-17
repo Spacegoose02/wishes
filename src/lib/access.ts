@@ -16,9 +16,10 @@ const LIST_SELECT = `
          (SELECT COUNT(*) FROM items i WHERE i.list_id = l.id) AS item_count
   FROM lists l JOIN profiles p ON p.id = l.profile_id`;
 
-// Visibility rule for a viewer who does not own the list.
+// Visibility rule for a viewer who does not manage the list.
 const VISIBLE_TO = `
   p.user_id != :uid
+  AND NOT EXISTS (SELECT 1 FROM list_owners o WHERE o.list_id = l.id AND o.user_id = :uid)
   AND NOT EXISTS (SELECT 1 FROM list_hidden_users h WHERE h.list_id = l.id AND h.user_id = :uid)
   AND (
     (l.visibility = 'family' AND EXISTS (
@@ -35,8 +36,13 @@ export function myProfiles(userId: number): Profile[] {
   return all<Profile>("SELECT * FROM profiles WHERE user_id = ? ORDER BY is_primary DESC, name", userId);
 }
 
+// Lists the user manages: their own profiles' lists plus lists they co-own.
 export function myLists(userId: number): ListWithOwner[] {
-  return all<ListWithOwner>(`${LIST_SELECT} WHERE p.user_id = ? ORDER BY p.is_primary DESC, p.name, l.created_at DESC`, userId);
+  return all<ListWithOwner>(
+    `${LIST_SELECT} WHERE p.user_id = ? OR l.id IN (SELECT list_id FROM list_owners WHERE user_id = ?)
+     ORDER BY p.user_id != ?, p.is_primary DESC, p.name, l.created_at DESC`,
+    userId, userId, userId,
+  );
 }
 
 export function sharedWithMe(userId: number): ListWithOwner[] {
@@ -52,8 +58,18 @@ export function getList(listId: number): ListWithOwner | undefined {
 
 export type ListAccess = "owner" | "viewer" | "none";
 
+// Managers are the profile's owner plus any co-owners added to the list.
+export function isManager(userId: number, list: ListWithOwner): boolean {
+  return list.owner_user_id === userId || !!get("SELECT 1 FROM list_owners WHERE list_id = ? AND user_id = ?", list.id, userId);
+}
+
+export function listManagers(list: ListWithOwner): number[] {
+  const extra = all<{ user_id: number }>("SELECT user_id FROM list_owners WHERE list_id = ?", list.id).map((r) => r.user_id);
+  return [list.owner_user_id, ...extra.filter((id) => id !== list.owner_user_id)];
+}
+
 export function listAccess(user: User, list: ListWithOwner): ListAccess {
-  if (list.owner_user_id === user.id) return "owner";
+  if (isManager(user.id, list)) return "owner";
   const ok = get(
     `SELECT 1 FROM lists l JOIN profiles p ON p.id = l.profile_id WHERE l.id = ? AND ${visSql}`,
     list.id,
@@ -62,10 +78,10 @@ export function listAccess(user: User, list: ListWithOwner): ListAccess {
   return ok ? "viewer" : "none";
 }
 
-// Owners don't see who claimed what on their own lists (keeps the surprise),
-// but parents do see claims on lists they manage for a kid profile.
-export function ownerSeesClaims(list: ListWithOwner): boolean {
-  return !list.profile_is_primary;
+// Only the person a list is for is kept in the dark about claims and purchases.
+// Parents managing a kid profile, and co-owners, see everything so they can coordinate.
+export function isRecipient(userId: number, list: ListWithOwner): boolean {
+  return !!list.profile_is_primary && list.owner_user_id === userId;
 }
 
 export function myFamilies(userId: number): (Family & { role: string })[] {
@@ -91,7 +107,7 @@ export function shareableFamilies(userId: number): (Family & { connected: number
   );
 }
 
-// People who can currently see lists in the owner's families (for "hide from" picker).
+// People who can currently see lists in the owner's families (for "hide from" and co-owner pickers).
 export function familyPeople(userId: number): Pick<User, "id" | "name" | "avatar">[] {
   return all<Pick<User, "id" | "name" | "avatar">>(
     `SELECT DISTINCT u.id, u.name, u.avatar FROM users u
