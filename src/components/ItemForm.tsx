@@ -38,6 +38,8 @@ export function ItemForm({
       if (i.title) setTitle(i.title);
       if (i.price_cents) setPrice((i.price_cents / 100).toFixed(2));
       if (i.image_url) setImage(i.image_url);
+      // Product details help shoppers (especially grandparents) pick the exact right thing.
+      if (i.description) setNotes((n) => n || i.description!.replace(/\s+/g, " ").trim().slice(0, 300));
       setStore(i.store);
       if (i.blocked) return setMsg(`${i.store} didn't let us peek at that page. Fill in the name and price yourself; the link is saved.`);
       setMsg(i.price_cents ? `Found it at ${i.store}!` : `Got what ${i.store} would share. Add the price yourself if it's missing.`);
