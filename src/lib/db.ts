@@ -1,0 +1,210 @@
+import "server-only";
+import { DatabaseSync } from "node:sqlite";
+import fs from "node:fs";
+import path from "node:path";
+
+// Single SQLite file under DATA_DIR (mount /data in Docker / Unraid appdata).
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+
+const MIGRATIONS: string[] = [
+  // 1: core schema
+  `
+  CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    name TEXT NOT NULL,
+    password_hash TEXT,
+    oidc_sub TEXT UNIQUE,
+    avatar TEXT NOT NULL DEFAULT 'raccoon',
+    theme TEXT NOT NULL DEFAULT 'system',
+    totp_secret TEXT,
+    totp_enabled INTEGER NOT NULL DEFAULT 0,
+    is_admin INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE TABLE sessions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    pending_2fa INTEGER NOT NULL DEFAULT 0,
+    expires_at INTEGER NOT NULL
+  );
+  -- A user owns one or more profiles (themselves, plus e.g. kids without accounts).
+  CREATE TABLE profiles (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    avatar TEXT NOT NULL DEFAULT 'goose',
+    is_primary INTEGER NOT NULL DEFAULT 0,
+    birthday TEXT,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE TABLE families (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    invite_code TEXT NOT NULL UNIQUE,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE TABLE family_members (
+    family_id INTEGER NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'member',
+    PRIMARY KEY (family_id, user_id)
+  );
+  -- Connected families (e.g. grandparents' household) that lists can be shared with.
+  CREATE TABLE family_links (
+    family_a INTEGER NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+    family_b INTEGER NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+    PRIMARY KEY (family_a, family_b)
+  );
+  CREATE TABLE lists (
+    id INTEGER PRIMARY KEY,
+    profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    emoji TEXT NOT NULL DEFAULT '🎁',
+    occasion TEXT NOT NULL DEFAULT '',
+    event_date TEXT,
+    -- private: only owner | family: all of owner's families | custom: chosen families
+    visibility TEXT NOT NULL DEFAULT 'family',
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE TABLE list_families (
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    family_id INTEGER NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+    PRIMARY KEY (list_id, family_id)
+  );
+  CREATE TABLE list_hidden_users (
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (list_id, user_id)
+  );
+  -- Whitelisted emails that can edit through a secret link, no account needed.
+  CREATE TABLE list_guests (
+    id INTEGER PRIMARY KEY,
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    email TEXT NOT NULL COLLATE NOCASE,
+    token TEXT NOT NULL UNIQUE,
+    can_edit INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    UNIQUE (list_id, email)
+  );
+  CREATE TABLE items (
+    id INTEGER PRIMARY KEY,
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL DEFAULT '',
+    store TEXT NOT NULL DEFAULT '',
+    price_cents INTEGER,
+    currency TEXT NOT NULL DEFAULT 'USD',
+    image_url TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    priority INTEGER NOT NULL DEFAULT 2,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    claimed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    claimed_name TEXT,
+    purchased INTEGER NOT NULL DEFAULT 0,
+    price_checked_at INTEGER,
+    created_by_guest TEXT,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE TABLE price_history (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    price_cents INTEGER NOT NULL,
+    store TEXT NOT NULL DEFAULT '',
+    checked_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  -- AI ideas land here for review; nothing is auto-added to a list.
+  CREATE TABLE suggestions (
+    id INTEGER PRIMARY KEY,
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    url TEXT NOT NULL DEFAULT '',
+    est_price_cents INTEGER,
+    source TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE TABLE notifications (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    message TEXT NOT NULL,
+    link TEXT NOT NULL DEFAULT '',
+    read INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE TABLE settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+  CREATE INDEX idx_items_list ON items(list_id);
+  CREATE INDEX idx_lists_profile ON lists(profile_id);
+  CREATE INDEX idx_notifications_user ON notifications(user_id, read);
+  `,
+];
+
+function open(): DatabaseSync {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const db = new DatabaseSync(path.join(DATA_DIR, "wishes.db"));
+  db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
+  const version = () => (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+  if (version() < MIGRATIONS.length) {
+    // IMMEDIATE takes the write lock up front, so concurrent processes migrate one at a time.
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      for (let v = version(); v < MIGRATIONS.length; v++) {
+        db.exec(MIGRATIONS[v]);
+        db.exec(`PRAGMA user_version = ${v + 1}`);
+      }
+      db.exec("COMMIT");
+    } catch (e) {
+      db.exec("ROLLBACK");
+      throw e;
+    }
+  }
+  return db;
+}
+
+// Opened lazily (so builds don't touch it) and reused across hot reloads in dev.
+const g = globalThis as unknown as { __wishesDb?: DatabaseSync };
+function conn(): DatabaseSync {
+  return g.__wishesDb ?? (g.__wishesDb = open());
+}
+
+type Param = string | number | bigint | null | Uint8Array;
+
+export function get<T>(sql: string, ...params: Param[]): T | undefined {
+  return conn().prepare(sql).get(...params) as T | undefined;
+}
+export function all<T>(sql: string, ...params: Param[]): T[] {
+  return conn().prepare(sql).all(...params) as T[];
+}
+export function run(sql: string, ...params: Param[]) {
+  return conn().prepare(sql).run(...params);
+}
+export function tx<T>(fn: () => T): T {
+  const db = conn();
+  db.exec("BEGIN");
+  try {
+    const r = fn();
+    db.exec("COMMIT");
+    return r;
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+}
+
+export function getSetting(key: string): string | undefined {
+  return get<{ value: string }>("SELECT value FROM settings WHERE key = ?", key)?.value;
+}
+export function setSetting(key: string, value: string) {
+  run(
+    "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    key,
+    value,
+  );
+}

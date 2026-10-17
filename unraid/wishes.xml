@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>wishes</Name>
+  <Repository>wishes:latest</Repository>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Overview>Wishes: self-hosted family wishlists for kids and adults. Families, shared and hidden lists, gift claiming, link autofill from Amazon/Walmart/Target/Kohl's, price-drop alerts, OIDC and 2FA, optional AI gift ideas.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <Icon>https://raw.githubusercontent.com/Spacegoose02/wishes/main/public/icon.svg</Icon>
+  <Config Name="Web UI Port" Target="3000" Default="3000" Mode="tcp" Description="Web interface port" Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/wishes" Mode="rw" Description="Database and settings" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/wishes</Config>
+  <Config Name="App URL" Target="APP_URL" Default="" Mode="" Description="Public URL, e.g. https://wishes.example.com (needed for OIDC redirects)" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Allow sign-up" Target="ALLOW_SIGNUP" Default="true" Mode="" Description="Let anyone with the URL create an account (first user is always admin)" Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="OIDC issuer" Target="OIDC_ISSUER" Default="" Mode="" Description="e.g. https://auth.example.com for Tinyauth, Authelia, Authentik, Pocket ID" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="OIDC client ID" Target="OIDC_CLIENT_ID" Default="" Mode="" Description="" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="OIDC client secret" Target="OIDC_CLIENT_SECRET" Default="" Mode="" Description="" Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="OIDC button name" Target="OIDC_NAME" Default="Single sign-on" Mode="" Description="Label on the sign-in button" Type="Variable" Display="advanced" Required="false" Mask="false">Single sign-on</Config>
+  <Config Name="Trusted email header" Target="TRUSTED_EMAIL_HEADER" Default="" Mode="" Description="Forward-auth header with the user's email (e.g. Remote-Email). Only set if Wishes is reachable solely through your proxy." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Price check hours" Target="PRICE_CHECK_HOURS" Default="24" Mode="" Description="How often each linked item's price is re-checked for deal alerts (0 = off)" Type="Variable" Display="advanced" Required="false" Mask="false">24</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+</Container>

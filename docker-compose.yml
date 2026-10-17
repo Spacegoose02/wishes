@@ -1,0 +1,18 @@
+services:
+  wishes:
+    build: .
+    image: wishes:latest
+    container_name: wishes
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    environment:
+      TZ: America/New_York
+      APP_URL: http://localhost:3000
+      # ALLOW_SIGNUP: "false"
+      # OIDC_ISSUER: https://auth.example.com
+      # OIDC_CLIENT_ID: wishes
+      # OIDC_CLIENT_SECRET: change-me
+      # OIDC_NAME: Tinyauth

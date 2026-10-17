@@ -1,0 +1,9 @@
+{
+  "name": "Wishes",
+  "short_name": "Wishes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fdfaf4",
+  "theme_color": "#ff7a59",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
