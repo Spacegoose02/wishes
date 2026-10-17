@@ -277,7 +277,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         <button className="btn small ghost">✔ I got this myself</button>
                       </form>
                     )}
-                    {showClaims && remaining > 0 && (!it.claimed_by || claimedByMe || owner) && (
+                    {showClaims && remaining > 0 && (
                       <details className="buy" style={{ gridColumn: "1 / -1" }}>
                         <summary className="small" style={{ cursor: "pointer", fontWeight: 700, color: "var(--accent)" }}>🛍️ I bought this</summary>
                         <form action={recordPurchase} className="form-grid" style={{ marginTop: 10 }}>

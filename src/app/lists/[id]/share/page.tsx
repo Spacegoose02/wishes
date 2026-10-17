@@ -60,7 +60,7 @@ export default async function SharePage({ params, searchParams }: { params: Prom
       <div className="card stack">
         <h2>Guests without an account</h2>
         <p className="small muted" style={{ margin: 0 }}>
-          Add someone&apos;s email to make a private link just for them. With editing on, they can add and remove wishes (great for a grandparent helping a kid), but they never see who&apos;s buying what.
+          Add someone&apos;s email to make a private link just for them. With editing on, they can add and remove wishes (great for a grandparent helping a kid), and they can mark gifts they bought. They see what&apos;s already bought so nobody doubles up, but not who bought it.
         </p>
         <form action={addGuest} className="row" style={{ alignItems: "flex-end" }}>
           <input type="hidden" name="list_id" value={list.id} />
