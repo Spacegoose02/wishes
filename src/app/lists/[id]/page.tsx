@@ -112,6 +112,9 @@ export default async function ListPage({ params, searchParams }: { params: Param
               <span className="row" style={{ gap: 6 }}>
                 <Avatar id={list.profile_avatar} size={24} />
                 <span className="small" style={{ fontWeight: 700 }}>{list.profile_name}</span>
+                {owner && !list.profile_is_primary && (
+                  <Link href={`/settings?tab=profiles&edit=${list.profile_id}#profile-${list.profile_id}`} className="tiny" title="Edit name, birthday or critter">✏️ edit</Link>
+                )}
               </span>
               {list.occasion && <span className="pill accent">{list.occasion}</span>}
               {days !== undefined && days >= 0 && <span className="pill good">{days === 0 ? "Today!" : `${days} days to go`}</span>}

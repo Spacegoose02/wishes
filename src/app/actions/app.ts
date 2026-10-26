@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { all, get, run, setSetting, tx } from "@/lib/db";
 import { requireAdmin, requireUser } from "@/lib/auth";
-import { getList, isManager, isRecipient, listAccess, listManagers, shareableFamilies, familyPeople } from "@/lib/access";
+import { canEditProfile, getList, isManager, isRecipient, listAccess, listManagers, shareableFamilies, familyPeople } from "@/lib/access";
 import { randomToken } from "@/lib/crypto";
 import { fetchProduct, normalizeUrl, type ProductInfo } from "@/lib/scrape";
 import { storeFromHost, storeSearch } from "@/lib/scrape/stores";
@@ -56,22 +56,55 @@ function setHiddenUsers(listId: number, ownerId: number, ids: number[]) {
 
 // ---------- Lists ----------
 
+// "Who is it for?" can be: one of my profiles (p:ID), any profile in my families (p:ID),
+// a family member (u:ID, optionally kept secret from them), or a brand-new name.
 export async function createList(form: FormData) {
   const user = await requireUser();
-  const profile = get<Profile>("SELECT * FROM profiles WHERE id = ? AND user_id = ?", n(form, "profile_id"), user.id);
-  if (!profile) redirect("/lists/new?error=Pick+a+profile");
   const title = s(form, "title");
   if (!title) redirect("/lists/new?error=Give+your+list+a+name");
+  const target = s(form, "for");
+  const newName = s(form, "new_name").slice(0, 60);
+  const secret = !!form.get("secret");
+  const people = familyPeople(user.id);
   const vis = ["private", "family"].includes(s(form, "visibility")) ? s(form, "visibility") : "family";
+
   const id = tx(() => {
+    let profile: Profile | undefined;
+    let hideFrom: number[] = form.getAll("hidden").map(Number);
+    if (newName || target === "new") {
+      if (!newName) return 0;
+      const r = run("INSERT INTO profiles (user_id, name, avatar) VALUES (?, ?, ?)", user.id, newName, roll());
+      profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", Number(r.lastInsertRowid));
+    } else if (target.startsWith("u:")) {
+      const other = people.find((p) => p.id === Number(target.slice(2)));
+      if (!other) return 0;
+      if (secret) {
+        // A profile I manage that stands for them, so the list stays out of their view.
+        profile = get<Profile>("SELECT * FROM profiles WHERE user_id = ? AND linked_user_id = ?", user.id, other.id);
+        if (!profile) {
+          const r = run("INSERT INTO profiles (user_id, name, avatar, linked_user_id) VALUES (?, ?, ?, ?)", user.id, other.name, other.avatar, other.id);
+          profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", Number(r.lastInsertRowid));
+        }
+        hideFrom = [...hideFrom, other.id];
+      } else {
+        profile = get<Profile>("SELECT * FROM profiles WHERE user_id = ? AND is_primary = 1", other.id);
+      }
+    } else if (target.startsWith("p:")) {
+      const p = get<Profile>("SELECT * FROM profiles WHERE id = ?", Number(target.slice(2)));
+      if (p && (p.user_id === user.id || people.some((x) => x.id === p.user_id))) profile = p;
+    }
+    if (!profile) return 0;
     const r = run(
       "INSERT INTO lists (profile_id, title, description, emoji, occasion, event_date, visibility) VALUES (?, ?, ?, ?, ?, ?, ?)",
       profile.id, title, s(form, "description"), s(form, "emoji") || "🎁", s(form, "occasion"), s(form, "event_date") || null, vis,
     );
     const listId = Number(r.lastInsertRowid);
-    setHiddenUsers(listId, user.id, form.getAll("hidden").map(Number));
+    // Making a list for someone else's profile makes you a co-owner of it.
+    if (profile.user_id !== user.id) run("INSERT OR IGNORE INTO list_owners (list_id, user_id) VALUES (?, ?)", listId, user.id);
+    setHiddenUsers(listId, user.id, hideFrom);
     return listId;
   });
+  if (!id) redirect("/lists/new?error=" + encodeURIComponent("Pick who the list is for, or type a name"));
   redirect(`/lists/${id}`);
 }
 
@@ -574,15 +607,20 @@ export async function rollAvatar(form: FormData) {
 export async function saveProfile(form: FormData) {
   const user = await requireUser();
   const id = n(form, "profile_id");
-  const name = s(form, "name");
-  if (!name) redirect("/settings?tab=profiles&error=Profiles+need+a+name");
+  const name = s(form, "name").slice(0, 60);
+  const back = s(form, "back").startsWith("/") ? s(form, "back") : "/settings?tab=profiles";
+  const join = back.includes("?") ? "&" : "?";
+  if (!name) redirect(back + join + "error=Profiles+need+a+name");
   const avatar = avatarFor(user, s(form, "avatar"), "goose");
   if (id) {
-    run("UPDATE profiles SET name = ?, avatar = ?, birthday = ? WHERE id = ? AND user_id = ? AND is_primary = 0", name, avatar, s(form, "birthday") || null, id, user.id);
+    const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", id);
+    if (!profile || !canEditProfile(user.id, profile)) redirect(back + join + "error=You+can't+edit+that+profile");
+    if (profile.is_primary) redirect(back + join + "error=Change+your+own+name+on+the+Me+tab");
+    run("UPDATE profiles SET name = ?, avatar = ?, birthday = ? WHERE id = ?", name, avatar, s(form, "birthday") || null, profile.id);
   } else {
     run("INSERT INTO profiles (user_id, name, avatar, birthday) VALUES (?, ?, ?, ?)", user.id, name, avatar, s(form, "birthday") || null);
   }
-  redirect("/settings?tab=profiles&ok=Profile+saved");
+  redirect(back + join + "ok=Profile+saved");
 }
 
 export async function deleteProfile(form: FormData) {

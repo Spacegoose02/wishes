@@ -20,6 +20,7 @@ export type Profile = {
   avatar: string;
   is_primary: number;
   birthday: string | null;
+  linked_user_id: number | null;
 };
 
 export type Family = {

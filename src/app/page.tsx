@@ -52,7 +52,10 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
                 <Avatar id={p.avatar} size={34} />
                 <h2 style={{ margin: 0 }}>{p.is_primary ? "My lists" : `${p.name}'s lists`}</h2>
               </div>
-              <Link href={`/lists/new?profile=${p.id}`} className="btn small secondary">＋ List</Link>
+              <div className="row" style={{ gap: 6 }}>
+                {!p.is_primary && <Link href={`/settings?tab=profiles&edit=${p.id}#profile-${p.id}`} className="btn small ghost">✏️ Edit {p.name}</Link>}
+                <Link href={`/lists/new?profile=${p.id}`} className="btn small secondary">＋ List</Link>
+              </div>
             </div>
             {pl.length ? (
               <div className="grid">{pl.map((l) => <ListCard key={l.id} list={l} />)}</div>

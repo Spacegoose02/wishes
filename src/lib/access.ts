@@ -123,3 +123,24 @@ export function familyPeople(userId: number): Pick<User, "id" | "name" | "avatar
     userId,
   );
 }
+
+export type FamilyProfile = Profile & { owner_name: string };
+
+// Profiles belonging to other people in the user's families (their own and their kids').
+export function familyProfiles(userId: number): FamilyProfile[] {
+  const ids = familyPeople(userId).map((p) => p.id);
+  if (!ids.length) return [];
+  return all<FamilyProfile>(
+    `SELECT p.*, u.name AS owner_name FROM profiles p JOIN users u ON u.id = p.user_id
+     WHERE p.user_id IN (${ids.map(() => "?").join(",")}) ORDER BY p.is_primary DESC, u.name, p.name`,
+    ...ids,
+  );
+}
+
+// A kid profile can be edited by the parent who made it and by anyone in the same family.
+// Grown-ups' own profiles stay theirs alone.
+export function canEditProfile(userId: number, profile: Profile): boolean {
+  if (profile.user_id === userId) return true;
+  if (profile.is_primary) return false;
+  return familyPeople(userId).some((p) => p.id === profile.user_id);
+}

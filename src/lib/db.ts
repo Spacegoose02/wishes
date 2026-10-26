@@ -201,6 +201,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE items ADD COLUMN offers_checked_at INTEGER;
   ALTER TABLE suggestions ADD COLUMN image_url TEXT NOT NULL DEFAULT '';
   `,
+  // 4: a profile you manage can stand for another member (secret idea lists for them)
+  `
+  ALTER TABLE profiles ADD COLUMN linked_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+  `,
 ];
 
 function open(): DatabaseSync {
