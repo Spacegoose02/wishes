@@ -13,8 +13,9 @@ export const AVATARS = [
 ] as const;
 
 export const SPACE_GOOSE = "space-goose";
-// The gift helper's own face in chat.
+// Bandit, the gift helper's own face in chat.
 export const GIFT_RACCOON = "gift-raccoon";
+export const AGENT_NAME = "Bandit";
 
 const BGS = ["#cfe8ff", "#d8f5d0", "#ffe3e3", "#fff1d6", "#e7e0ff", "#ffe8f3", "#d6f5f2", "#f3f0e6"];
 const RACCOON_FUR = ["#8a8f9c", "#a0785a", "#9aa7c7", "#b79ac8"];
@@ -53,7 +54,7 @@ export function avatarTier(id: string): Tier {
 
 export function avatarLabel(id: string): string {
   if (id === SPACE_GOOSE) return "Space Goose";
-  if (id === GIFT_RACCOON) return "Gift Raccoon";
+  if (id === GIFT_RACCOON) return "Bandit the gift raccoon";
   const p = parseRandom(id);
   if (p) {
     const acc = ACCESSORIES.find((a) => a.id === p.acc)?.label;

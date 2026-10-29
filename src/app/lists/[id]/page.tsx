@@ -132,7 +132,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
               🧾 Purchases{pendingReviews > 0 && <span className="badge">{pendingReviews}</span>}
             </Link>
           )}
-          {aiEnabled() && <Link href={`/lists/${list.id}/chat`} className="btn small">💬 Gift helper</Link>}
+          {aiEnabled() && <Link href={`/chat?list=${list.id}`} className="btn small">🦝 Ask Bandit</Link>}
           {owner && aiEnabled() && (
             <Link href={`/lists/${list.id}/ideas`} className="btn small secondary">
               ✨ Ideas{pendingIdeas > 0 && <span className="badge">{pendingIdeas}</span>}

@@ -322,3 +322,6 @@ details.buy { border-top: 1px dashed var(--border); padding-top: 10px; }
 .about { padding: 12px 16px; }
 .chat-row { display: flex; gap: 8px; align-items: flex-end; align-self: flex-start; max-width: 92%; }
 .chat-row .chat-msg { max-width: 100%; }
+
+.chat-pick { display: inline-flex; gap: 6px; padding: 4px 12px 4px 4px; }
+.chat-pick:hover { text-decoration: none; }

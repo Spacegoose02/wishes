@@ -36,6 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <nav className="nav">
                   <Link href="/">My lists</Link>
                   <Link href="/shared">Family lists</Link>
+                  <Link href="/chat">🦝 Chat</Link>
                   <Link href="/families">Families</Link>
                   <Link href="/notifications">
                     Alerts{unread > 0 && <span className="badge">{unread}</span>}
@@ -49,7 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <nav className="bottomnav">
               <Link href="/"><span className="ico">🎁</span>Mine</Link>
               <Link href="/shared"><span className="ico">👨‍👩‍👧</span>Family</Link>
-              <Link href="/families"><span className="ico">🏡</span>Groups</Link>
+              <Link href="/chat"><span className="ico">🦝</span>Bandit</Link>
               <Link href="/notifications"><span className="ico">🔔</span>Alerts{unread > 0 && <span className="badge">{unread}</span>}</Link>
               <Link href="/settings"><span className="ico">⚙️</span>Me</Link>
             </nav>

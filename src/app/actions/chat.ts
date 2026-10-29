@@ -30,7 +30,7 @@ export async function sendChat(listId: number, text: string): Promise<{ ok: true
   const { user, list, profile } = await context(listId);
   const msg = text.trim().slice(0, 2000);
   if (!msg) return { ok: false, error: "Type a message first." };
-  if (!aiEnabled()) return { ok: false, error: "The gift helper needs AI turned on in Settings → Server." };
+  if (!aiEnabled()) return { ok: false, error: "Bandit needs AI turned on in Settings → Server." };
   run("INSERT INTO chat_messages (list_id, user_id, role, content) VALUES (?, ?, 'user', ?)", list.id, user.id, msg);
   const history = all<ChatTurn>(
     "SELECT role, content FROM (SELECT id, role, content FROM chat_messages WHERE list_id = ? AND user_id = ? ORDER BY id DESC LIMIT 30) ORDER BY id",

@@ -9,7 +9,7 @@ export function AboutProfile({ p, editHref }: { p: Profile; editHref?: string })
   if (age === undefined && !p.likes && !p.dislikes && !sizes && !p.gift_notes) {
     return editHref ? (
       <p className="small muted" style={{ margin: "8px 0 0" }}>
-        <Link href={editHref}>Add {p.name}&apos;s age, likes and sizes</Link> so shoppers and the gift helper can pick better.
+        <Link href={editHref}>Add {p.name}&apos;s age, likes and sizes</Link> so shoppers and Bandit, the gift raccoon, can pick better.
       </p>
     ) : null;
   }

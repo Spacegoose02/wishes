@@ -3,12 +3,12 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { storeSearch } from "@/lib/scrape/stores";
 import type { ChatView } from "@/app/actions/chat";
 import type { ChatIdea, ProfileTip } from "@/lib/giftchat";
-import { Avatar, GIFT_RACCOON } from "./Avatar";
+import { AGENT_NAME, Avatar, GIFT_RACCOON } from "./Avatar";
 
 function Helper({ children }: { children: React.ReactNode }) {
   return (
     <div className="chat-row">
-      <Avatar id={GIFT_RACCOON} size={40} title="Gift Raccoon" />
+      <Avatar id={GIFT_RACCOON} size={40} title={AGENT_NAME} />
       {children}
     </div>
   );
@@ -62,7 +62,9 @@ export function ChatBox({ listId, initial, name, canManage, canEditProfile, acti
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    // Scroll the conversation, not the whole page.
+    const log = end.current?.parentElement;
+    if (log) log.scrollTo({ top: log.scrollHeight, behavior: "smooth" });
   }, [messages, pending]);
 
   function send(text: string) {
@@ -94,7 +96,7 @@ export function ChatBox({ listId, initial, name, canManage, canEditProfile, acti
       <div className="chat-log">
         {messages.length === 0 && (
           <Helper><div className="chat-msg assistant">
-            <p>Hi! I&apos;m Gift Raccoon, your gift helper. Tell me a bit about what {name} is into, or ask me anything, and we&apos;ll find something perfect together.</p>
+            <p>Hi, I&apos;m {AGENT_NAME}! 🦝🎁 I&apos;m a raccoon with a nose for great gifts. Tell me a bit about what {name} is into, or ask me anything, and we&apos;ll find something perfect together.</p>
           </div></Helper>
         )}
         {messages.map((m) => {

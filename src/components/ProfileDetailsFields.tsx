@@ -6,7 +6,7 @@ export function ProfileDetailsFields({ p, showAge = true }: { p?: Partial<Profil
   const sizes = parseSizes(p?.sizes);
   return (
     <fieldset className="stack" style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 12, margin: 0 }}>
-      <legend className="small" style={{ fontWeight: 700, padding: "0 6px" }}>For gift-givers and the gift helper</legend>
+      <legend className="small" style={{ fontWeight: 700, padding: "0 6px" }}>For gift-givers and Bandit 🦝</legend>
       <div className="form-grid">
         {showAge && (
           <label>Age (if no birthday)<input name="age" type="number" min={0} max={120} defaultValue={p?.age ?? ""} placeholder="7" /></label>
