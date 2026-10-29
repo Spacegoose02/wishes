@@ -11,6 +11,7 @@ import { bestMatches, searchStores } from "@/lib/scrape/search";
 import { compareItem } from "@/lib/compare";
 import { formatMoney, parseMoney, ageFrom } from "@/lib/format";
 import { guessCategory, validCategory } from "@/lib/categories";
+import { describeProfile, profileAge, sizesFromForm } from "@/lib/profile";
 import { generateIdeas, PROVIDERS, type AiProvider } from "@/lib/ai";
 import { notify } from "@/lib/prices";
 import type { Item, Profile, User } from "@/lib/types";
@@ -277,6 +278,20 @@ export async function refreshItem(form: FormData) {
     : `${info.store} price: ${formatMoney(info.price_cents)}.`);
 }
 
+// Move a wish (with its purchases and price history) to another list the user manages.
+export async function moveItem(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { user, list: from } = await ownList(item.list_id);
+  const to = getList(n(form, "to_list_id"));
+  if (!to || !isManager(user.id, to)) redirect(`/lists/${from.id}?error=Pick+a+list+you+manage#item-${item.id}`);
+  tx(() => {
+    run("UPDATE items SET list_id = ? WHERE id = ?", to.id, item.id);
+    run("UPDATE purchases SET list_id = ? WHERE item_id = ?", to.id, item.id);
+  });
+  redirect(`/lists/${from.id}?ok=${encodeURIComponent(`Moved to ${to.title}`)}`);
+}
+
 export async function compareStores(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
@@ -447,7 +462,8 @@ export async function requestSuggestions(form: FormData) {
       listTitle: list.title,
       occasion: list.occasion,
       forName: profile.name,
-      age: ageFrom(profile.birthday),
+      age: profileAge(profile),
+      about: describeProfile(profile),
       existing,
       hint: s(form, "hint"),
     });
@@ -579,13 +595,28 @@ export async function disconnectFamily(form: FormData) {
 
 // ---------- Profiles & account ----------
 
+// Age, likes, dislikes, sizes and notes from ProfileDetailsFields.
+function details(form: FormData): [number | null, string, string, string, string] {
+  const age = Number(s(form, "age"));
+  return [
+    s(form, "age") && Number.isFinite(age) && age >= 0 && age <= 120 ? Math.round(age) : null,
+    s(form, "likes").slice(0, 600),
+    s(form, "dislikes").slice(0, 600),
+    sizesFromForm(form),
+    s(form, "gift_notes").slice(0, 600),
+  ];
+}
+
 export async function saveAccount(form: FormData) {
   const user = await requireUser();
   const name = s(form, "name") || user.name;
   const avatar = avatarFor(user, s(form, "avatar"), user.avatar);
   const theme = THEMES.includes(s(form, "theme")) ? s(form, "theme") : user.theme;
   run("UPDATE users SET name = ?, avatar = ?, theme = ? WHERE id = ?", name, avatar, theme, user.id);
-  run("UPDATE profiles SET name = ?, avatar = ?, birthday = ? WHERE user_id = ? AND is_primary = 1", name, avatar, s(form, "birthday") || null, user.id);
+  run(
+    "UPDATE profiles SET name = ?, avatar = ?, birthday = ?, age = ?, likes = ?, dislikes = ?, sizes = ?, gift_notes = ? WHERE user_id = ? AND is_primary = 1",
+    name, avatar, s(form, "birthday") || null, ...details(form), user.id,
+  );
   redirect("/settings?ok=Saved");
 }
 
@@ -616,9 +647,15 @@ export async function saveProfile(form: FormData) {
     const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", id);
     if (!profile || !canEditProfile(user.id, profile)) redirect(back + join + "error=You+can't+edit+that+profile");
     if (profile.is_primary) redirect(back + join + "error=Change+your+own+name+on+the+Me+tab");
-    run("UPDATE profiles SET name = ?, avatar = ?, birthday = ? WHERE id = ?", name, avatar, s(form, "birthday") || null, profile.id);
+    run(
+      "UPDATE profiles SET name = ?, avatar = ?, birthday = ?, age = ?, likes = ?, dislikes = ?, sizes = ?, gift_notes = ? WHERE id = ?",
+      name, avatar, s(form, "birthday") || null, ...details(form), profile.id,
+    );
   } else {
-    run("INSERT INTO profiles (user_id, name, avatar, birthday) VALUES (?, ?, ?, ?)", user.id, name, avatar, s(form, "birthday") || null);
+    run(
+      "INSERT INTO profiles (user_id, name, avatar, birthday, age, likes, dislikes, sizes, gift_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      user.id, name, avatar, s(form, "birthday") || null, ...details(form),
+    );
   }
   redirect(back + join + "ok=Profile+saved");
 }
@@ -647,6 +684,17 @@ export async function saveAiSettings(form: FormData) {
   if (s(form, "api_key")) setSetting("ai_api_key", s(form, "api_key"));
   if (form.get("clear_key")) setSetting("ai_api_key", "");
   redirect("/settings?tab=admin&ok=AI+settings+saved");
+}
+
+export async function saveScrapeSettings(form: FormData) {
+  await requireAdmin();
+  const fsUrl = s(form, "flaresolverr_url");
+  const api = s(form, "scraper_api_url");
+  if (fsUrl && !/^https?:\/\//.test(fsUrl)) redirect("/settings?tab=admin&error=FlareSolverr+URL+should+start+with+http");
+  if (api && !api.includes("{url}")) redirect("/settings?tab=admin&error=Put+{url}+where+the+page+address+goes");
+  setSetting("flaresolverr_url", fsUrl);
+  setSetting("scraper_api_url", api);
+  redirect("/settings?tab=admin&ok=Store+lookup+settings+saved");
 }
 
 export async function adminUser(form: FormData) {

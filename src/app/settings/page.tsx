@@ -7,6 +7,7 @@ import { deleteProfile, rollAvatar, saveAccount, saveProfile } from "../actions/
 import { AvatarPicker, parseCollection } from "@/components/AvatarPicker";
 import { Avatar, avatarLabel, avatarTier, TIER_LABEL } from "@/components/Avatar";
 import { ThemePicker } from "@/components/ThemePicker";
+import { ProfileDetailsFields } from "@/components/ProfileDetailsFields";
 import { SecurityPanel } from "@/components/settings/SecurityPanel";
 import { AdminPanel } from "@/components/settings/AdminPanel";
 import { Flash, type SP } from "@/components/Flash";
@@ -54,6 +55,7 @@ function ProfileCard({ p, open, rolled, collection, canDelete, note }: { p: Prof
           <label>Name<input name="name" defaultValue={p.name} required /></label>
           <label>Birthday<input name="birthday" type="date" defaultValue={p.birthday ?? ""} /></label>
         </div>
+        <ProfileDetailsFields p={p} />
         <AvatarPicker value={p.avatar} collection={collection} />
         <button className="btn">Save profile</button>
       </form>
@@ -111,6 +113,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
               <label>Birthday<input name="birthday" type="date" defaultValue={primary?.birthday ?? ""} /></label>
             </div>
             <p className="small muted" style={{ margin: 0 }}>{user.email}</p>
+            <ProfileDetailsFields p={primary} />
             <div><p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Avatar ({collection.length} rolled)</p><AvatarPicker value={user.avatar} collection={collection} /></div>
             <div><p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Theme</p><ThemePicker value={user.theme} /></div>
             <button className="btn">Save</button>
@@ -133,6 +136,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
                   <label>Name<input name="name" required placeholder="Maya" /></label>
                   <label>Birthday (helps with gift ideas)<input name="birthday" type="date" /></label>
                 </div>
+                <ProfileDetailsFields />
                 <AvatarPicker value="goose" collection={collection} />
                 <button className="btn">Add profile</button>
               </form>

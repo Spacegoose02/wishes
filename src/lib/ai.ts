@@ -40,6 +40,7 @@ export function aiEnabled(): boolean {
 export type Idea = { title: string; reason: string; est_price?: number; store?: string; search?: string; category?: string };
 
 export type IdeaContext = {
+  about?: string;
   listTitle: string;
   occasion: string;
   forName: string;
@@ -51,6 +52,7 @@ export type IdeaContext = {
 function prompt(ctx: IdeaContext): string {
   return [
     `Suggest 6 gift ideas for ${ctx.forName}${ctx.age ? ` (age ${ctx.age})` : ""}.`,
+    ctx.about ? "What the family told us about them:\n" + ctx.about : "",
     `Their wishlist is called "${ctx.listTitle}"${ctx.occasion ? ` for ${ctx.occasion}` : ""}.`,
     ctx.existing.length ? `Items already on the list:\n- ${ctx.existing.slice(0, 40).join("\n- ")}` : "The list is empty so far.",
     ctx.hint ? `Extra guidance from the user: ${ctx.hint}` : "",
@@ -79,57 +81,70 @@ function parseIdeas(text: string): Idea[] {
     }));
 }
 
-async function openAiCompatible(c: AiConfig, text: string): Promise<string> {
-  const res = await fetch(`${c.baseUrl}/chat/completions`, {
+export type ChatTurn = { role: "user" | "assistant"; content: string };
+
+async function openAiCompatible(c: AiConfig, system: string, turns: ChatTurn[]): Promise<string> {
+  const messages = [...(system ? [{ role: "system", content: system }] : []), ...turns];
+  const res = await fetch(c.baseUrl + "/chat/completions", {
     method: "POST",
-    headers: { "content-type": "application/json", ...(c.apiKey ? { authorization: `Bearer ${c.apiKey}` } : {}) },
-    body: JSON.stringify({ model: c.model, messages: [{ role: "user", content: text }] }),
+    headers: { "content-type": "application/json", ...(c.apiKey ? { authorization: "Bearer " + c.apiKey } : {}) },
+    body: JSON.stringify({ model: c.model, messages }),
   });
-  if (!res.ok) throw new Error(`AI request failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error("AI request failed (" + res.status + "): " + (await res.text()).slice(0, 200));
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-async function gemini(c: AiConfig, text: string): Promise<string> {
+async function gemini(c: AiConfig, system: string, turns: ChatTurn[], json: boolean): Promise<string> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(c.model)}:generateContent`,
+    "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(c.model) + ":generateContent",
     {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": c.apiKey },
-      body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { responseMimeType: "application/json" } }),
+      body: JSON.stringify({
+        ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+        contents: turns.map((t) => ({ role: t.role === "assistant" ? "model" : "user", parts: [{ text: t.content }] })),
+        ...(json ? { generationConfig: { responseMimeType: "application/json" } } : {}),
+      }),
     },
   );
-  if (!res.ok) throw new Error(`AI request failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error("AI request failed (" + res.status + "): " + (await res.text()).slice(0, 200));
   const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
   return data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
 }
 
-async function claude(c: AiConfig, text: string): Promise<string> {
+async function claude(c: AiConfig, system: string, turns: ChatTurn[], effort: "low" | "medium"): Promise<string> {
   const client = new Anthropic({ apiKey: c.apiKey });
   const response = await client.messages.create({
     model: c.model,
     max_tokens: 16000,
-    output_config: { effort: "low" },
-    messages: [{ role: "user", content: text }],
+    output_config: { effort },
+    ...(system ? { system } : {}),
+    messages: turns,
   });
   if (response.stop_reason === "refusal") throw new Error("Claude declined this request.");
   return response.content.map((b) => (b.type === "text" ? b.text : "")).join("");
 }
 
-async function complete(text: string): Promise<string> {
+// One entry point for every provider. Single-shot JSON tasks use low effort; chat uses medium.
+export async function converse(system: string, turns: ChatTurn[], opts: { json?: boolean } = {}): Promise<string> {
   const c = aiConfig();
   switch (c.provider) {
     case "anthropic":
-      return claude(c, text);
+      return claude(c, system, turns, opts.json ? "low" : "medium");
     case "gemini":
-      return gemini(c, text);
+      return gemini(c, system, turns, !!opts.json);
     case "openai":
     case "meta":
     case "local":
-      return openAiCompatible(c, text);
+      return openAiCompatible(c, system, turns);
     default:
       throw new Error("AI is turned off. An admin can enable it in Settings → Server.");
   }
+}
+
+async function complete(text: string): Promise<string> {
+  return converse("", [{ role: "user", content: text }], { json: true });
 }
 
 export async function generateIdeas(ctx: IdeaContext): Promise<{ ideas: Idea[]; source: string }> {

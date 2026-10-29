@@ -17,6 +17,10 @@ Self-hosted family wishlists for kids and grown-ups. Raccoons and geese welcome.
 - **Link autofill**: paste a link and Wishes fills name, price, image and store. Generic JSON-LD/OpenGraph parsing works on most shops (Shopify, LEGO, Etsy…), with extra adapters for **Amazon, Walmart, Target, Kohl's**. Stores that block bots (Kohl's and Best Buy often do) fall back gracefully so you fill in details by hand.
 - **Price tracking, store comparison & deal alerts**: linked items are re-checked every `PRICE_CHECK_HOURS`, and each wish is also looked up at **Walmart and Amazon** ("Compare stores"). A 5% drop at the same link, or the same item 10% cheaper at another store, sends an alert to whoever claimed it (or the list's managers). With AI turned on, the model double-checks that store matches are really the same product (pack size, model, not an accessory). Target and Kohl's put their search behind bot walls, so they're link-only.
 - **AI gift ideas (optional)**: Claude, OpenAI, Gemini, Meta Llama API, or a local LLM (Ollama / LM Studio / any OpenAI-compatible endpoint). Ideas land in a **review list** with a store, category and a store search link; nothing is added without a yes. Configure in **Settings → Server**.
+- **Gift helper chat**: a gift-expert AI (with its own Gift Raccoon avatar) that chats about the person, asks good questions, suggests specific real products, and can send them to the review list or remember new likes on the profile. Each person's chat is private to them, and the helper never sees claims or purchases.
+- **About the person**: age (or birthday), loves, things to avoid, clothing/shoe/ring sizes and notes on every profile. Shoppers see them at the top of the list, and the AI uses them for ideas.
+- **Move wishes** between any lists you manage.
+- **Bot-wall helper (optional)**: point Wishes at a FlareSolverr container, or a scraping service, and it will use it for store pages that show a "checking your browser" page. Set it in Settings → Server or with `FLARESOLVERR_URL` / `SCRAPER_API_URL`.
 - **Avatars**: raccoons, geese and friends, plus "Roll a random critter" with Common, Rare and Epic accessories. **Space Goose** is the Legendary roll. Rolls build a collection.
 - **Themes**: Auto (follows OS dark mode), Sunny, Night, Candy, Forest, Ocean, Arcade. Mobile-first layout with a bottom tab bar, installable as a home-screen app.
 
@@ -46,6 +50,8 @@ All settings are environment variables; see [.env.example](.env.example).
 | `TRUSTED_EMAIL_HEADER` | Forward-auth header with the signed-in email, e.g. `Remote-Email`. Only set this when Wishes is reachable *only* through your proxy. |
 | `DISABLE_PASSWORD_LOGIN` | `true` for SSO-only. |
 | `PRICE_CHECK_HOURS` | Price re-check interval per item (default 24, `0` off). |
+| `FLARESOLVERR_URL` | Optional FlareSolverr endpoint for bot-walled store pages. |
+| `SCRAPER_API_URL` | Optional scraping API, with `{url}` where the page address goes. |
 | `COMPARE_STORES` | `false` stops the background sweep from searching Walmart/Amazon for cheaper matches. |
 | `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY`, `AI_BASE_URL` | Fallbacks for the Admin AI settings. |
 

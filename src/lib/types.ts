@@ -21,6 +21,11 @@ export type Profile = {
   is_primary: number;
   birthday: string | null;
   linked_user_id: number | null;
+  age: number | null;
+  likes: string;
+  dislikes: string;
+  sizes: string;
+  gift_notes: string;
 };
 
 export type Family = {

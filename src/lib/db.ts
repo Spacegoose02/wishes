@@ -205,6 +205,23 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE profiles ADD COLUMN linked_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
   `,
+  // 5: what gift-givers (and the AI) should know about a person, plus gift-chat history
+  `
+  ALTER TABLE profiles ADD COLUMN age INTEGER;
+  ALTER TABLE profiles ADD COLUMN likes TEXT NOT NULL DEFAULT '';
+  ALTER TABLE profiles ADD COLUMN dislikes TEXT NOT NULL DEFAULT '';
+  ALTER TABLE profiles ADD COLUMN sizes TEXT NOT NULL DEFAULT '{}';
+  ALTER TABLE profiles ADD COLUMN gift_notes TEXT NOT NULL DEFAULT '';
+  CREATE TABLE chat_messages (
+    id INTEGER PRIMARY KEY,
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE INDEX idx_chat_list_user ON chat_messages(list_id, user_id);
+  `,
 ];
 
 function open(): DatabaseSync {

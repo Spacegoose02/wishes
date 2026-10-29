@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { getList, isRecipient, listAccess } from "@/lib/access";
+import { canEditProfile, getList, isRecipient, listAccess, myLists } from "@/lib/access";
+import { AboutProfile } from "@/components/AboutProfile";
 import { all, get } from "@/lib/db";
 import { aiEnabled } from "@/lib/ai";
 import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
-import type { Item, Purchase } from "@/lib/types";
-import { addItem, autofill, claimItem, compareStores, deleteItem, recordPurchase, refreshItem, undoPurchase, updateItem } from "../../actions/app";
+import type { Item, Profile, Purchase } from "@/lib/types";
+import { addItem, autofill, claimItem, compareStores, deleteItem, moveItem, recordPurchase, refreshItem, undoPurchase, updateItem } from "../../actions/app";
 import { ItemForm } from "@/components/ItemForm";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
@@ -49,6 +50,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
   if (access === "none") notFound();
   const owner = access === "owner";
   const recipient = isRecipient(user.id, list);
+  const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", list.profile_id);
+  const otherLists = owner ? myLists(user.id).filter((l) => l.id !== list.id) : [];
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().toLowerCase() : "";
   const cat = typeof sp.cat === "string" ? sp.cat : "";
@@ -129,6 +132,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
               🧾 Purchases{pendingReviews > 0 && <span className="badge">{pendingReviews}</span>}
             </Link>
           )}
+          {aiEnabled() && <Link href={`/lists/${list.id}/chat`} className="btn small">💬 Gift helper</Link>}
           {owner && aiEnabled() && (
             <Link href={`/lists/${list.id}/ideas`} className="btn small secondary">
               ✨ Ideas{pendingIdeas > 0 && <span className="badge">{pendingIdeas}</span>}
@@ -139,6 +143,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
         </div>
       </div>
       {list.description && <p className="muted">{list.description}</p>}
+      {profile && <AboutProfile p={profile} editHref={canEditProfile(user.id, profile) ? (profile.is_primary ? "/settings?tab=me" : `/settings?tab=profiles&edit=${profile.id}#profile-${profile.id}`) : undefined} />}
 
       {owner && (
         <details className="card" open={allItems.length === 0} style={{ marginTop: 12 }}>
@@ -310,6 +315,18 @@ export default async function ListPage({ params, searchParams }: { params: Param
                               category: it.category, variant: it.variant, color: it.color, size: it.size,
                             }}
                           />
+                          {otherLists.length > 0 && (
+                            <form action={moveItem} className="row" style={{ marginTop: 12, alignItems: "flex-end" }}>
+                              <Hidden item={it.id} />
+                              <label style={{ flex: 1, minWidth: 200 }}>Move to another list
+                                <select name="to_list_id" defaultValue="">
+                                  <option value="" disabled>Pick a list…</option>
+                                  {otherLists.map((l) => <option key={l.id} value={l.id}>{l.emoji} {l.title} ({l.profile_name})</option>)}
+                                </select>
+                              </label>
+                              <button className="btn small secondary">Move</button>
+                            </form>
+                          )}
                         </div>
                       </details>
                     )}

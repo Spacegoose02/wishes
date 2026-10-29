@@ -16,3 +16,10 @@ services:
       # OIDC_CLIENT_ID: wishes
       # OIDC_CLIENT_SECRET: change-me
       # OIDC_NAME: Tinyauth
+      # FLARESOLVERR_URL: http://flaresolverr:8191
+
+  # Optional: lets Wishes read store pages that show a "checking your browser" wall.
+  # flaresolverr:
+  #   image: ghcr.io/flaresolverr/flaresolverr:latest
+  #   container_name: flaresolverr
+  #   restart: unless-stopped

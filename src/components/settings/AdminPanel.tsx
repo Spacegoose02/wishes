@@ -2,7 +2,8 @@ import { all } from "@/lib/db";
 import { aiConfig, PROVIDERS } from "@/lib/ai";
 import { oidcConfig } from "@/lib/oidc";
 import type { User } from "@/lib/types";
-import { adminUser, saveAiSettings } from "@/app/actions/app";
+import { adminUser, saveAiSettings, saveScrapeSettings } from "@/app/actions/app";
+import { getSetting } from "@/lib/db";
 import { Avatar } from "@/components/Avatar";
 
 export function AdminPanel({ me }: { me: User }) {
@@ -29,6 +30,16 @@ export function AdminPanel({ me }: { me: User }) {
         <label className="inline"><input type="checkbox" name="clear_key" /> Clear saved key</label>
         <p className="tiny muted" style={{ margin: 0 }}>Defaults: Claude {PROVIDERS[1].defaultModel}, OpenAI {PROVIDERS[2].defaultModel}, Gemini {PROVIDERS[3].defaultModel}. Local works with Ollama or LM Studio&apos;s OpenAI-compatible endpoint.</p>
         <button className="btn">Save AI settings</button>
+      </form>
+
+      <form action={saveScrapeSettings} className="card stack">
+        <h2>🧩 Store lookups behind bot walls</h2>
+        <p className="small muted" style={{ margin: 0 }}>
+          Some stores show a &quot;checking your browser&quot; page instead of the product. If you run a FlareSolverr container, Wishes can send those pages through it. A scraping service URL works as a second option.
+        </p>
+        <label>FlareSolverr URL<input name="flaresolverr_url" defaultValue={getSetting("flaresolverr_url") ?? process.env.FLARESOLVERR_URL ?? ""} placeholder="http://192.168.1.10:8191" /></label>
+        <label>Scraping service URL (use {"{url}"} for the page)<input name="scraper_api_url" defaultValue={getSetting("scraper_api_url") ?? process.env.SCRAPER_API_URL ?? ""} placeholder="https://api.example.com/?key=KEY&url={url}" /></label>
+        <button className="btn">Save</button>
       </form>
 
       <section className="card stack">

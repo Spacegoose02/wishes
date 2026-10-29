@@ -1,6 +1,7 @@
 import "server-only";
 import { adapters, storeFromHost } from "./stores";
 import { decodeEntities, parseGeneric } from "./generic";
+import { getSetting } from "../db";
 
 export type ProductInfo = {
   title?: string;
@@ -88,12 +89,60 @@ export async function fetchHtml(url: URL): Promise<{ status: number; html: strin
       last = { status: res.status, html, finalUrl: new URL(res.url || url.toString()) };
       if (!(isBotWall(html) || res.status === 403 || res.status === 503 || res.status === 429)) return last;
     } catch (e) {
-      if (i === order.length - 1 && !last) throw e;
+      if (i === order.length - 1 && !last && !solverConfigured()) throw e;
     } finally {
       clearTimeout(timer);
     }
   }
-  return last!;
+  // Still walled: hand the page to a solver if one is set up.
+  const solved = await viaSolver(url).catch(() => null);
+  if (solved) return solved;
+  if (!last) throw new Error("Couldn't reach that store.");
+  return last;
+}
+
+// --- Bot-wall helpers (optional) ---
+// FLARESOLVERR_URL: a FlareSolverr container (e.g. http://flaresolverr:8191) that loads the page
+// in a real browser and returns the HTML. Works for Cloudflare-style challenges.
+// SCRAPER_API_URL: any scraping API that takes the target URL, with {url} as the placeholder,
+// e.g. https://api.scraperapi.com/?api_key=KEY&url={url}. Tried if FlareSolverr isn't set or fails.
+function solverConfigured(): boolean {
+  return !!(solverUrl() || scraperApiUrl());
+}
+function solverUrl(): string {
+  return (getSetting("flaresolverr_url") || process.env.FLARESOLVERR_URL || "").replace(/\/$/, "");
+}
+function scraperApiUrl(): string {
+  return getSetting("scraper_api_url") || process.env.SCRAPER_API_URL || "";
+}
+
+async function viaSolver(url: URL): Promise<{ status: number; html: string; finalUrl: URL } | null> {
+  const fs = solverUrl();
+  if (fs) {
+    try {
+      const res = await fetch(`${fs}/v1`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ cmd: "request.get", url: url.toString(), maxTimeout: 60000 }),
+        signal: AbortSignal.timeout(70000),
+        cache: "no-store",
+      });
+      const data = (await res.json()) as { status?: string; solution?: { status?: number; response?: string; url?: string } };
+      const html = data.solution?.response ?? "";
+      if (data.status === "ok" && html && !isBotWall(html)) {
+        return { status: data.solution?.status ?? 200, html: html.slice(0, 4_000_000), finalUrl: new URL(data.solution?.url || url.toString()) };
+      }
+    } catch {
+      /* fall through to the scraping API */
+    }
+  }
+  const api = scraperApiUrl();
+  if (api.includes("{url}")) {
+    const res = await fetch(api.replace("{url}", encodeURIComponent(url.toString())), { signal: AbortSignal.timeout(70000), cache: "no-store" });
+    const html = (await res.text()).slice(0, 4_000_000);
+    if (res.ok && !isBotWall(html)) return { status: res.status, html, finalUrl: url };
+  }
+  return null;
 }
 
 export async function fetchProduct(rawUrl: string): Promise<ProductInfo> {

@@ -13,6 +13,8 @@ export const AVATARS = [
 ] as const;
 
 export const SPACE_GOOSE = "space-goose";
+// The gift helper's own face in chat.
+export const GIFT_RACCOON = "gift-raccoon";
 
 const BGS = ["#cfe8ff", "#d8f5d0", "#ffe3e3", "#fff1d6", "#e7e0ff", "#ffe8f3", "#d6f5f2", "#f3f0e6"];
 const RACCOON_FUR = ["#8a8f9c", "#a0785a", "#9aa7c7", "#b79ac8"];
@@ -51,6 +53,7 @@ export function avatarTier(id: string): Tier {
 
 export function avatarLabel(id: string): string {
   if (id === SPACE_GOOSE) return "Space Goose";
+  if (id === GIFT_RACCOON) return "Gift Raccoon";
   const p = parseRandom(id);
   if (p) {
     const acc = ACCESSORIES.find((a) => a.id === p.acc)?.label;
@@ -223,6 +226,35 @@ function SpaceGoose() {
   );
 }
 
+// Raccoon hugging a wrapped present, with a bow on its head.
+function GiftRaccoon() {
+  return (
+    <>
+      <circle cx="50" cy="50" r="50" fill="#ffe8d6" />
+      <circle cx="18" cy="16" r="2" fill="#ffb547" />
+      <circle cx="84" cy="22" r="2.5" fill="#ff7a59" />
+      <circle cx="12" cy="62" r="1.8" fill="#d946ef" />
+      <RaccoonBody />
+      <rect x="30" y="78" width="40" height="26" rx="4" fill="#ff5470" />
+      <rect x="46" y="78" width="8" height="26" fill="#ffd23f" />
+      <rect x="30" y="86" width="40" height="6" fill="#ffd23f" />
+      <ellipse cx="24" cy="86" rx="7" ry="6" fill="#8a8f9c" />
+      <ellipse cx="76" cy="86" rx="7" ry="6" fill="#8a8f9c" />
+    </>
+  );
+}
+
+function GiftBow() {
+  return (
+    <g>
+      <path d="M50 22 L37 13 Q33 22 37 29 Z" fill="#ff5470" />
+      <path d="M50 22 L63 13 Q67 22 63 29 Z" fill="#ff5470" />
+      <circle cx="50" cy="22" r="4.5" fill="#e8364f" />
+      <path d="M50 79 L42 72 Q41 78 44 80 Z M50 79 L58 72 Q59 78 56 80 Z" fill="#ffd23f" />
+    </g>
+  );
+}
+
 function Helmet() {
   return (
     <g>
@@ -318,6 +350,9 @@ export function Avatar({ id, size = 40, title }: { id: string; size?: number; ti
   if (id === SPACE_GOOSE) {
     body = <SpaceGoose />;
     extra = <Helmet />;
+  } else if (id === GIFT_RACCOON) {
+    body = <GiftRaccoon />;
+    extra = <GiftBow />;
   } else if (p) {
     body = (
       <>
