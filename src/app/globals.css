@@ -425,6 +425,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   .menu-pop { left: auto; right: 0; transform-origin: top right; }
 }
 
+/* Progress bars (group gifts, budgets) */
+.progress { height: 10px; border-radius: 999px; background: var(--bg-2); overflow: hidden; }
+.progress > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.4s ease; }
+.progress.over > span { background: var(--bad); }
+
 /* Utilities (keep last so they win over component rules) */
 .m0 { margin: 0; }
 .mt-4 { margin-top: 4px; } .mt-6 { margin-top: 6px; } .mt-8 { margin-top: 8px; } .mt-10 { margin-top: 10px; }

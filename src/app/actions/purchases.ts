@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { get, run } from "@/lib/db";
 import { isManager, isRecipient, listManagers } from "@/lib/access";
-import { parseMoney } from "@/lib/format";
+import { formatMoney, parseMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
+import { pledgers, setPledge } from "@/lib/pledges";
 import type { Item } from "@/lib/types";
 import { s, n, ownList, viewList, recomputePurchased } from "./_shared";
 
@@ -54,4 +55,21 @@ export async function undoPurchase(form: FormData) {
   if (p.item_id) recomputePurchased(p.item_id);
   revalidatePath(`/lists/${list.id}`);
   revalidatePath(`/lists/${list.id}/purchases`);
+}
+
+// Chip in toward a group gift. An empty or zero amount withdraws your pledge.
+export async function pledgeToItem(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { user, list } = await viewList(item.list_id);
+  if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
+  const back = (key: "ok" | "error", msg: string) => redirect(`/lists/${list.id}?${key}=${encodeURIComponent(msg)}#item-${item.id}`);
+  if (!item.price_cents || item.purchased) return back("error", "This wish can't take pledges right now.");
+  const { amount, progress, justFunded } = setPledge(item, user.id, parseMoney(form.get("amount")) ?? 0);
+  if (justFunded) {
+    for (const uid of pledgers(item.id)) {
+      notify(uid, "pledge", `${item.title} is fully funded for ${list.profile_name}! Decide who buys it.`, `/lists/${list.id}#item-${item.id}`);
+    }
+  }
+  back("ok", amount ? `You're chipping in ${formatMoney(amount)}${progress.full ? ". Fully funded!" : ` (${formatMoney(progress.remaining)} to go)`}` : "Pledge withdrawn");
 }

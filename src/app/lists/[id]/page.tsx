@@ -11,7 +11,8 @@ import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
 import { addItem, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, updateItem } from "../../actions/items";
-import { recordPurchase, undoPurchase } from "../../actions/purchases";
+import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
+import { pledgeGoal, pledgeProgress, pledgesForList, type Pledge } from "@/lib/pledges";
 import { ItemForm } from "@/components/ItemForm";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
@@ -43,6 +44,35 @@ function Hidden({ item, action }: { item: number; action?: string }) {
       <input type="hidden" name="item_id" value={item} />
       {action && <input type="hidden" name="action" value={action} />}
     </>
+  );
+}
+
+// Chip-in progress toward one wish, for shoppers only.
+function GroupGift({ item, pledges, userId }: { item: Item; pledges: Pledge[]; userId: number }) {
+  const p = pledgeProgress(pledgeGoal(item), pledges);
+  const mine = pledges.find((x) => x.user_id === userId);
+  return (
+    <details className="buy full" open={pledges.length > 0}>
+      <summary className="small pointer fw-700 text-accent">🤝 Group gift{pledges.length > 0 && `: ${formatMoney(p.total)} of ${formatMoney(p.goal)}`}</summary>
+      <div className="progress mt-6" role="progressbar" aria-valuenow={p.pct} aria-valuemin={0} aria-valuemax={100} aria-label="Chipped in so far">
+        <span style={{ width: `${p.pct}%` }} />
+      </div>
+      {pledges.length > 0 && (
+        <p className="tiny muted m0 mt-4">
+          {pledges.map((x) => `${x.user_id === userId ? "You" : x.name} ${formatMoney(x.amount_cents)}`).join(" · ")}
+          {p.full ? " · Fully funded! 🎉" : ` · ${formatMoney(p.remaining)} to go`}
+        </p>
+      )}
+      {(!p.full || mine) && (
+        <form action={pledgeToItem} className="row mt-8 items-end">
+          <Hidden item={item.id} />
+          <label className="grow min-180">{mine ? "Change your pledge (0 to withdraw)" : "Chip in"}
+            <input name="amount" inputMode="decimal" defaultValue={mine ? (mine.amount_cents / 100).toFixed(2) : ""} placeholder={(Math.min(p.remaining, 2000) / 100).toFixed(2)} />
+          </label>
+          <SubmitButton className="btn small secondary">{mine ? "Update" : "Pledge"}</SubmitButton>
+        </form>
+      )}
+    </details>
   );
 }
 
@@ -82,6 +112,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
   );
   const offersByItem = new Map<number, typeof offerRows>();
   for (const o of offerRows) offersByItem.set(o.item_id, [...(offersByItem.get(o.item_id) ?? []), o]);
+  // Pledges are for shoppers; the list's own person never sees them.
+  const pledges = recipient ? [] : pledgesForList(list.id);
   const byItem = new Map<number, Purchase[]>();
   for (const p of purchases) if (p.item_id) byItem.set(p.item_id, [...(byItem.get(p.item_id) ?? []), p]);
 
@@ -311,6 +343,9 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         </form>
                       </details>
                     )}
+                    {showClaims && it.price_cents && (!it.purchased || pledges.some((x) => x.item_id === it.id)) ? (
+                      <GroupGift item={it} pledges={pledges.filter((x) => x.item_id === it.id)} userId={user.id} />
+                    ) : null}
                     {owner && (
                       <details className="full">
                         <summary className="small muted pointer">Edit</summary>

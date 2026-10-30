@@ -222,6 +222,18 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_chat_list_user ON chat_messages(list_id, user_id);
   `,
+  // 6: group gifts (shoppers chip in toward one wish)
+  `
+  CREATE TABLE pledges (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount_cents INTEGER NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    UNIQUE (item_id, user_id)
+  );
+  CREATE INDEX idx_pledges_item ON pledges(item_id);
+  `,
 ];
 
 function open(): DatabaseSync {
