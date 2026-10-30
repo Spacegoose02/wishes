@@ -10,7 +10,8 @@ import { aiEnabled } from "@/lib/ai";
 import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
-import { addItem, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, updateItem } from "../../actions/items";
+import { addItem, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
+import { MAX_MUST_HAVES } from "@/lib/wishes";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
 import { revealOpen } from "@/lib/reveal";
 import { pledgeGoal, pledgeProgress, pledgesForList, type Pledge } from "@/lib/pledges";
@@ -102,6 +103,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const status = !recipient && typeof sp.status === "string" ? sp.status : "";
   const sort = (typeof sp.sort === "string" && sp.sort in SORTS ? sp.sort : "priority") as keyof typeof SORTS;
   const maxPrice = Number(sp.max) || 0;
+  const must = sp.must === "1";
 
   const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? ORDER BY purchased, priority DESC, created_at DESC", list.id);
   // The list's own person only sees what they marked themselves.
@@ -121,6 +123,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   let items = allItems.filter((it) => {
     if (q && !`${it.title} ${it.store} ${it.notes} ${it.color} ${it.variant}`.toLowerCase().includes(q)) return false;
     if (cat && it.category !== cat) return false;
+    if (must && !it.must_have) return false;
     if (maxPrice && (it.price_cents ?? 0) > maxPrice * 100) return false;
     if (status === "available") return !it.claimed_by && !it.purchased;
     if (status === "claimed") return !!it.claimed_by && !it.purchased;
@@ -128,7 +131,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
     return true;
   });
   const cmp: Record<keyof typeof SORTS, (a: Item, b: Item) => number> = {
-    priority: (a, b) => b.priority - a.priority || b.created_at - a.created_at,
+    priority: (a, b) => b.must_have - a.must_have || b.priority - a.priority || b.created_at - a.created_at,
     newest: (a, b) => b.created_at - a.created_at,
     "price-asc": (a, b) => (a.price_cents ?? 1e12) - (b.price_cents ?? 1e12),
     "price-desc": (a, b) => (b.price_cents ?? -1) - (a.price_cents ?? -1),
@@ -144,7 +147,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const pendingReviews = owner && !recipient ? purchases.filter((p) => p.status === "pending").length : 0;
   const days = daysUntil(list.event_date);
   const total = items.reduce((sum, i) => sum + (i.price_cents ?? 0) * i.quantity, 0);
-  const filtered = q || cat || status || maxPrice;
+  const filtered = q || cat || status || maxPrice || must;
+  const mustCount = allItems.filter((i) => i.must_have).length;
   const groups = sort === "category"
     ? [...new Set(items.map((i) => i.category || "other"))].map((c) => ({ key: c, items: items.filter((i) => (i.category || "other") === c) }))
     : [{ key: "", items }];
@@ -201,6 +205,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
 
       {allItems.length > 0 && (
         <form className="card filters" method="get">
+          {must && <input type="hidden" name="must" value="1" />}
           <input name="q" defaultValue={q} placeholder="Search this list" aria-label="Search" />
           <select name="cat" defaultValue={cat} aria-label="Category">
             <option value="">All categories</option>
@@ -221,6 +226,13 @@ export default async function ListPage({ params, searchParams }: { params: Param
           <button className="btn small">Apply</button>
           {filtered ? <Link href={`/lists/${list.id}`} className="btn small ghost">Clear</Link> : null}
         </form>
+      )}
+      {mustCount > 0 && (
+        <div className="row chips gap-6 mt-10">
+          <Link href={must ? `/lists/${list.id}?sort=${sort}` : `/lists/${list.id}?must=1&sort=${sort}`} className={`pill must ${must ? "accent" : ""}`} aria-pressed={must}>
+            ⭐ Must-haves only ({mustCount})
+          </Link>
+        </div>
       )}
       {usedCats.length > 1 && (
         <div className="row chips gap-6 mt-10">
@@ -270,6 +282,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         <span className="item-title">{it.title}</span>
                       )}
                       <div className="row gap-8" style={{ marginTop: 2 }}>
+                        {it.must_have ? <span className="pill must">⭐ Must-have</span> : null}
                         {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents, it.currency)}</span> : null}
                         {it.store && <span className="pill">{it.store}</span>}
                         {it.category && <span className="pill">{categoryIcon(it.category)} {categoryLabel(it.category)}</span>}
@@ -319,6 +332,12 @@ export default async function ListPage({ params, searchParams }: { params: Param
                           <form action={refreshItem}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Checking…">↻ Check price</SubmitButton></form>
                         )}
                         <form action={compareStores}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Comparing…">⚖️ Compare stores</SubmitButton></form>
+                        {owner && (it.must_have || mustCount < MAX_MUST_HAVES) ? (
+                          <form action={toggleMustHave}>
+                            <Hidden item={it.id} action={it.must_have ? "unstar" : "star"} />
+                            <SubmitButton className="menu-item">{it.must_have ? "☆ Not a must-have" : "⭐ Make a must-have"}</SubmitButton>
+                          </form>
+                        ) : null}
                         {owner && (
                           <form action={deleteItem}><Hidden item={it.id} /><SubmitButton className="menu-item danger" confirm="Tap again to remove">🗑️ Remove</SubmitButton></form>
                         )}

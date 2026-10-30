@@ -20,7 +20,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
   if (!guest) notFound();
   const list = getList(guest.list_id);
   if (!list) notFound();
-  const items = all<Item>("SELECT * FROM items WHERE list_id = ? ORDER BY purchased, priority DESC, created_at DESC", list.id);
+  const items = all<Item>("SELECT * FROM items WHERE list_id = ? ORDER BY purchased, must_have DESC, priority DESC, created_at DESC", list.id);
   const purchases = all<Purchase>("SELECT * FROM purchases WHERE list_id = ? AND status != 'rejected'", list.id);
   const mine = (p: Purchase) => p.buyer_user_id === null && p.buyer_name.toLowerCase() === guest.email.toLowerCase();
   return (
@@ -51,6 +51,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
               <div>
                 {it.url ? <a className="item-title" href={it.url} target="_blank" rel="noopener noreferrer nofollow">{it.title}</a> : <span className="item-title">{it.title}</span>}
                 <div className="row gap-8">
+                  {it.must_have ? <span className="pill must">⭐ Must-have</span> : null}
                   {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents)}</span> : null}
                   {it.store && <span className="pill">{it.store}</span>}
                   <span className="stars" role="img" aria-label={`Wanted ${it.priority} of 3`}>{"★".repeat(it.priority)}</span>

@@ -189,6 +189,8 @@ p { margin: 0 0 0.75em; }
 .list-emoji { font-size: 2rem; line-height: 1; }
 .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; background: var(--bg-2); color: var(--muted); font-size: 0.78rem; font-weight: 700; }
 .pill.accent { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-ink); }
+.pill.must { background: color-mix(in srgb, #f5b301 22%, transparent); color: var(--text); }
+.pill.must.accent { background: #f5b301; color: #2a1d00; }
 .pill.good { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
 
 /* Forms */

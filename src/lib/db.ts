@@ -269,6 +269,10 @@ const MIGRATIONS: string[] = [
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
   );
   `,
+  // 9: must-have gold stars (up to three per list)
+  `
+  ALTER TABLE items ADD COLUMN must_have INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 function open(): DatabaseSync {

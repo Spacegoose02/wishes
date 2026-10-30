@@ -8,6 +8,7 @@ import { fetchProduct, type ProductInfo } from "@/lib/scrape";
 import { compareItem } from "@/lib/compare";
 import { formatMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
+import { setMustHave } from "@/lib/wishes";
 import type { Item } from "@/lib/types";
 import { s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased } from "./_shared";
 
@@ -119,4 +120,13 @@ export async function compareStores(form: FormData) {
   }
   const msg = count ? `Found it at ${count} other store${count === 1 ? "" : "s"}.` : "No close matches at Walmart or Amazon.";
   redirect(`/lists/${list.id}?ok=${encodeURIComponent(msg)}#item-${item.id}`);
+}
+
+export async function toggleMustHave(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { list } = await ownList(item.list_id);
+  const r = setMustHave(item, s(form, "action") === "star");
+  if (!r.ok) redirect(`/lists/${list.id}?error=${encodeURIComponent(r.error)}#item-${item.id}`);
+  revalidatePath(`/lists/${list.id}`);
 }

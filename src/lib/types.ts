@@ -72,6 +72,7 @@ export type Item = {
   color: string;
   size: string;
   offers_checked_at: number | null;
+  must_have: number;
   created_at: number;
 };
 
