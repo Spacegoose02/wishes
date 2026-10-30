@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { canEditProfile, getList, isRecipient, listAccess, myLists } from "@/lib/access";
 import { AboutProfile } from "@/components/AboutProfile";
+import { RenameKid } from "@/components/RenameKid";
 import { all, get } from "@/lib/db";
 import { aiEnabled } from "@/lib/ai";
 import { daysUntil, formatMoney } from "@/lib/format";
@@ -115,8 +116,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
               <span className="row" style={{ gap: 6 }}>
                 <Avatar id={list.profile_avatar} size={24} />
                 <span className="small" style={{ fontWeight: 700 }}>{list.profile_name}</span>
-                {owner && !list.profile_is_primary && (
-                  <Link href={`/settings?tab=profiles&edit=${list.profile_id}#profile-${list.profile_id}`} className="tiny" title="Edit name, birthday or critter">✏️ edit</Link>
+                {profile && !profile.is_primary && canEditProfile(user.id, profile) && (
+                  <RenameKid id={profile.id} name={profile.name} back={`/lists/${list.id}`} />
                 )}
               </span>
               {list.occasion && <span className="pill accent">{list.occasion}</span>}

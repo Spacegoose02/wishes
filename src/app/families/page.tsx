@@ -6,6 +6,7 @@ import {
 } from "../actions/app";
 import { Avatar } from "@/components/Avatar";
 import { CopyButton } from "@/components/CopyButton";
+import { RenameKid } from "@/components/RenameKid";
 import { Flash, type SP } from "@/components/Flash";
 
 type Member = { id: number; name: string; avatar: string; role: string };
@@ -36,9 +37,10 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
         const members = all<Member>(
           "SELECT u.id, u.name, u.avatar, m.role FROM family_members m JOIN users u ON u.id = m.user_id WHERE m.family_id = ? ORDER BY m.role, u.name", f.id,
         );
-        const kids = all<{ name: string; avatar: string; parent: string }>(
-          `SELECT p.name, p.avatar, u.name AS parent FROM profiles p JOIN users u ON u.id = p.user_id
-           JOIN family_members m ON m.user_id = p.user_id WHERE m.family_id = ? AND p.is_primary = 0 ORDER BY p.name`, f.id,
+        // Kid profiles only; stand-in profiles for secret lists stay out of sight.
+        const kids = all<{ id: number; name: string; avatar: string; parent: string }>(
+          `SELECT p.id, p.name, p.avatar, u.name AS parent FROM profiles p JOIN users u ON u.id = p.user_id
+           JOIN family_members m ON m.user_id = p.user_id WHERE m.family_id = ? AND p.is_primary = 0 AND p.linked_user_id IS NULL ORDER BY p.name`, f.id,
         );
         const links = all<{ id: number; name: string }>(
           `SELECT f2.id, f2.name FROM family_links l JOIN families f2 ON f2.id = (CASE WHEN l.family_a = ? THEN l.family_b ELSE l.family_a END)
@@ -82,10 +84,10 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
                     </td>
                   </tr>
                 ))}
-                {kids.map((k, i) => (
-                  <tr key={`k${i}`}>
+                {kids.map((k) => (
+                  <tr key={`k${k.id}`}>
                     <td><span className="row" style={{ gap: 8 }}><Avatar id={k.avatar} size={30} />{k.name}<span className="pill">profile managed by {k.parent}</span></span></td>
-                    <td />
+                    <td style={{ textAlign: "right" }}><RenameKid id={k.id} name={k.name} back="/families" /></td>
                   </tr>
                 ))}
               </tbody>

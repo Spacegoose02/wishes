@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { myLists, myProfiles, myFamilies } from "@/lib/access";
 import { ListCard } from "@/components/ListCard";
+import { RenameKid } from "@/components/RenameKid";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 
@@ -53,7 +54,8 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
                 <h2 style={{ margin: 0 }}>{p.is_primary ? "My lists" : `${p.name}'s lists`}</h2>
               </div>
               <div className="row" style={{ gap: 6 }}>
-                {!p.is_primary && <Link href={`/settings?tab=profiles&edit=${p.id}#profile-${p.id}`} className="btn small ghost">✏️ Edit {p.name}</Link>}
+                {!p.is_primary && <RenameKid id={p.id} name={p.name} back="/" />}
+                {!p.is_primary && <Link href={`/settings?tab=profiles&edit=${p.id}#profile-${p.id}`} className="btn small ghost">Details</Link>}
                 <Link href={`/lists/new?profile=${p.id}`} className="btn small secondary">＋ List</Link>
               </div>
             </div>

@@ -642,11 +642,13 @@ export async function saveProfile(form: FormData) {
   const back = s(form, "back").startsWith("/") ? s(form, "back") : "/settings?tab=profiles";
   const join = back.includes("?") ? "&" : "?";
   if (!name) redirect(back + join + "error=Profiles+need+a+name");
-  const avatar = avatarFor(user, s(form, "avatar"), "goose");
+  let avatar = avatarFor(user, s(form, "avatar"), "goose");
   if (id) {
     const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", id);
     if (!profile || !canEditProfile(user.id, profile)) redirect(back + join + "error=You+can't+edit+that+profile");
     if (profile.is_primary) redirect(back + join + "error=Change+your+own+name+on+the+Me+tab");
+    // Keep the kid's current critter even if it came from another parent's collection.
+    if (s(form, "avatar") === profile.avatar) avatar = profile.avatar;
     run(
       "UPDATE profiles SET name = ?, avatar = ?, birthday = ?, age = ?, likes = ?, dislikes = ?, sizes = ?, gift_notes = ? WHERE id = ?",
       name, avatar, s(form, "birthday") || null, ...details(form), profile.id,
@@ -658,6 +660,19 @@ export async function saveProfile(form: FormData) {
     );
   }
   redirect(back + join + "ok=Profile+saved");
+}
+
+// Quick rename from wherever the kid's name shows; touches nothing but the name.
+export async function renameProfile(form: FormData) {
+  const user = await requireUser();
+  const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", n(form, "profile_id"));
+  const back = s(form, "back").startsWith("/") ? s(form, "back") : "/";
+  const join = back.includes("?") ? "&" : "?";
+  const name = s(form, "name").slice(0, 60);
+  if (!profile || !canEditProfile(user.id, profile) || profile.is_primary) redirect(back + join + "error=You+can't+rename+that+profile");
+  if (!name) redirect(back + join + "error=Names+can't+be+empty");
+  run("UPDATE profiles SET name = ? WHERE id = ?", name, profile.id);
+  redirect(back + join + "ok=" + encodeURIComponent("Renamed to " + name));
 }
 
 export async function deleteProfile(form: FormData) {
