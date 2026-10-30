@@ -23,9 +23,9 @@ export function ageFrom(birthday: string | null): number | undefined {
   return age >= 0 ? age : undefined;
 }
 
-export function daysUntil(date: string | null): number | undefined {
+export function daysUntil(date: string | null, now = Date.now()): number | undefined {
   if (!date) return undefined;
   const d = new Date(date + "T00:00:00");
   if (isNaN(d.getTime())) return undefined;
-  return Math.ceil((d.getTime() - Date.now()) / 86400000);
+  return Math.ceil((d.getTime() - now) / 86400000);
 }

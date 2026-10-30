@@ -256,6 +256,19 @@ const MIGRATIONS: string[] = [
     PRIMARY KEY (exchange_id, user_id)
   );
   `,
+  // 8: thank-you notes after the gifts are opened
+  `
+  CREATE TABLE thanks (
+    id INTEGER PRIMARY KEY,
+    purchase_id INTEGER UNIQUE REFERENCES purchases(id) ON DELETE SET NULL,
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    from_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    sticker TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  `,
 ];
 
 function open(): DatabaseSync {

@@ -6,6 +6,7 @@ import { isManager, isRecipient, listManagers } from "@/lib/access";
 import { formatMoney, parseMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
 import { pledgers, setPledge } from "@/lib/pledges";
+import { revealOpen, sendThanks } from "@/lib/reveal";
 import type { Item } from "@/lib/types";
 import { s, n, ownList, viewList, recomputePurchased } from "./_shared";
 
@@ -72,4 +73,13 @@ export async function pledgeToItem(form: FormData) {
     }
   }
   back("ok", amount ? `You're chipping in ${formatMoney(amount)}${progress.full ? ". Fully funded!" : ` (${formatMoney(progress.remaining)} to go)`}` : "Pledge withdrawn");
+}
+
+// A sticker and a short note back to whoever gave a gift, once the gifts are opened.
+export async function thankGiver(form: FormData) {
+  const { user, list } = await ownList(n(form, "list_id"));
+  const back = `/lists/${list.id}/reveal`;
+  if (!revealOpen(list)) redirect(`/lists/${list.id}`);
+  const r = sendThanks(list, n(form, "purchase_id"), user.id, s(form, "sticker"), s(form, "note"));
+  redirect(`${back}?${r.ok ? "ok=Thank-you+sent!" : `error=${encodeURIComponent(r.error)}`}`);
 }

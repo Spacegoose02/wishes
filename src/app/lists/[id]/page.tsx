@@ -12,6 +12,7 @@ import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
 import { addItem, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, updateItem } from "../../actions/items";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
+import { revealOpen } from "@/lib/reveal";
 import { pledgeGoal, pledgeProgress, pledgesForList, type Pledge } from "@/lib/pledges";
 import { ItemForm } from "@/components/ItemForm";
 import { Avatar } from "@/components/Avatar";
@@ -177,6 +178,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
               🧾 Purchases{pendingReviews > 0 && <span className="badge">{pendingReviews}</span>}
             </Link>
           )}
+          {owner && revealOpen(list) && <Link href={`/lists/${list.id}/reveal`} className="btn small">🎁 What {recipient ? "I" : "they"} got</Link>}
           {aiEnabled() && <Link href={`/chat?list=${list.id}`} className="btn small">🦝 Ask Bandit</Link>}
           {owner && aiEnabled() && (
             <Link href={`/lists/${list.id}/ideas`} className="btn small secondary">
