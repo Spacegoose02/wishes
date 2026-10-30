@@ -7,6 +7,7 @@ type Tab = { href: string; label: string; icon: string; short: string };
 const TABS: Tab[] = [
   { href: "/", label: "My lists", icon: "🎁", short: "Mine" },
   { href: "/shared", label: "Family lists", icon: "👨‍👩‍👧", short: "Family" },
+  { href: "/purchases", label: "Shopping", icon: "🛍️", short: "Shop" },
   { href: "/chat", label: "Chat", icon: "🦝", short: "Bandit" },
   { href: "/families", label: "Families", icon: "🏡", short: "Families" },
   { href: "/notifications", label: "Alerts", icon: "🔔", short: "Alerts" },
@@ -39,7 +40,7 @@ export function TopNav({ unread, avatar }: { unread: number; avatar: React.React
   );
 }
 
-const BOTTOM = TABS.filter((t) => t.href !== "/families");
+const BOTTOM = TABS.filter((t) => t.href !== "/families" && t.href !== "/purchases");
 
 export function BottomNav({ unread }: { unread: number }) {
   const path = usePathname();

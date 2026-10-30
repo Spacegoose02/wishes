@@ -95,7 +95,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
           <Link key={t.id} href={`/settings?tab=${t.id}`} className={tab === t.id ? "active" : ""}>{t.label}</Link>
         ))}
         <Link href="/families">🏡 Families</Link>
-        <Link href="/purchases">🛍️ My purchases</Link>
+        <Link href="/purchases">🛍️ My shopping</Link>
       </nav>
       <Flash searchParams={searchParams} />
 

@@ -17,7 +17,7 @@ export default async function SharedPage() {
     <>
       <div className="section-head">
         <h1 className="m0">Family lists</h1>
-        <Link href="/purchases" className="btn small secondary">🛍️ What I&apos;ve bought</Link>
+        <Link href="/purchases" className="btn small secondary">🛍️ My shopping</Link>
       </div>
       <p className="muted">Lists your families shared with you. Claim a gift so nobody doubles up; the list owner won&apos;t see it.</p>
       {lists.length === 0 && (
