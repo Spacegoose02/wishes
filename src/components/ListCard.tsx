@@ -10,7 +10,7 @@ export function ListCard({ list, showOwner }: { list: ListWithOwner; showOwner?:
   return (
     <Link href={`/lists/${list.id}`} className="card list-card">
       <div className="row between">
-        <span className="list-emoji">{list.emoji}</span>
+        <span className="list-emoji" aria-hidden="true">{list.emoji}</span>
         {showOwner ? (
           <span className="row" style={{ gap: 6 }}>
             <Avatar id={list.profile_avatar} size={28} />

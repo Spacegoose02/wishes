@@ -21,7 +21,7 @@ export default async function NotificationsPage() {
       </div>
       <p className="muted">Price drops on gifts you&apos;re getting (or on your own wishes), and family news.</p>
       <div className="card">
-        {rows.length === 0 && <div className="empty"><div className="big">🔔</div>All quiet.</div>}
+        {rows.length === 0 && <div className="empty"><div className="big" aria-hidden="true">🔔</div>All quiet.</div>}
         {rows.map((r) => (
           <div key={r.id} className={`notice ${r.read ? "" : "unread"}`}>
             <span style={{ fontSize: "1.3rem" }}>{ICON[r.kind] ?? "💡"}</span>

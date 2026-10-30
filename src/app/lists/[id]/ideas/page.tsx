@@ -41,7 +41,7 @@ export default async function IdeasPage({ params, searchParams }: { params: Prom
 
       <section className="section">
         <h2>Waiting for review ({pending.length})</h2>
-        {pending.length === 0 && <div className="card empty"><div className="big">🦝</div>No ideas waiting.</div>}
+        {pending.length === 0 && <div className="card empty"><div className="big" aria-hidden="true">🦝</div>No ideas waiting.</div>}
         <div className="items">
           {pending.map((sg) => (
             <div key={sg.id} className="card row between" style={{ alignItems: "flex-start" }}>

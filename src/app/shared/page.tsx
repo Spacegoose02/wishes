@@ -21,7 +21,7 @@ export default async function SharedPage() {
       </div>
       <p className="muted">Lists your families shared with you. Claim a gift so nobody doubles up; the list owner won&apos;t see it.</p>
       {lists.length === 0 && (
-        <div className="card empty"><div className="big">🏡</div>Nothing shared yet. <Link href="/families">Join or create a family</Link> to see their lists.</div>
+        <div className="card empty"><div className="big" aria-hidden="true">🏡</div>Nothing shared yet. <Link href="/families">Join or create a family</Link> to see their lists.</div>
       )}
       {[...byPerson.entries()].map(([name, ls]) => (
         <section key={name} className="section">

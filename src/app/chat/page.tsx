@@ -29,7 +29,7 @@ export default async function ChatTab({ searchParams }: { searchParams: SP }) {
       </div>
 
       {lists.length === 0 ? (
-        <div className="card empty"><div className="big">🦝</div>Make a list or join a family first, then Bandit can help shop for someone.</div>
+        <div className="card empty"><div className="big" aria-hidden="true">🦝</div>Make a list or join a family first, then Bandit can help shop for someone.</div>
       ) : (
         <>
           <p className="small" style={{ fontWeight: 700, margin: "8px 0 6px" }}>Who are we shopping for?</p>

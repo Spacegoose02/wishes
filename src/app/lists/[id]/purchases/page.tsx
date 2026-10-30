@@ -68,7 +68,7 @@ export default async function PurchasesPage({ params, searchParams }: { params: 
             {[...byBuyer.entries()].map(([name, cents]) => <span key={name} className="pill">{name}: {formatMoney(cents)}</span>)}
           </div>
         )}
-        {rows.length === 0 && <div className="empty"><div className="big">🛍️</div>Nothing bought yet.</div>}
+        {rows.length === 0 && <div className="empty"><div className="big" aria-hidden="true">🛍️</div>Nothing bought yet.</div>}
         {rows.length > 0 && (
           <div className="table-wrap">
             <table className="table">

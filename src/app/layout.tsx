@@ -6,6 +6,7 @@ import { getUser } from "@/lib/auth";
 import { get } from "@/lib/db";
 import { Avatar } from "@/components/Avatar";
 import { THEMES } from "@/components/ThemePicker";
+import { BottomNav, TopNav } from "@/components/NavLinks";
 
 export const metadata: Metadata = {
   title: { default: "Wishes", template: "%s · Wishes" },
@@ -39,37 +40,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" data-theme={user?.theme ?? "system"} suppressHydrationWarning>
       <body>
+        <a href="#main" className="skip-link">Skip to content</a>
         {user && (
           <>
             <header className="topbar">
               <div className="topbar-inner">
                 <Link href="/" className="brand">
-                  <span className="spark">✦</span> Wishes
+                  <span className="spark" aria-hidden="true">✦</span> Wishes
                 </Link>
-                <nav className="nav">
-                  <Link href="/">My lists</Link>
-                  <Link href="/shared">Family lists</Link>
-                  <Link href="/chat">🦝 Chat</Link>
-                  <Link href="/families">Families</Link>
-                  <Link href="/notifications">
-                    Alerts{unread > 0 && <span className="badge">{unread}</span>}
-                  </Link>
-                  <Link href="/settings" aria-label="Settings">
-                    <Avatar id={user.avatar} size={30} />
-                  </Link>
-                </nav>
+                <TopNav unread={unread} avatar={<Avatar id={user.avatar} size={30} />} />
               </div>
             </header>
-            <nav className="bottomnav">
-              <Link href="/"><span className="ico">🎁</span>Mine</Link>
-              <Link href="/shared"><span className="ico">👨‍👩‍👧</span>Family</Link>
-              <Link href="/chat"><span className="ico">🦝</span>Bandit</Link>
-              <Link href="/notifications"><span className="ico">🔔</span>Alerts{unread > 0 && <span className="badge">{unread}</span>}</Link>
-              <Link href="/settings"><span className="ico">⚙️</span>Me</Link>
-            </nav>
+            <BottomNav unread={unread} />
           </>
         )}
-        <main className="shell">{children}</main>
+        <main id="main" className="shell" tabIndex={-1}>{children}</main>
       </body>
     </html>
   );

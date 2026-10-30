@@ -120,7 +120,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
       <Flash searchParams={searchParams} />
       <div className="section-head" style={{ marginTop: 8 }}>
         <div className="row" style={{ alignItems: "flex-start" }}>
-          <span style={{ fontSize: "2.6rem", lineHeight: 1 }}>{list.emoji}</span>
+          <span style={{ fontSize: "2.6rem", lineHeight: 1 }} aria-hidden="true">{list.emoji}</span>
           <div>
             <h1 style={{ marginBottom: 4 }}>{list.title}</h1>
             <div className="row" style={{ gap: 6 }}>
@@ -206,7 +206,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
           {total > 0 && <span className="muted small">About {formatMoney(total)} total</span>}
         </div>
         {allItems.length === 0 && (
-          <div className="card empty"><div className="big">🌟</div>{owner ? "Paste a link above to add your first wish." : "Nothing here yet."}</div>
+          <div className="card empty"><div className="big" aria-hidden="true">🌟</div>{owner ? "Paste a link above to add your first wish." : "Nothing here yet."}</div>
         )}
         {allItems.length > 0 && items.length === 0 && <div className="card empty">Nothing matches those filters.</div>}
         {groups.map((g) => (
@@ -238,7 +238,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents, it.currency)}</span> : null}
                         {it.store && <span className="pill">{it.store}</span>}
                         {it.category && <span className="pill">{categoryIcon(it.category)} {categoryLabel(it.category)}</span>}
-                        <span className="stars" title="How much they want it">{"★".repeat(it.priority)}</span>
+                        <span className="stars" title="How much they want it" role="img" aria-label={`Wanted ${it.priority} of 3`}>{"★".repeat(it.priority)}</span>
                         {it.quantity > 1 && <span className="pill">×{it.quantity}</span>}
                       </div>
                       {details.length > 0 && <p className="small" style={{ margin: "6px 0 0", fontWeight: 600 }}>{details.join(" · ")}</p>}
@@ -298,7 +298,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                     )}
                     {showClaims && remaining > 0 && (
                       <details className="buy" style={{ gridColumn: "1 / -1" }}>
-                        <summary className="small" style={{ cursor: "pointer", fontWeight: 700, color: "var(--accent)" }}>🛍️ I bought this</summary>
+                        <summary className="small" style={{ cursor: "pointer", fontWeight: 700, color: "var(--accent-ink)" }}>🛍️ I bought this</summary>
                         <form action={recordPurchase} className="form-grid" style={{ marginTop: 10 }}>
                           <Hidden item={it.id} />
                           {it.quantity > 1 && <label>How many?<input name="quantity" type="number" min={1} max={remaining} defaultValue={remaining} /></label>}

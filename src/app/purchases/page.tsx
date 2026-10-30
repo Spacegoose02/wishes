@@ -22,7 +22,7 @@ export default async function MyPurchasesPage() {
         {total > 0 && <span className="muted">{formatMoney(total)} total</span>}
       </div>
       <div className="card">
-        {rows.length === 0 && <div className="empty"><div className="big">🪿</div>Nothing yet. Open a family list and tap &quot;I bought this&quot;.</div>}
+        {rows.length === 0 && <div className="empty"><div className="big" aria-hidden="true">🪿</div>Nothing yet. Open a family list and tap &quot;I bought this&quot;.</div>}
         {rows.map((r) => (
           <div key={r.id} className="notice">
             <div style={{ flex: 1 }}>

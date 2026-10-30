@@ -64,7 +64,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
             {pl.length ? (
               <div className="grid">{pl.map((l) => <ListCard key={l.id} list={l} />)}</div>
             ) : (
-              <div className="card empty"><div className="big">🪄</div>No lists yet. <Link href={`/lists/new?profile=${p.id}`}>Start one</Link></div>
+              <div className="card empty"><div className="big" aria-hidden="true">🪄</div>No lists yet. <Link href={`/lists/new?profile=${p.id}`}>Start one</Link></div>
             )}
           </section>
         );

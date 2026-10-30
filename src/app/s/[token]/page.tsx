@@ -53,7 +53,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
                 <div className="row" style={{ gap: 8 }}>
                   {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents)}</span> : null}
                   {it.store && <span className="pill">{it.store}</span>}
-                  <span className="stars">{"★".repeat(it.priority)}</span>
+                  <span className="stars" role="img" aria-label={`Wanted ${it.priority} of 3`}>{"★".repeat(it.priority)}</span>
                   {it.quantity > 1 && <span className="pill">×{it.quantity}</span>}
                 </div>
                 {details.length > 0 && <p className="small" style={{ margin: "6px 0 0", fontWeight: 600 }}>{details.join(" · ")}</p>}
@@ -85,7 +85,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
               </div>
               {remaining > 0 && (
                 <details className="buy" style={{ gridColumn: "1 / -1" }}>
-                  <summary className="small" style={{ cursor: "pointer", fontWeight: 700, color: "var(--accent)" }}>🛍️ I bought this</summary>
+                  <summary className="small" style={{ cursor: "pointer", fontWeight: 700, color: "var(--accent-ink)" }}>🛍️ I bought this</summary>
                   <form action={guestRecordPurchase} className="form-grid" style={{ marginTop: 10 }}>
                     <input type="hidden" name="token" value={token} />
                     <input type="hidden" name="item_id" value={it.id} />
@@ -101,7 +101,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
             </div>
           );
         })}
-        {items.length === 0 && <div className="card empty"><div className="big">🪿</div>No wishes yet.</div>}
+        {items.length === 0 && <div className="card empty"><div className="big" aria-hidden="true">🪿</div>No wishes yet.</div>}
       </div>
     </div>
   );
