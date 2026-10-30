@@ -1,10 +1,24 @@
+# Dependencies and builds
 node_modules/
 .next/
 out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Your data: never commit the database
 data/
 *.db
 *.db-*
+
+# Secrets
 .env
-.env.local
-next-env.d.ts
-*.tsbuildinfo
+.env.*
+!.env.example
+
+# OS and editor clutter
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
