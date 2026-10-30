@@ -1,4 +1,5 @@
 "use server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { get, run } from "@/lib/db";
 import { createSession, createUser, destroySession, getPending2faUser, requireUser, signupAllowed } from "@/lib/auth";
@@ -7,26 +8,36 @@ import type { User } from "@/lib/types";
 
 const s = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
-// Small in-memory throttle for password/TOTP guesses.
+// Small in-memory throttle for password/TOTP guesses: per account, and per address so one
+// client can't spray guesses across many accounts.
 const attempts = new Map<string, { n: number; until: number }>();
-function throttled(key: string): boolean {
+const LIMITS = { account: 8, ip: 30 };
+function throttled(key: string, max = LIMITS.account): boolean {
   const a = attempts.get(key);
-  return !!a && a.n >= 8 && a.until > Date.now();
+  if (a && a.until <= Date.now()) attempts.delete(key);
+  return !!a && a.n >= max && a.until > Date.now();
 }
-function fail(key: string) {
-  const a = attempts.get(key) ?? { n: 0, until: 0 };
-  a.n++;
-  a.until = Date.now() + 10 * 60_000;
-  attempts.set(key, a);
+function fail(...keys: string[]) {
+  for (const key of keys) {
+    const a = attempts.get(key) ?? { n: 0, until: 0 };
+    a.n++;
+    a.until = Date.now() + 10 * 60_000;
+    attempts.set(key, a);
+  }
+}
+async function clientIp(): Promise<string> {
+  const h = await headers();
+  return `ip:${h.get("x-forwarded-for")?.split(",")[0].trim() || h.get("x-real-ip") || "local"}`;
 }
 
 export async function login(form: FormData) {
   if (process.env.DISABLE_PASSWORD_LOGIN === "true") redirect("/login?error=Password+sign-in+is+disabled");
   const email = s(form, "email").toLowerCase();
-  if (throttled(email)) redirect("/login?error=Too+many+attempts.+Try+again+in+a+few+minutes.");
+  const ip = await clientIp();
+  if (throttled(email) || throttled(ip, LIMITS.ip)) redirect("/login?error=Too+many+attempts.+Try+again+in+a+few+minutes.");
   const user = get<User>("SELECT * FROM users WHERE email = ?", email);
   if (!user || !verifyPassword(s(form, "password"), user.password_hash)) {
-    fail(email);
+    fail(email, ip);
     redirect("/login?error=Wrong+email+or+password");
   }
   attempts.delete(email);

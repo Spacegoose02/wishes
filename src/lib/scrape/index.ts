@@ -2,6 +2,7 @@ import "server-only";
 import { adapters, storeFromHost } from "./stores";
 import { decodeEntities, parseGeneric } from "./generic";
 import { getSetting } from "../db";
+import { assertPublicUrl, PrivateAddressError, readText, safeFetch } from "./net";
 
 export type ProductInfo = {
   title?: string;
@@ -31,14 +32,6 @@ export function normalizeUrl(raw: string): URL | null {
   } catch {
     return null;
   }
-}
-
-// Refuse to fetch internal addresses so the autofill can't be used to probe the LAN.
-function isPrivateHost(host: string): boolean {
-  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return true;
-  if (/^(10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)) return true;
-  if (host.startsWith("[") || host === "::1") return true;
-  return false;
 }
 
 // Amazon product URLs come in many shapes (/dp/, /gp/product/, mobile /gp/aw/d/, long slugs
@@ -76,7 +69,7 @@ const PROFILES: Record<string, Record<string, string>> = {
 };
 
 export async function fetchHtml(url: URL): Promise<{ status: number; html: string; finalUrl: URL }> {
-  if (isPrivateHost(url.hostname)) throw new Error("Private network addresses can't be autofilled.");
+  await assertPublicUrl(url);
   const order = /(^|\.)(amazon\.|amzn\.|a\.co$)/.test(url.hostname) ? ["plain", "simple", "browser"] : ["browser", "plain"];
   let last: { status: number; html: string; finalUrl: URL } | undefined;
   for (const [i, name] of order.entries()) {
@@ -84,11 +77,12 @@ export async function fetchHtml(url: URL): Promise<{ status: number; html: strin
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12000);
     try {
-      const res = await fetch(url, { signal: ctrl.signal, redirect: "follow", cache: "no-store", headers: PROFILES[name] });
-      const html = (await res.text()).slice(0, 4_000_000);
+      const res = await safeFetch(url, { signal: ctrl.signal, cache: "no-store", headers: PROFILES[name] });
+      const html = await readText(res);
       last = { status: res.status, html, finalUrl: new URL(res.url || url.toString()) };
       if (!(isBotWall(html) || res.status === 403 || res.status === 503 || res.status === 429)) return last;
     } catch (e) {
+      if (e instanceof PrivateAddressError) throw e;
       if (i === order.length - 1 && !last && !solverConfigured()) throw e;
     } finally {
       clearTimeout(timer);
@@ -148,7 +142,7 @@ async function viaSolver(url: URL): Promise<{ status: number; html: string; fina
 export async function fetchProduct(rawUrl: string): Promise<ProductInfo> {
   const parsed = normalizeUrl(rawUrl);
   if (!parsed) throw new Error("That doesn't look like a link.");
-  if (isPrivateHost(parsed.hostname)) throw new Error("Private network addresses can't be autofilled.");
+  await assertPublicUrl(parsed);
   let url = canonical(parsed);
   let store = storeFromHost(url.hostname);
   const base = (): ProductInfo => ({ store: store.name, url: parsed.toString() });
@@ -165,7 +159,7 @@ export async function fetchProduct(rawUrl: string): Promise<ProductInfo> {
       store = storeFromHost(url.hostname);
     }
   } catch (e) {
-    if ((e as Error).message.startsWith("Private")) throw e;
+    if (e instanceof PrivateAddressError) throw e;
     return { ...base(), title: titleFromPath(url), problem: "blocked", blocked: true };
   }
 

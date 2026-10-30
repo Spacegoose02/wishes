@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { CopyButton } from "@/components/CopyButton";
 import { RenameKid } from "@/components/RenameKid";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
 
 type Member = { id: number; name: string; avatar: string; role: string };
 
@@ -77,7 +78,7 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
                           <form action={removeMember}>
                             <input type="hidden" name="family_id" value={f.id} />
                             <input type="hidden" name="user_id" value={m.id} />
-                            <button className="btn small danger">Remove</button>
+                            <SubmitButton className="btn small danger" confirm={`Remove ${m.name}?`}>Remove</SubmitButton>
                           </form>
                         </div>
                       )}
@@ -104,7 +105,7 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
                       <form action={disconnectFamily} style={{ display: "inline" }}>
                         <input type="hidden" name="family_id" value={f.id} />
                         <input type="hidden" name="other_id" value={l.id} />
-                        <button className="btn small ghost" style={{ minHeight: 24, padding: "0 8px" }} aria-label={`Disconnect ${l.name}`}>×</button>
+                        <SubmitButton className="btn small ghost" style={{ minHeight: 24, padding: "0 8px" }} aria-label={`Disconnect ${l.name}`} confirm="Disconnect?">×</SubmitButton>
                       </form>
                     )}
                   </span>
@@ -121,7 +122,7 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
 
             <form action={leaveFamily} style={{ marginTop: 16 }}>
               <input type="hidden" name="family_id" value={f.id} />
-              <button className="btn small ghost">Leave {f.name}</button>
+              <SubmitButton className="btn small ghost" confirm={`Really leave ${f.name}?`}>Leave {f.name}</SubmitButton>
             </form>
           </section>
         );

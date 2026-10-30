@@ -5,6 +5,7 @@ import type { User } from "@/lib/types";
 import { adminUser, saveAiSettings, saveScrapeSettings } from "@/app/actions/app";
 import { getSetting } from "@/lib/db";
 import { Avatar } from "@/components/Avatar";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export function AdminPanel({ me }: { me: User }) {
   const ai = aiConfig();
@@ -74,9 +75,9 @@ export function AdminPanel({ me }: { me: User }) {
                           <form key={a} action={adminUser}>
                             <input type="hidden" name="user_id" value={u.id} />
                             <input type="hidden" name="action" value={a} />
-                            <button className={`btn small ${a === "delete" ? "danger" : "ghost"}`}>
+                            <SubmitButton className={`btn small ${a === "delete" ? "danger" : "ghost"}`} confirm={a === "delete" ? `Delete ${u.name}?` : a === "reset-2fa" ? "Reset their 2FA?" : undefined}>
                               {a === "toggle-admin" ? (u.is_admin ? "Remove admin" : "Make admin") : a === "reset-2fa" ? "Reset 2FA" : "Delete"}
-                            </button>
+                            </SubmitButton>
                           </form>
                         ))}
                       </div>

@@ -13,6 +13,7 @@ import { addItem, autofill, claimItem, compareStores, deleteItem, moveItem, reco
 import { ItemForm } from "@/components/ItemForm";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
 
 type Params = Promise<{ id: string }>;
 
@@ -276,7 +277,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       )}
                       <form action={compareStores}><Hidden item={it.id} /><button className="btn small ghost" title="Look for this at Walmart and Amazon">⚖️ Compare stores</button></form>
                       {owner && (
-                        <form action={deleteItem}><Hidden item={it.id} /><button className="btn small danger">Remove</button></form>
+                        <form action={deleteItem}><Hidden item={it.id} /><SubmitButton className="btn small danger" confirm="Remove wish?">Remove</SubmitButton></form>
                       )}
                     </div>
                     {recipient && remaining > 0 && (

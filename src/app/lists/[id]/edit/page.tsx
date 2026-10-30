@@ -7,6 +7,7 @@ import { deleteList, updateList } from "../../../actions/app";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function EditListPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SP }) {
   const user = await requireUser();
@@ -109,7 +110,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
         <input type="hidden" name="list_id" value={list.id} />
         <div className="row between">
           <span className="muted small">Deleting removes the list and all its wishes.</span>
-          <button className="btn danger small">Delete list</button>
+          <SubmitButton className="btn danger small" confirm="Delete for good?">Delete list</SubmitButton>
         </div>
       </form>}
     </div>

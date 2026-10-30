@@ -7,6 +7,7 @@ import { addGuest, quickHide, removeGuest } from "../../../actions/app";
 import { Avatar } from "@/components/Avatar";
 import { CopyButton } from "@/components/CopyButton";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
 
 const VIS: Record<string, string> = {
   private: "Hidden. Only you can see it.",
@@ -80,7 +81,7 @@ export default async function SharePage({ params, searchParams }: { params: Prom
                       <form action={removeGuest}>
                         <input type="hidden" name="list_id" value={list.id} />
                         <input type="hidden" name="guest_id" value={g.id} />
-                        <button className="btn small danger">Remove</button>
+                        <SubmitButton className="btn small danger" confirm="Remove guest?">Remove</SubmitButton>
                       </form>
                     </div>
                   </td>

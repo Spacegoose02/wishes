@@ -11,6 +11,7 @@ import { ProfileDetailsFields } from "@/components/ProfileDetailsFields";
 import { SecurityPanel } from "@/components/settings/SecurityPanel";
 import { AdminPanel } from "@/components/settings/AdminPanel";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
 
 const TABS = [
   { id: "me", label: "👤 Me & look" },
@@ -62,7 +63,7 @@ function ProfileCard({ p, open, rolled, collection, canDelete, note }: { p: Prof
       {canDelete && (
         <form action={deleteProfile} style={{ marginTop: 10 }}>
           <input type="hidden" name="profile_id" value={p.id} />
-          <button className="btn small danger">Remove profile and its lists</button>
+          <SubmitButton className="btn small danger" confirm="Remove profile and all its lists?">Remove profile and its lists</SubmitButton>
         </form>
       )}
     </details>

@@ -8,6 +8,7 @@ import { guestAddItem, guestAutofill, guestDeleteItem, guestRecordPurchase, gues
 import { ItemForm } from "@/components/ItemForm";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
 
 // Guest view for a whitelisted email: no account needed. Guests see what's already been
 // bought (so nobody doubles up) and can mark their own purchases, but not who bought the rest.
@@ -76,7 +77,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
                   <form action={guestDeleteItem}>
                     <input type="hidden" name="token" value={token} />
                     <input type="hidden" name="item_id" value={it.id} />
-                    <button className="btn small danger">Remove</button>
+                    <SubmitButton className="btn small danger" confirm="Remove wish?">Remove</SubmitButton>
                   </form>
                 ) : null}
               </div>
