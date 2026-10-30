@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { myFamilies } from "@/lib/access";
@@ -17,7 +18,10 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
   const families = myFamilies(user.id);
   return (
     <>
-      <h1>Families</h1>
+      <div className="section-head">
+        <h1 className="m0">Families</h1>
+        <Link href="/santa" className="btn small secondary">🎅 Secret Santa</Link>
+      </div>
       <p className="muted">A family is everyone who can see each other&apos;s lists. Connect another family (like the grandparents&apos; house) to share specific lists with them too.</p>
       <Flash searchParams={searchParams} />
 

@@ -234,6 +234,28 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_pledges_item ON pledges(item_id);
   `,
+  // 7: Secret Santa exchanges
+  `
+  CREATE TABLE exchanges (
+    id INTEGER PRIMARY KEY,
+    family_id INTEGER NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    budget_cents INTEGER,
+    exchange_date TEXT,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    drawn_at INTEGER,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  -- giftee_id is who this person gives to; only they ever see it.
+  CREATE TABLE exchange_people (
+    exchange_id INTEGER NOT NULL REFERENCES exchanges(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    household TEXT NOT NULL DEFAULT '',
+    giftee_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (exchange_id, user_id)
+  );
+  `,
 ];
 
 function open(): DatabaseSync {
