@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { CATEGORIES } from "@/lib/categories";
+import { SubmitButton } from "@/components/SubmitButton";
 
 type Info = { blocked?: boolean; title?: string; price_cents?: number; image_url?: string; store: string; description?: string; category?: string };
 type AutofillFn = (url: string) => Promise<{ ok: true; info: Info } | { ok: false; error: string }>;
@@ -99,7 +100,7 @@ export function ItemForm({
         <label className="full">Image link<input name="image_url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="Filled in automatically" /></label>
         <label className="full">Notes<textarea name="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything that helps someone buy the right one" /></label>
       </div>
-      <button className="btn" disabled={pending}>{submitLabel}</button>
+      <SubmitButton className="btn" disabled={pending}>{submitLabel}</SubmitButton>
     </form>
   );
 }

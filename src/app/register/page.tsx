@@ -4,6 +4,9 @@ import { register } from "../actions/auth";
 import { getUser, signupAllowed, userCount } from "@/lib/auth";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
+
+export const metadata = { title: "Create account" };
 
 export default async function RegisterPage({ searchParams }: { searchParams: SP }) {
   if (await getUser()) redirect("/");
@@ -24,7 +27,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: SP 
           <p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Pick your critter</p>
           <AvatarPicker />
         </div>
-        <button className="btn block">Create account</button>
+        <SubmitButton className="btn block">Create account</SubmitButton>
         {!first && <p className="small muted" style={{ textAlign: "center", margin: 0 }}>Have an account? <Link href="/login">Sign in</Link></p>}
       </form>
     </div>

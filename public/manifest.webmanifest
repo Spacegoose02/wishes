@@ -1,9 +1,22 @@
 {
   "name": "Wishes",
   "short_name": "Wishes",
+  "description": "Family wishlists for kids and grown-ups",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#fdfaf4",
   "theme_color": "#ff7a59",
-  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+  "categories": ["lifestyle", "shopping"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "New list", "url": "/lists/new" },
+    { "name": "Family lists", "url": "/shared" }
+  ]
 }

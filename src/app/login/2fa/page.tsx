@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { logout, verify2fa } from "../../actions/auth";
 import { getPending2faUser } from "@/lib/auth";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
+
+export const metadata = { title: "Two-factor sign-in" };
 
 export default async function TwoFactorPage({ searchParams }: { searchParams: SP }) {
   const user = await getPending2faUser();
@@ -13,9 +16,9 @@ export default async function TwoFactorPage({ searchParams }: { searchParams: SP
         <Flash searchParams={searchParams} />
         <form action={verify2fa} className="stack">
           <label>Code<input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" autoFocus required /></label>
-          <button className="btn block">Verify</button>
+          <SubmitButton className="btn block">Verify</SubmitButton>
         </form>
-        <form action={logout}><button className="btn ghost block">Cancel</button></form>
+        <form action={logout}><SubmitButton className="btn ghost block">Cancel</SubmitButton></form>
       </div>
     </div>
   );

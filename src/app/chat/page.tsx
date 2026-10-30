@@ -6,6 +6,8 @@ import { Avatar, AGENT_NAME, GIFT_RACCOON } from "@/components/Avatar";
 import { GiftChatPanel } from "@/components/GiftChatPanel";
 import type { SP } from "@/components/Flash";
 
+export const metadata = { title: "Gift helper" };
+
 // Chat tab: pick who you're shopping for, then talk it through with Bandit.
 export default async function ChatTab({ searchParams }: { searchParams: SP }) {
   const user = await requireUser();

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import type { Metadata } from "next";
+import { getUser, requireUser } from "@/lib/auth";
 import { canEditProfile, getList, isRecipient, listAccess, myLists } from "@/lib/access";
 import { AboutProfile } from "@/components/AboutProfile";
 import { RenameKid } from "@/components/RenameKid";
@@ -13,6 +14,8 @@ import { addItem, autofill, claimItem, compareStores, deleteItem, moveItem, reco
 import { ItemForm } from "@/components/ItemForm";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
+import { ClaimButton } from "@/components/ClaimButton";
+import { Menu } from "@/components/Menu";
 import { SubmitButton } from "@/components/SubmitButton";
 
 type Params = Promise<{ id: string }>;
@@ -25,6 +28,13 @@ const SORTS = {
   name: "Name",
   category: "Category",
 } as const;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const user = await getUser();
+  const list = user ? getList(Number((await params).id)) : undefined;
+  if (!user || !list || listAccess(user, list) === "none") return { title: "List" };
+  return { title: list.profile_is_primary && list.owner_user_id === user.id ? list.title : `${list.title} (${list.profile_name})` };
+}
 
 function Hidden({ item, action }: { item: number; action?: string }) {
   return (
@@ -243,7 +253,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                               {p.buyer_user_id === user.id && (
                                 <form action={undoPurchase} style={{ display: "inline" }}>
                                   <input type="hidden" name="purchase_id" value={p.id} />
-                                  <button className="linkish">undo</button>
+                                  <SubmitButton className="linkish">undo</SubmitButton>
                                 </form>
                               )}
                             </div>
@@ -266,25 +276,24 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       {it.url && it.price_checked_at ? <p className="tiny muted" style={{ margin: "4px 0 0" }}>Price checked {ago(it.price_checked_at)}{it.offers_checked_at ? `, stores compared ${ago(it.offers_checked_at)}` : ""}</p> : null}
                     </div>
                     <div className="item-actions">
-                      {showClaims && !it.claimed_by && !it.purchased && (
-                        <form action={claimItem}><Hidden item={it.id} action="claim" /><button className="btn small">I&apos;ll get it</button></form>
+                      {((showClaims && !it.claimed_by) || (claimedByMe && boughtQty === 0)) && !it.purchased && (
+                        <ClaimButton itemId={it.id} claimed={claimedByMe} action={claimItem} />
                       )}
-                      {claimedByMe && !it.purchased && boughtQty === 0 && (
-                        <form action={claimItem}><Hidden item={it.id} action="unclaim" /><button className="btn small ghost">Unclaim</button></form>
-                      )}
-                      {it.url && (
-                        <form action={refreshItem}><Hidden item={it.id} /><button className="btn small ghost" title="Check the store's current price">↻ Check price</button></form>
-                      )}
-                      <form action={compareStores}><Hidden item={it.id} /><button className="btn small ghost" title="Look for this at Walmart and Amazon">⚖️ Compare stores</button></form>
-                      {owner && (
-                        <form action={deleteItem}><Hidden item={it.id} /><SubmitButton className="btn small danger" confirm="Remove wish?">Remove</SubmitButton></form>
-                      )}
+                      <Menu label={`More for ${it.title}`}>
+                        {it.url && (
+                          <form action={refreshItem}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Checking…">↻ Check price</SubmitButton></form>
+                        )}
+                        <form action={compareStores}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Comparing…">⚖️ Compare stores</SubmitButton></form>
+                        {owner && (
+                          <form action={deleteItem}><Hidden item={it.id} /><SubmitButton className="menu-item danger" confirm="Tap again to remove">🗑️ Remove</SubmitButton></form>
+                        )}
+                      </Menu>
                     </div>
                     {recipient && remaining > 0 && (
                       <form action={recordPurchase} style={{ gridColumn: "1 / -1" }}>
                         <Hidden item={it.id} />
                         <input type="hidden" name="note" value="Got it myself" />
-                        <button className="btn small ghost">✔ I got this myself</button>
+                        <SubmitButton className="btn small ghost">✔ I got this myself</SubmitButton>
                       </form>
                     )}
                     {showClaims && remaining > 0 && (
@@ -296,7 +305,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                           <label>Price paid<input name="price" inputMode="decimal" defaultValue={it.price_cents ? (it.price_cents / 100).toFixed(2) : ""} /></label>
                           <label>Where<input name="store" defaultValue={it.store} /></label>
                           <label className="full">Note (optional)<input name="note" placeholder="Wrapped and in the closet" /></label>
-                          <button className="btn small">Save purchase</button>
+                          <SubmitButton className="btn small">Save purchase</SubmitButton>
                           {list.review_purchases && !owner ? <p className="tiny muted full" style={{ margin: 0 }}>A list manager will confirm this purchase.</p> : null}
                         </form>
                       </details>
@@ -326,7 +335,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                                   {otherLists.map((l) => <option key={l.id} value={l.id}>{l.emoji} {l.title} ({l.profile_name})</option>)}
                                 </select>
                               </label>
-                              <button className="btn small secondary">Move</button>
+                              <SubmitButton className="btn small secondary">Move</SubmitButton>
                             </form>
                           )}
                         </div>

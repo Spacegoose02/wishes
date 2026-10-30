@@ -4,6 +4,9 @@ import { Avatar } from "@/components/Avatar";
 import { createList } from "../../actions/app";
 import { Flash, type SP } from "@/components/Flash";
 import { EmojiPicker } from "@/components/EmojiPicker";
+import { SubmitButton } from "@/components/SubmitButton";
+
+export const metadata = { title: "New list" };
 
 export default async function NewListPage({ searchParams }: { searchParams: SP }) {
   const user = await requireUser();
@@ -70,7 +73,7 @@ export default async function NewListPage({ searchParams }: { searchParams: SP }
             ))}
           </fieldset>
         )}
-        <button className="btn">Create list</button>
+        <SubmitButton className="btn">Create list</SubmitButton>
       </form>
     </div>
   );

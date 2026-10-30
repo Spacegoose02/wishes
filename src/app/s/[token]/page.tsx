@@ -10,6 +10,8 @@ import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 
+export const metadata = { title: "Shared list" };
+
 // Guest view for a whitelisted email: no account needed. Guests see what's already been
 // bought (so nobody doubles up) and can mark their own purchases, but not who bought the rest.
 export default async function GuestListPage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: SP }) {
@@ -64,7 +66,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
                       <form action={guestUndoPurchase} style={{ display: "inline" }}>
                         <input type="hidden" name="token" value={token} />
                         <input type="hidden" name="purchase_id" value={p.id} />
-                        <button className="linkish">undo</button>
+                        <SubmitButton className="linkish">undo</SubmitButton>
                       </form>
                     </div>
                   ))}
@@ -91,7 +93,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
                     <label>Price paid<input name="price" inputMode="decimal" defaultValue={it.price_cents ? (it.price_cents / 100).toFixed(2) : ""} /></label>
                     <label>Where<input name="store" defaultValue={it.store} /></label>
                     <label className="full">Note (optional)<input name="note" /></label>
-                    <button className="btn small">Save purchase</button>
+                    <SubmitButton className="btn small">Save purchase</SubmitButton>
                     {list.review_purchases ? <p className="tiny muted full" style={{ margin: 0 }}>A list manager will confirm this purchase.</p> : null}
                   </form>
                 </details>

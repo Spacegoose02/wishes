@@ -9,6 +9,8 @@ import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 
+export const metadata = { title: "Edit list" };
+
 export default async function EditListPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SP }) {
   const user = await requireUser();
   const list = getList(Number((await params).id));
@@ -103,7 +105,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
             ))}
           </div>
         )}
-        <button className="btn">Save</button>
+        <SubmitButton className="btn">Save</SubmitButton>
       </form>
 
       {mainOwner && <form action={deleteList} className="card" style={{ marginTop: 24 }}>

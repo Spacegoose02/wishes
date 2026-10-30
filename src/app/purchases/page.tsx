@@ -3,6 +3,8 @@ import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
 
+export const metadata = { title: "My purchases" };
+
 // Everything the signed-in person has bought, across all lists.
 export default async function MyPurchasesPage() {
   const user = await requireUser();

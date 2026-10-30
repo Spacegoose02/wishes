@@ -9,6 +9,8 @@ import { CopyButton } from "@/components/CopyButton";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 
+export const metadata = { title: "Share & hide" };
+
 const VIS: Record<string, string> = {
   private: "Hidden. Only you can see it.",
   family: "Everyone in your families can see it.",
@@ -52,7 +54,7 @@ export default async function SharePage({ params, searchParams }: { params: Prom
                 <input type="hidden" name="list_id" value={list.id} />
                 <input type="hidden" name="user_id" value={p.id} />
                 <input type="hidden" name="action" value={isHidden ? "unhide" : "hide"} />
-                <button className={`btn small ${isHidden ? "secondary" : "ghost"}`}>{isHidden ? "Let them see it" : "Hide from them"}</button>
+                <SubmitButton className={`btn small ${isHidden ? "secondary" : "ghost"}`}>{isHidden ? "Let them see it" : "Hide from them"}</SubmitButton>
               </form>
             </div>
           );
@@ -67,7 +69,7 @@ export default async function SharePage({ params, searchParams }: { params: Prom
           <input type="hidden" name="list_id" value={list.id} />
           <label style={{ flex: 1, minWidth: 200 }}>Email<input name="email" type="email" required placeholder="grandma@example.com" /></label>
           <label className="inline"><input type="checkbox" name="can_edit" defaultChecked /> Can edit</label>
-          <button className="btn">Add</button>
+          <SubmitButton className="btn">Add</SubmitButton>
         </form>
         {guests.length > 0 && (
           <table className="table">

@@ -1,4 +1,5 @@
 import { renameProfile } from "@/app/actions/app";
+import { SubmitButton } from "@/components/SubmitButton";
 
 // Small "✏️ Rename" that opens an inline box right next to a kid's name.
 export function RenameKid({ id, name, back }: { id: number; name: string; back: string }) {
@@ -9,7 +10,7 @@ export function RenameKid({ id, name, back }: { id: number; name: string; back: 
         <input type="hidden" name="profile_id" value={id} />
         <input type="hidden" name="back" value={back} />
         <input name="name" defaultValue={name} aria-label={`New name for ${name}`} required maxLength={60} />
-        <button className="btn small">Save</button>
+        <SubmitButton className="btn small">Save</SubmitButton>
       </form>
     </details>
   );

@@ -2,6 +2,9 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { markAllRead } from "../actions/app";
+import { SubmitButton } from "@/components/SubmitButton";
+
+export const metadata = { title: "Alerts" };
 
 const ICON: Record<string, string> = { deal: "🏷️", family: "🏡", purchase: "🧾", info: "💡" };
 
@@ -14,7 +17,7 @@ export default async function NotificationsPage() {
     <div style={{ maxWidth: 720, margin: "0 auto" }}>
       <div className="section-head">
         <h1 style={{ margin: 0 }}>Alerts</h1>
-        {rows.some((r) => !r.read) && <form action={markAllRead}><button className="btn small secondary">Mark all read</button></form>}
+        {rows.some((r) => !r.read) && <form action={markAllRead}><SubmitButton className="btn small secondary">Mark all read</SubmitButton></form>}
       </div>
       <p className="muted">Price drops on gifts you&apos;re getting (or on your own wishes), and family news.</p>
       <div className="card">

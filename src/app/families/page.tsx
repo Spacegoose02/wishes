@@ -10,6 +10,8 @@ import { RenameKid } from "@/components/RenameKid";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 
+export const metadata = { title: "Families" };
+
 type Member = { id: number; name: string; avatar: string; role: string };
 
 export default async function FamiliesPage({ searchParams }: { searchParams: SP }) {
@@ -25,12 +27,12 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
         <form action={createFamily} className="card stack">
           <h2>Start a family</h2>
           <label>Family name<input name="name" placeholder="The Underwoods" required /></label>
-          <button className="btn">Create</button>
+          <SubmitButton className="btn">Create</SubmitButton>
         </form>
         <form action={joinFamily} className="card stack">
           <h2>Join with a code</h2>
           <label>Invite code<input name="code" placeholder="GOOSE-AB12C" required style={{ textTransform: "uppercase" }} /></label>
-          <button className="btn secondary">Join</button>
+          <SubmitButton className="btn secondary">Join</SubmitButton>
         </form>
       </div>
 
@@ -57,7 +59,7 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
                 <span className="code">{f.invite_code}</span>
                 <CopyButton text={f.invite_code} />
                 {admin && (
-                  <form action={newInviteCode}><input type="hidden" name="family_id" value={f.id} /><button className="btn small ghost">New code</button></form>
+                  <form action={newInviteCode}><input type="hidden" name="family_id" value={f.id} /><SubmitButton className="btn small ghost">New code</SubmitButton></form>
                 )}
               </div>
             </div>
@@ -73,7 +75,7 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
                             <input type="hidden" name="family_id" value={f.id} />
                             <input type="hidden" name="user_id" value={m.id} />
                             <input type="hidden" name="role" value={m.role === "admin" ? "member" : "admin"} />
-                            <button className="btn small ghost">{m.role === "admin" ? "Make member" : "Make admin"}</button>
+                            <SubmitButton className="btn small ghost">{m.role === "admin" ? "Make member" : "Make admin"}</SubmitButton>
                           </form>
                           <form action={removeMember}>
                             <input type="hidden" name="family_id" value={f.id} />
@@ -115,7 +117,7 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
                 <form action={connectFamily} className="row" style={{ marginTop: 10, alignItems: "flex-end" }}>
                   <input type="hidden" name="family_id" value={f.id} />
                   <label style={{ flex: 1, minWidth: 180 }}>Their invite code<input name="code" required style={{ textTransform: "uppercase" }} /></label>
-                  <button className="btn secondary">Connect</button>
+                  <SubmitButton className="btn secondary">Connect</SubmitButton>
                 </form>
               )}
             </div>

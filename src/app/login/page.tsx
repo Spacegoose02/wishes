@@ -5,6 +5,9 @@ import { getUser, signupAllowed, userCount } from "@/lib/auth";
 import { oidcConfig } from "@/lib/oidc";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
+
+export const metadata = { title: "Sign in" };
 
 export default async function LoginPage({ searchParams }: { searchParams: SP }) {
   if (await getUser()) redirect("/");
@@ -28,7 +31,7 @@ export default async function LoginPage({ searchParams }: { searchParams: SP }) 
           <form action={login} className="stack">
             <label>Email<input name="email" type="email" autoComplete="email" required /></label>
             <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
-            <button className="btn block">Sign in</button>
+            <SubmitButton className="btn block">Sign in</SubmitButton>
           </form>
         )}
         {signupAllowed() && passwordOn && (

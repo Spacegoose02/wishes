@@ -9,6 +9,9 @@ import { categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Suggestion } from "@/lib/types";
 import { requestSuggestions, reviewSuggestion } from "../../../actions/app";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
+
+export const metadata = { title: "Gift ideas" };
 
 export default async function IdeasPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SP }) {
   const user = await requireUser();
@@ -29,7 +32,7 @@ export default async function IdeasPage({ params, searchParams }: { params: Prom
           <label>Anything to steer the ideas? (optional)<input name="hint" placeholder="Loves dinosaurs and art, under $40" /></label>
           <div className="row between">
             <span className="tiny muted">Using {label} · {cfg.model}</span>
-            <button className="btn">Get ideas</button>
+            <SubmitButton className="btn">Get ideas</SubmitButton>
           </div>
         </form>
       ) : (
@@ -56,12 +59,12 @@ export default async function IdeasPage({ params, searchParams }: { params: Prom
                 <form action={reviewSuggestion}>
                   <input type="hidden" name="suggestion_id" value={sg.id} />
                   <input type="hidden" name="decision" value="accept" />
-                  <button className="btn small">Add to list</button>
+                  <SubmitButton className="btn small">Add to list</SubmitButton>
                 </form>
                 <form action={reviewSuggestion}>
                   <input type="hidden" name="suggestion_id" value={sg.id} />
                   <input type="hidden" name="decision" value="reject" />
-                  <button className="btn small ghost">No thanks</button>
+                  <SubmitButton className="btn small ghost">No thanks</SubmitButton>
                 </form>
               </div>
             </div>

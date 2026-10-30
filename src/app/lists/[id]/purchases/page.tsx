@@ -7,6 +7,9 @@ import { formatMoney } from "@/lib/format";
 import type { Purchase } from "@/lib/types";
 import { reviewPurchase, undoPurchase } from "../../../actions/app";
 import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
+
+export const metadata = { title: "Purchases" };
 
 const STATUS: Record<string, string> = { confirmed: "✅ Confirmed", pending: "⏳ Waiting for review", rejected: "✖ Not confirmed" };
 
@@ -46,7 +49,7 @@ export default async function PurchasesPage({ params, searchParams }: { params: 
                   <form key={d} action={reviewPurchase}>
                     <input type="hidden" name="purchase_id" value={p.id} />
                     <input type="hidden" name="decision" value={d} />
-                    <button className={`btn small ${d === "approve" ? "" : "ghost"}`}>{d === "approve" ? "Confirm" : "Not right"}</button>
+                    <SubmitButton className={`btn small ${d === "approve" ? "" : "ghost"}`}>{d === "approve" ? "Confirm" : "Not right"}</SubmitButton>
                   </form>
                 ))}
               </div>
@@ -82,7 +85,7 @@ export default async function PurchasesPage({ params, searchParams }: { params: 
                       {(p.buyer_user_id === user.id || manager) && (
                         <form action={undoPurchase}>
                           <input type="hidden" name="purchase_id" value={p.id} />
-                          <button className="btn small ghost">Remove</button>
+                          <SubmitButton className="btn small ghost">Remove</SubmitButton>
                         </form>
                       )}
                     </td>

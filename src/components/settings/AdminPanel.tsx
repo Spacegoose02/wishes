@@ -30,7 +30,7 @@ export function AdminPanel({ me }: { me: User }) {
         </div>
         <label className="inline"><input type="checkbox" name="clear_key" /> Clear saved key</label>
         <p className="tiny muted" style={{ margin: 0 }}>Defaults: Claude {PROVIDERS[1].defaultModel}, OpenAI {PROVIDERS[2].defaultModel}, Gemini {PROVIDERS[3].defaultModel}. Local works with Ollama or LM Studio&apos;s OpenAI-compatible endpoint.</p>
-        <button className="btn">Save AI settings</button>
+        <SubmitButton className="btn">Save AI settings</SubmitButton>
       </form>
 
       <form action={saveScrapeSettings} className="card stack">
@@ -40,7 +40,7 @@ export function AdminPanel({ me }: { me: User }) {
         </p>
         <label>FlareSolverr URL<input name="flaresolverr_url" defaultValue={getSetting("flaresolverr_url") ?? process.env.FLARESOLVERR_URL ?? ""} placeholder="http://192.168.1.10:8191" /></label>
         <label>Scraping service URL (use {"{url}"} for the page)<input name="scraper_api_url" defaultValue={getSetting("scraper_api_url") ?? process.env.SCRAPER_API_URL ?? ""} placeholder="https://api.example.com/?key=KEY&url={url}" /></label>
-        <button className="btn">Save</button>
+        <SubmitButton className="btn">Save</SubmitButton>
       </form>
 
       <section className="card stack">

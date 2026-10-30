@@ -6,6 +6,8 @@ import { RenameKid } from "@/components/RenameKid";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 
+export const metadata = { title: "My lists" };
+
 export default async function Home({ searchParams }: { searchParams: SP }) {
   const user = await requireUser();
   const profiles = myProfiles(user.id);

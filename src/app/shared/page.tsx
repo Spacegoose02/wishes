@@ -3,6 +3,8 @@ import { requireUser } from "@/lib/auth";
 import { sharedWithMe } from "@/lib/access";
 import { ListCard } from "@/components/ListCard";
 
+export const metadata = { title: "Family lists" };
+
 export default async function SharedPage() {
   const user = await requireUser();
   const lists = sharedWithMe(user.id);

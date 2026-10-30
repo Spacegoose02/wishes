@@ -13,6 +13,8 @@ import { AdminPanel } from "@/components/settings/AdminPanel";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 
+export const metadata = { title: "Settings" };
+
 const TABS = [
   { id: "me", label: "👤 Me & look" },
   { id: "profiles", label: "🧒 Kids & profiles" },
@@ -34,7 +36,7 @@ function RollCard({ rolled, profileId }: { rolled?: string; profileId?: number }
       )}
       <form action={rollAvatar}>
         {profileId ? <input type="hidden" name="profile_id" value={profileId} /> : null}
-        <button className="btn secondary">🎲 Roll a random critter</button>
+        <SubmitButton className="btn secondary">🎲 Roll a random critter</SubmitButton>
       </form>
       <p className="tiny muted" style={{ margin: 0 }}>Common, Rare and Epic geese and raccoons. Space Goose is Legendary (2% chance). Every roll joins your collection.</p>
     </div>
@@ -58,7 +60,7 @@ function ProfileCard({ p, open, rolled, collection, canDelete, note }: { p: Prof
         </div>
         <ProfileDetailsFields p={p} />
         <AvatarPicker value={p.avatar} collection={collection} />
-        <button className="btn">Save profile</button>
+        <SubmitButton className="btn">Save profile</SubmitButton>
       </form>
       {canDelete && (
         <form action={deleteProfile} style={{ marginTop: 10 }}>
@@ -86,7 +88,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
     <div style={{ maxWidth: 860, margin: "0 auto" }}>
       <div className="section-head">
         <h1 style={{ margin: 0 }}>Settings</h1>
-        <form action={logout}><button className="btn small ghost">Sign out</button></form>
+        <form action={logout}><SubmitButton className="btn small ghost">Sign out</SubmitButton></form>
       </div>
       <nav className="tabs">
         {TABS.filter((t) => !("admin" in t) || user.is_admin).map((t) => (
@@ -117,7 +119,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
             <ProfileDetailsFields p={primary} />
             <div><p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Avatar ({collection.length} rolled)</p><AvatarPicker value={user.avatar} collection={collection} /></div>
             <div><p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Theme</p><ThemePicker value={user.theme} /></div>
-            <button className="btn">Save</button>
+            <SubmitButton className="btn">Save</SubmitButton>
           </form>
         </>
       )}
@@ -139,7 +141,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
                 </div>
                 <ProfileDetailsFields />
                 <AvatarPicker value="goose" collection={collection} />
-                <button className="btn">Add profile</button>
+                <SubmitButton className="btn">Add profile</SubmitButton>
               </form>
             </details>
           </section>
