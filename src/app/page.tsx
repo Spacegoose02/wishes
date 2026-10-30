@@ -17,19 +17,19 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   return (
     <>
       <Flash searchParams={searchParams} />
-      <div className="section-head" style={{ marginTop: 8 }}>
+      <div className="section-head mt-8">
         <div className="row">
           <Avatar id={user.avatar} size={52} />
           <div>
-            <h1 style={{ margin: 0 }}>Hi, {user.name.split(" ")[0]}!</h1>
-            <p className="muted" style={{ margin: 0 }}>What are we wishing for?</p>
+            <h1 className="m0">Hi, {user.name.split(" ")[0]}!</h1>
+            <p className="muted m0">What are we wishing for?</p>
           </div>
         </div>
         <Link href="/lists/new" className="btn">＋ New list</Link>
       </div>
 
       {(sp.welcome || families.length === 0) && (
-        <div className="card" style={{ marginTop: 12 }}>
+        <div className="card mt-12">
           <h2>👋 Get started</h2>
           <p className="muted">Create or join a family so the people you love can see your lists. Add profiles for kids from Settings.</p>
           <div className="row">
@@ -41,7 +41,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
 
       {lists.some((l) => l.owner_user_id !== user.id) && (
         <section className="section">
-          <div className="section-head"><h2 style={{ margin: 0 }}>🤝 Lists I help manage</h2></div>
+          <div className="section-head"><h2 className="m0">🤝 Lists I help manage</h2></div>
           <div className="grid">{lists.filter((l) => l.owner_user_id !== user.id).map((l) => <ListCard key={l.id} list={l} showOwner />)}</div>
         </section>
       )}
@@ -51,11 +51,11 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
         return (
           <section key={p.id} className="section">
             <div className="section-head">
-              <div className="row" style={{ gap: 8 }}>
+              <div className="row gap-8">
                 <Avatar id={p.avatar} size={34} />
-                <h2 style={{ margin: 0 }}>{p.is_primary ? "My lists" : `${p.name}'s lists`}</h2>
+                <h2 className="m0">{p.is_primary ? "My lists" : `${p.name}'s lists`}</h2>
               </div>
-              <div className="row" style={{ gap: 6 }}>
+              <div className="row gap-6">
                 {!p.is_primary && <RenameKid id={p.id} name={p.name} back="/" />}
                 {!p.is_primary && <Link href={`/settings?tab=profiles&edit=${p.id}#profile-${p.id}`} className="btn small ghost">Details</Link>}
                 <Link href={`/lists/new?profile=${p.id}`} className="btn small secondary">＋ List</Link>

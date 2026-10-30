@@ -1,4 +1,4 @@
-import { renameProfile } from "@/app/actions/app";
+import { renameProfile } from "@/app/actions/account";
 import { SubmitButton } from "@/components/SubmitButton";
 
 // Small "✏️ Rename" that opens an inline box right next to a kid's name.

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { familyPeople, getList, isManager, myProfiles, shareableFamilies } from "@/lib/access";
 import { all } from "@/lib/db";
-import { deleteList, updateList } from "../../../actions/app";
+import { deleteList, updateList } from "../../../actions/lists";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
@@ -24,7 +24,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
   const hidden = new Set(all<{ user_id: number }>("SELECT user_id FROM list_hidden_users WHERE list_id = ?", list.id).map((r) => r.user_id));
 
   return (
-    <div style={{ maxWidth: 680, margin: "0 auto" }}>
+    <div className="narrow-680">
       <p><Link href={`/lists/${list.id}`}>← Back to list</Link></p>
       <h1>Edit list</h1>
       <Flash searchParams={searchParams} />
@@ -52,7 +52,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
           <label className="inline"><input type="radio" name="visibility" value="private" defaultChecked={list.visibility === "private"} /> Only me (hidden from everyone)</label>
           {families.length > 0 && (
             <div className="stack" style={{ paddingLeft: 8, borderLeft: "3px solid var(--border)" }}>
-              <p className="small muted" style={{ margin: 0 }}>Families for &quot;only the families I pick&quot;:</p>
+              <p className="small muted m0">Families for &quot;only the families I pick&quot;:</p>
               {families.map((f) => (
                 <label key={f.id} className="inline">
                   <input type="checkbox" name="families" value={f.id} defaultChecked={chosen.has(f.id)} />
@@ -65,7 +65,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
 
         <div className="card stack">
           <h2>Purchases</h2>
-          <p className="small" style={{ margin: 0 }}>When someone who doesn&apos;t manage this list marks a gift as bought:</p>
+          <p className="small m0">When someone who doesn&apos;t manage this list marks a gift as bought:</p>
           <label className="inline">
             <input type="radio" name="review_purchases" value="" defaultChecked={!list.review_purchases} />
             Approve it automatically
@@ -74,7 +74,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
             <input type="radio" name="review_purchases" value="1" defaultChecked={!!list.review_purchases} />
             Send it to a list manager to review first
           </label>
-          <p className="tiny muted" style={{ margin: 0 }}>
+          <p className="tiny muted m0">
             When someone else marks a gift as bought, it shows as &quot;waiting for review&quot; until a list manager confirms it.
             {list.profile_is_primary ? " Reviews go to co-owners. You won't see them on your own list, so the surprise stays safe." : ""}
           </p>
@@ -83,7 +83,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
         {mainOwner && people.length > 0 && (
           <div className="card stack">
             <h2>Co-owners</h2>
-            <p className="small muted" style={{ margin: 0 }}>Co-owners can add, edit and remove wishes, change sharing, and review purchases. Great for two parents running a kid&apos;s list.</p>
+            <p className="small muted m0">Co-owners can add, edit and remove wishes, change sharing, and review purchases. Great for two parents running a kid&apos;s list.</p>
             {people.map((p) => (
               <label key={p.id} className="inline">
                 <input type="checkbox" name="owners" value={p.id} defaultChecked={owners.has(p.id)} />
@@ -96,7 +96,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
         {people.length > 0 && (
           <div className="card stack">
             <h2>Hide from specific people</h2>
-            <p className="small muted" style={{ margin: 0 }}>They won&apos;t see this list at all, even if they&apos;re in a family it&apos;s shared with.</p>
+            <p className="small muted m0">They won&apos;t see this list at all, even if they&apos;re in a family it&apos;s shared with.</p>
             {people.map((p) => (
               <label key={p.id} className="inline">
                 <input type="checkbox" name="hidden" value={p.id} defaultChecked={hidden.has(p.id)} />
@@ -108,7 +108,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
         <SubmitButton className="btn">Save</SubmitButton>
       </form>
 
-      {mainOwner && <form action={deleteList} className="card" style={{ marginTop: 24 }}>
+      {mainOwner && <form action={deleteList} className="card mt-24">
         <input type="hidden" name="list_id" value={list.id} />
         <div className="row between">
           <span className="muted small">Deleting removes the list and all its wishes.</span>

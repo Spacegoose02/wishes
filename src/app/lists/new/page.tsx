@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { familyPeople, familyProfiles, myProfiles } from "@/lib/access";
 import { Avatar } from "@/components/Avatar";
-import { createList } from "../../actions/app";
+import { createList } from "../../actions/lists";
 import { Flash, type SP } from "@/components/Flash";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -16,7 +16,7 @@ export default async function NewListPage({ searchParams }: { searchParams: SP }
   const sp = await searchParams;
   const pre = typeof sp.for === "string" ? sp.for : sp.profile ? `p:${sp.profile}` : `p:${mine[0]?.id}`;
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto" }}>
+    <div className="narrow-640">
       <h1>New wishlist</h1>
       <form action={createList} className="card stack">
         <Flash searchParams={searchParams} />
@@ -49,7 +49,7 @@ export default async function NewListPage({ searchParams }: { searchParams: SP }
             If it&apos;s for a family member: keep it a secret from them (a gift-idea list they can&apos;t see)
           </label>
         )}
-        <p className="tiny muted" style={{ margin: 0 }}>
+        <p className="tiny muted m0">
           Lists you make for someone else make you a co-owner, so you can keep adding to them. A list for a family member normally shows up on their page too.
         </p>
         <label>List name<input name="title" placeholder="Birthday 2026" required /></label>
@@ -66,8 +66,8 @@ export default async function NewListPage({ searchParams }: { searchParams: SP }
           </select>
         </label>
         {people.length > 0 && (
-          <fieldset className="stack" style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 12, margin: 0 }}>
-            <legend className="small" style={{ fontWeight: 700, padding: "0 6px" }}>Hide it from…</legend>
+          <fieldset className="stack m0" style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 12 }}>
+            <legend className="small fw-700" style={{ padding: "0 6px" }}>Hide it from…</legend>
             {people.map((p) => (
               <label key={p.id} className="inline"><input type="checkbox" name="hidden" value={p.id} /><Avatar id={p.avatar} size={24} /> {p.name}</label>
             ))}

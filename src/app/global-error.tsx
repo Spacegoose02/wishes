@@ -7,7 +7,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
     <html lang="en" data-theme="system">
       <body>
         <main className="shell">
-          <div className="empty" style={{ marginTop: 80 }}>
+          <div className="empty mt-80">
             <div className="big" aria-hidden="true">🦝</div>
             <h1>Wishes hit a snag</h1>
             <p>Something went wrong loading the app. Give it another go.</p>

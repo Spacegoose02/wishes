@@ -10,7 +10,8 @@ import { aiEnabled } from "@/lib/ai";
 import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
-import { addItem, autofill, claimItem, compareStores, deleteItem, moveItem, recordPurchase, refreshItem, undoPurchase, updateItem } from "../../actions/app";
+import { addItem, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, updateItem } from "../../actions/items";
+import { recordPurchase, undoPurchase } from "../../actions/purchases";
 import { ItemForm } from "@/components/ItemForm";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
@@ -118,15 +119,15 @@ export default async function ListPage({ params, searchParams }: { params: Param
   return (
     <>
       <Flash searchParams={searchParams} />
-      <div className="section-head" style={{ marginTop: 8 }}>
-        <div className="row" style={{ alignItems: "flex-start" }}>
+      <div className="section-head mt-8">
+        <div className="row items-start">
           <span style={{ fontSize: "2.6rem", lineHeight: 1 }} aria-hidden="true">{list.emoji}</span>
           <div>
-            <h1 style={{ marginBottom: 4 }}>{list.title}</h1>
-            <div className="row" style={{ gap: 6 }}>
-              <span className="row" style={{ gap: 6 }}>
+            <h1 className="mb-4">{list.title}</h1>
+            <div className="row gap-6">
+              <span className="row gap-6">
                 <Avatar id={list.profile_avatar} size={24} />
-                <span className="small" style={{ fontWeight: 700 }}>{list.profile_name}</span>
+                <span className="small fw-700">{list.profile_name}</span>
                 {profile && !profile.is_primary && canEditProfile(user.id, profile) && (
                   <RenameKid id={profile.id} name={profile.name} back={`/lists/${list.id}`} />
                 )}
@@ -138,7 +139,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
             </div>
           </div>
         </div>
-        <div className="row" style={{ gap: 6 }}>
+        <div className="row gap-6">
           {!recipient && (
             <Link href={`/lists/${list.id}/purchases`} className="btn small secondary">
               🧾 Purchases{pendingReviews > 0 && <span className="badge">{pendingReviews}</span>}
@@ -158,7 +159,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
       {profile && <AboutProfile p={profile} editHref={canEditProfile(user.id, profile) ? (profile.is_primary ? "/settings?tab=me" : `/settings?tab=profiles&edit=${profile.id}#profile-${profile.id}`) : undefined} />}
 
       {owner && (
-        <details className="card" open={allItems.length === 0} style={{ marginTop: 12 }}>
+        <details className="card mt-12" open={allItems.length === 0}>
           <summary>Add a wish</summary>
           <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} />
         </details>
@@ -188,7 +189,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
         </form>
       )}
       {usedCats.length > 1 && (
-        <div className="row chips" style={{ gap: 6, marginTop: 10 }}>
+        <div className="row chips gap-6 mt-10">
           <Link href={`/lists/${list.id}?sort=${sort}`} className={`pill ${!cat ? "accent" : ""}`}>All</Link>
           {usedCats.map((c) => (
             <Link key={c.id} href={`/lists/${list.id}?cat=${c.id}&sort=${sort}`} className={`pill ${cat === c.id ? "accent" : ""}`}>
@@ -200,7 +201,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
 
       <section className="section">
         <div className="section-head">
-          <h2 style={{ margin: 0 }}>
+          <h2 className="m0">
             {items.length} {items.length === 1 ? "wish" : "wishes"}{filtered ? ` of ${allItems.length}` : ""}
           </h2>
           {total > 0 && <span className="muted small">About {formatMoney(total)} total</span>}
@@ -211,7 +212,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
         {allItems.length > 0 && items.length === 0 && <div className="card empty">Nothing matches those filters.</div>}
         {groups.map((g) => (
           <div key={g.key || "all"} className="stack" style={{ marginBottom: 18 }}>
-            {g.key && <h3 style={{ margin: "6px 0 0" }}>{categoryIcon(g.key)} {categoryLabel(g.key)}</h3>}
+            {g.key && <h3 className="m0 mt-6">{categoryIcon(g.key)} {categoryLabel(g.key)}</h3>}
             <div className="items">
               {g.items.map((it) => {
                 const claimedByMe = it.claimed_by === user.id;
@@ -228,30 +229,30 @@ export default async function ListPage({ params, searchParams }: { params: Param
                     <div className="item-img">
                       {it.image_url ? <img src={it.image_url} alt="" referrerPolicy="no-referrer" loading="lazy" /> : categoryIcon(it.category)}
                     </div>
-                    <div style={{ minWidth: 0 }}>
+                    <div className="min-0">
                       {it.url ? (
                         <a className="item-title" href={it.url} target="_blank" rel="noopener noreferrer nofollow">{it.title}</a>
                       ) : (
                         <span className="item-title">{it.title}</span>
                       )}
-                      <div className="row" style={{ gap: 8, marginTop: 2 }}>
+                      <div className="row gap-8" style={{ marginTop: 2 }}>
                         {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents, it.currency)}</span> : null}
                         {it.store && <span className="pill">{it.store}</span>}
                         {it.category && <span className="pill">{categoryIcon(it.category)} {categoryLabel(it.category)}</span>}
                         <span className="stars" title="How much they want it" role="img" aria-label={`Wanted ${it.priority} of 3`}>{"★".repeat(it.priority)}</span>
                         {it.quantity > 1 && <span className="pill">×{it.quantity}</span>}
                       </div>
-                      {details.length > 0 && <p className="small" style={{ margin: "6px 0 0", fontWeight: 600 }}>{details.join(" · ")}</p>}
-                      {it.notes && <p className="small muted" style={{ margin: "4px 0 0", whiteSpace: "pre-wrap" }}>{it.notes}</p>}
+                      {details.length > 0 && <p className="small m0 mt-6 fw-600">{details.join(" · ")}</p>}
+                      {it.notes && <p className="small muted m0 mt-4" style={{ whiteSpace: "pre-wrap" }}>{it.notes}</p>}
                       {(claimed || ps.length > 0) && (
-                        <div className="small" style={{ margin: "6px 0 0", fontWeight: 700, color: "var(--good)" }}>
+                        <div className="small m0 mt-6 fw-700 text-good">
                           {ps.map((p) => (
                             <div key={p.id}>
                               {p.status === "pending" ? "⏳" : "✅"} {p.buyer_user_id === user.id ? "You" : p.buyer_name} bought {p.quantity > 1 ? `${p.quantity} ` : ""}
                               {p.price_cents ? `for ${formatMoney(p.price_cents)}` : ""}{p.store ? ` at ${p.store}` : ""}
                               {p.status === "pending" && <span className="muted"> (waiting for review)</span>}
                               {p.buyer_user_id === user.id && (
-                                <form action={undoPurchase} style={{ display: "inline" }}>
+                                <form action={undoPurchase} className="inline-form">
                                   <input type="hidden" name="purchase_id" value={p.id} />
                                   <SubmitButton className="linkish">undo</SubmitButton>
                                 </form>
@@ -261,7 +262,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                           {claimed && !it.purchased && <div>🎀 {claimedByMe ? "You're getting this" : `${it.claimed_name ?? "Someone"} is getting this`}</div>}
                         </div>
                       )}
-                      {it.created_by_guest && owner && <p className="tiny muted" style={{ margin: "4px 0 0" }}>Added by {it.created_by_guest}</p>}
+                      {it.created_by_guest && owner && <p className="tiny muted m0 mt-4">Added by {it.created_by_guest}</p>}
                       {offers.length > 0 && (
                         <div className="offers">
                           {cheaper && <span className="pill good">💰 {formatMoney(it.price_cents! - cheaper.price_cents)} cheaper at {cheaper.store}</span>}
@@ -273,7 +274,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                           <span className="tiny muted">{offers[0].ai_checked ? "Matches confirmed by AI." : "Close matches; check it's the same item."}</span>
                         </div>
                       )}
-                      {it.url && it.price_checked_at ? <p className="tiny muted" style={{ margin: "4px 0 0" }}>Price checked {ago(it.price_checked_at)}{it.offers_checked_at ? `, stores compared ${ago(it.offers_checked_at)}` : ""}</p> : null}
+                      {it.url && it.price_checked_at ? <p className="tiny muted m0 mt-4">Price checked {ago(it.price_checked_at)}{it.offers_checked_at ? `, stores compared ${ago(it.offers_checked_at)}` : ""}</p> : null}
                     </div>
                     <div className="item-actions">
                       {((showClaims && !it.claimed_by) || (claimedByMe && boughtQty === 0)) && !it.purchased && (
@@ -290,30 +291,30 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       </Menu>
                     </div>
                     {recipient && remaining > 0 && (
-                      <form action={recordPurchase} style={{ gridColumn: "1 / -1" }}>
+                      <form action={recordPurchase} className="full">
                         <Hidden item={it.id} />
                         <input type="hidden" name="note" value="Got it myself" />
                         <SubmitButton className="btn small ghost">✔ I got this myself</SubmitButton>
                       </form>
                     )}
                     {showClaims && remaining > 0 && (
-                      <details className="buy" style={{ gridColumn: "1 / -1" }}>
-                        <summary className="small" style={{ cursor: "pointer", fontWeight: 700, color: "var(--accent-ink)" }}>🛍️ I bought this</summary>
-                        <form action={recordPurchase} className="form-grid" style={{ marginTop: 10 }}>
+                      <details className="buy full">
+                        <summary className="small pointer fw-700 text-accent">🛍️ I bought this</summary>
+                        <form action={recordPurchase} className="form-grid mt-10">
                           <Hidden item={it.id} />
                           {it.quantity > 1 && <label>How many?<input name="quantity" type="number" min={1} max={remaining} defaultValue={remaining} /></label>}
                           <label>Price paid<input name="price" inputMode="decimal" defaultValue={it.price_cents ? (it.price_cents / 100).toFixed(2) : ""} /></label>
                           <label>Where<input name="store" defaultValue={it.store} /></label>
                           <label className="full">Note (optional)<input name="note" placeholder="Wrapped and in the closet" /></label>
                           <SubmitButton className="btn small">Save purchase</SubmitButton>
-                          {list.review_purchases && !owner ? <p className="tiny muted full" style={{ margin: 0 }}>A list manager will confirm this purchase.</p> : null}
+                          {list.review_purchases && !owner ? <p className="tiny muted full m0">A list manager will confirm this purchase.</p> : null}
                         </form>
                       </details>
                     )}
                     {owner && (
-                      <details style={{ gridColumn: "1 / -1" }}>
-                        <summary className="small muted" style={{ cursor: "pointer" }}>Edit</summary>
-                        <div style={{ marginTop: 10 }}>
+                      <details className="full">
+                        <summary className="small muted pointer">Edit</summary>
+                        <div className="mt-10">
                           <ItemForm
                             action={updateItem}
                             autofill={autofill}
@@ -327,9 +328,9 @@ export default async function ListPage({ params, searchParams }: { params: Param
                             }}
                           />
                           {otherLists.length > 0 && (
-                            <form action={moveItem} className="row" style={{ marginTop: 12, alignItems: "flex-end" }}>
+                            <form action={moveItem} className="row mt-12 items-end">
                               <Hidden item={it.id} />
-                              <label style={{ flex: 1, minWidth: 200 }}>Move to another list
+                              <label className="grow min-200">Move to another list
                                 <select name="to_list_id" defaultValue="">
                                   <option value="" disabled>Pick a list…</option>
                                   {otherLists.map((l) => <option key={l.id} value={l.id}>{l.emoji} {l.title} ({l.profile_name})</option>)}

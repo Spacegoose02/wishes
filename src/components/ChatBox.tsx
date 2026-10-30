@@ -115,7 +115,7 @@ export function ChatBox({ listId, initial, name, canManage, canEditProfile, acti
                         {idea.price ? <span className="pill" style={{ marginLeft: 6 }}>~${idea.price.toFixed(0)}</span> : null}
                         {idea.why && <div className="small muted">{idea.why}</div>}
                       </div>
-                      <div className="row" style={{ gap: 6 }}>
+                      <div className="row gap-6">
                         <a className="btn small ghost" href={link.url} target="_blank" rel="noopener noreferrer nofollow">Find at {link.store} ↗</a>
                         {canManage && (
                           done[key] ? <span className="tiny muted">{done[key]}</span> : (
@@ -147,7 +147,7 @@ export function ChatBox({ listId, initial, name, canManage, canEditProfile, acti
         <div ref={end} />
       </div>
       {messages.length === 0 && (
-        <div className="row chips" style={{ gap: 6 }}>
+        <div className="row chips gap-6">
           {STARTERS.map((s) => <button key={s} type="button" className="pill accent chip-btn" onClick={() => send(s)}>{s}</button>)}
         </div>
       )}

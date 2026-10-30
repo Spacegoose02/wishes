@@ -2,7 +2,7 @@ import { all } from "@/lib/db";
 import { aiConfig, PROVIDERS } from "@/lib/ai";
 import { oidcConfig } from "@/lib/oidc";
 import type { User } from "@/lib/types";
-import { adminUser, saveAiSettings, saveScrapeSettings } from "@/app/actions/app";
+import { adminUser, saveAiSettings, saveScrapeSettings } from "@/app/actions/admin";
 import { getSetting } from "@/lib/db";
 import { Avatar } from "@/components/Avatar";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -17,7 +17,7 @@ export function AdminPanel({ me }: { me: User }) {
     <>
       <form action={saveAiSettings} className="card stack">
         <h2>✨ AI gift ideas</h2>
-        <p className="small muted" style={{ margin: 0 }}>Optional. Ideas always go to a review list first and are never added automatically.</p>
+        <p className="small muted m0">Optional. Ideas always go to a review list first and are never added automatically.</p>
         <div className="form-grid">
           <label>Provider
             <select name="provider" defaultValue={ai.provider}>
@@ -29,13 +29,13 @@ export function AdminPanel({ me }: { me: User }) {
           <label className="full">API key<input name="api_key" type="password" placeholder={ai.apiKey ? "•••••••• saved (leave blank to keep)" : "Not set"} autoComplete="off" /></label>
         </div>
         <label className="inline"><input type="checkbox" name="clear_key" /> Clear saved key</label>
-        <p className="tiny muted" style={{ margin: 0 }}>Defaults: Claude {PROVIDERS[1].defaultModel}, OpenAI {PROVIDERS[2].defaultModel}, Gemini {PROVIDERS[3].defaultModel}. Local works with Ollama or LM Studio&apos;s OpenAI-compatible endpoint.</p>
+        <p className="tiny muted m0">Defaults: Claude {PROVIDERS[1].defaultModel}, OpenAI {PROVIDERS[2].defaultModel}, Gemini {PROVIDERS[3].defaultModel}. Local works with Ollama or LM Studio&apos;s OpenAI-compatible endpoint.</p>
         <SubmitButton className="btn">Save AI settings</SubmitButton>
       </form>
 
       <form action={saveScrapeSettings} className="card stack">
         <h2>🧩 Store lookups behind bot walls</h2>
-        <p className="small muted" style={{ margin: 0 }}>
+        <p className="small muted m0">
           Some stores show a &quot;checking your browser&quot; page instead of the product. If you run a FlareSolverr container, Wishes can send those pages through it. A scraping service URL works as a second option.
         </p>
         <label>FlareSolverr URL<input name="flaresolverr_url" defaultValue={getSetting("flaresolverr_url") ?? process.env.FLARESOLVERR_URL ?? ""} placeholder="http://192.168.1.10:8191" /></label>
@@ -45,11 +45,11 @@ export function AdminPanel({ me }: { me: User }) {
 
       <section className="card stack">
         <h2>Sign-in</h2>
-        <p className="small" style={{ margin: 0 }}>
+        <p className="small m0">
           Single sign-on: {oidc ? <strong>on ({oidc.name}, {oidc.issuer})</strong> : <span className="muted">off. Set OIDC_ISSUER, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET in the container.</span>}
         </p>
-        <p className="small" style={{ margin: 0 }}>Open sign-ups: <strong>{process.env.ALLOW_SIGNUP === "false" ? "closed" : "open"}</strong> (ALLOW_SIGNUP)</p>
-        <p className="small" style={{ margin: 0 }}>Proxy header sign-in: <strong>{process.env.TRUSTED_EMAIL_HEADER ? `on (${process.env.TRUSTED_EMAIL_HEADER})` : "off"}</strong> (TRUSTED_EMAIL_HEADER)</p>
+        <p className="small m0">Open sign-ups: <strong>{process.env.ALLOW_SIGNUP === "false" ? "closed" : "open"}</strong> (ALLOW_SIGNUP)</p>
+        <p className="small m0">Proxy header sign-in: <strong>{process.env.TRUSTED_EMAIL_HEADER ? `on (${process.env.TRUSTED_EMAIL_HEADER})` : "off"}</strong> (TRUSTED_EMAIL_HEADER)</p>
       </section>
 
       <section className="card">
@@ -60,7 +60,7 @@ export function AdminPanel({ me }: { me: User }) {
               {users.map((u) => (
                 <tr key={u.id}>
                   <td>
-                    <span className="row" style={{ gap: 8 }}>
+                    <span className="row gap-8">
                       <Avatar id={u.avatar} size={30} />
                       <span>{u.name}<div className="tiny muted">{u.email}</div></span>
                       {u.is_admin ? <span className="pill accent">admin</span> : null}
@@ -68,9 +68,9 @@ export function AdminPanel({ me }: { me: User }) {
                       {u.oidc_sub ? <span className="pill">SSO</span> : null}
                     </span>
                   </td>
-                  <td style={{ textAlign: "right" }}>
+                  <td className="text-right">
                     {u.id !== me.id && (
-                      <div className="row" style={{ justifyContent: "flex-end", gap: 6 }}>
+                      <div className="row justify-end gap-6">
                         {(["toggle-admin", "reset-2fa", "delete"] as const).map((a) => (
                           <form key={a} action={adminUser}>
                             <input type="hidden" name="user_id" value={u.id} />

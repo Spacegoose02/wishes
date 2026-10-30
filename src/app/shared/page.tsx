@@ -16,7 +16,7 @@ export default async function SharedPage() {
   return (
     <>
       <div className="section-head">
-        <h1 style={{ margin: 0 }}>Family lists</h1>
+        <h1 className="m0">Family lists</h1>
         <Link href="/purchases" className="btn small secondary">🛍️ What I&apos;ve bought</Link>
       </div>
       <p className="muted">Lists your families shared with you. Claim a gift so nobody doubles up; the list owner won&apos;t see it.</p>

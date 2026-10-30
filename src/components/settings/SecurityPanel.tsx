@@ -13,18 +13,18 @@ export async function SecurityPanel({ user }: { user: User }) {
         <h2>Two-factor sign-in</h2>
         {user.totp_enabled ? (
           <>
-            <p className="alert ok" style={{ margin: 0 }}>On. You&apos;ll be asked for a code from your authenticator app when you sign in.</p>
-            <form action={disableTotp} className="row" style={{ alignItems: "flex-end" }}>
-              <label style={{ flex: 1 }}>Current code<input name="code" inputMode="numeric" autoComplete="one-time-code" required /></label>
+            <p className="alert ok m0">On. You&apos;ll be asked for a code from your authenticator app when you sign in.</p>
+            <form action={disableTotp} className="row items-end">
+              <label className="grow">Current code<input name="code" inputMode="numeric" autoComplete="one-time-code" required /></label>
               <SubmitButton className="btn danger">Turn off</SubmitButton>
             </form>
           </>
         ) : settingUp ? (
           <>
             <p className="small">Scan this with an authenticator app (Google Authenticator, 1Password, Aegis, Bitwarden…), then type the 6-digit code.</p>
-            <div className="row" style={{ alignItems: "flex-start" }}>
+            <div className="row items-start">
               {qr && <img src={qr} alt="Two-factor QR code" width={180} height={180} style={{ borderRadius: 12, background: "#fff", padding: 6 }} />}
-              <div className="stack" style={{ flex: 1, minWidth: 200 }}>
+              <div className="stack grow min-200">
                 <span className="small muted">Or enter this key:</span>
                 <span className="code">{user.totp_secret}</span>
                 <form action={confirmTotp} className="stack">
@@ -36,7 +36,7 @@ export async function SecurityPanel({ user }: { user: User }) {
           </>
         ) : (
           <>
-            <p className="small muted" style={{ margin: 0 }}>Add a second step to your sign-in with an authenticator app.</p>
+            <p className="small muted m0">Add a second step to your sign-in with an authenticator app.</p>
             <form action={startTotp}><SubmitButton className="btn">Set up two-factor</SubmitButton></form>
           </>
         )}

@@ -13,7 +13,7 @@ const TABS: Tab[] = [
 ];
 
 function isActive(path: string, href: string) {
-  if (href === "/") return path === "/" || path.startsWith("/lists");
+  if (href === "/") return path === "/" || path === "/lists/new";
   return path === href || path.startsWith(`${href}/`);
 }
 

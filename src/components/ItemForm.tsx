@@ -59,7 +59,7 @@ export function ItemForm({
       {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       <label>
         Link (Amazon, Walmart, Target, Kohl&apos;s, anywhere)
-        <div className="row" style={{ flexWrap: "nowrap" }}>
+        <div className="row nowrap">
           <input
             name="url" type="url" inputMode="url" placeholder="Paste a product link" value={url}
             onChange={(e) => setUrl(e.target.value)}
@@ -70,10 +70,10 @@ export function ItemForm({
           </button>
         </div>
       </label>
-      {msg && <p className="small muted" style={{ margin: 0 }}>{msg}</p>}
-      <div className="row" style={{ alignItems: "flex-start", flexWrap: "nowrap" }}>
+      {msg && <p className="small muted m0">{msg}</p>}
+      <div className="row items-start nowrap">
         {image && <div className="item-img"><img src={image} alt="" referrerPolicy="no-referrer" /></div>}
-        <div className="form-grid" style={{ flex: 1 }}>
+        <div className="form-grid grow">
           <label className="full">What is it?<input name="title" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="LEGO Botanical Bonsai" /></label>
           <label>Price<input name="price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="29.99" /></label>
           <label>Store<input name="store" value={store} onChange={(e) => setStore(e.target.value)} placeholder="Target" /></label>

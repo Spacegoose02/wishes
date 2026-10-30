@@ -5,7 +5,7 @@ import { getList, isManager, isRecipient, listAccess } from "@/lib/access";
 import { all } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
 import type { Purchase } from "@/lib/types";
-import { reviewPurchase, undoPurchase } from "../../../actions/app";
+import { reviewPurchase, undoPurchase } from "../../../actions/purchases";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 
@@ -25,7 +25,7 @@ export default async function PurchasesPage({ params, searchParams }: { params: 
   for (const r of rows) if (r.status !== "rejected") byBuyer.set(r.buyer_name, (byBuyer.get(r.buyer_name) ?? 0) + (r.price_cents ?? 0) * r.quantity);
 
   return (
-    <div style={{ maxWidth: 860, margin: "0 auto" }}>
+    <div className="narrow-860">
       <p><Link href={`/lists/${list.id}`}>← Back to {list.title}</Link></p>
       <h1>🧾 Purchases for {list.profile_name}</h1>
       <p className="muted">
@@ -36,7 +36,7 @@ export default async function PurchasesPage({ params, searchParams }: { params: 
       {manager && pending.length > 0 && (
         <section className="card stack">
           <h2>Needs your review ({pending.length})</h2>
-          <p className="small muted" style={{ margin: 0 }}>Confirm purchases made by people who don&apos;t manage this list.</p>
+          <p className="small muted m0">Confirm purchases made by people who don&apos;t manage this list.</p>
           {pending.map((p) => (
             <div key={p.id} className="row between notice">
               <div>
@@ -44,7 +44,7 @@ export default async function PurchasesPage({ params, searchParams }: { params: 
                 {p.price_cents ? ` for ${formatMoney(p.price_cents)}` : ""}{p.store ? ` at ${p.store}` : ""}
                 {p.note && <div className="small muted">“{p.note}”</div>}
               </div>
-              <div className="row" style={{ gap: 6 }}>
+              <div className="row gap-6">
                 {(["approve", "reject"] as const).map((d) => (
                   <form key={d} action={reviewPurchase}>
                     <input type="hidden" name="purchase_id" value={p.id} />
@@ -60,11 +60,11 @@ export default async function PurchasesPage({ params, searchParams }: { params: 
 
       <section className="card">
         <div className="section-head">
-          <h2 style={{ margin: 0 }}>History</h2>
+          <h2 className="m0">History</h2>
           {spent > 0 && <span className="small muted">{formatMoney(spent)} spent in total</span>}
         </div>
         {byBuyer.size > 1 && (
-          <div className="row" style={{ gap: 6, marginBottom: 10 }}>
+          <div className="row gap-6" style={{ marginBottom: 10 }}>
             {[...byBuyer.entries()].map(([name, cents]) => <span key={name} className="pill">{name}: {formatMoney(cents)}</span>)}
           </div>
         )}

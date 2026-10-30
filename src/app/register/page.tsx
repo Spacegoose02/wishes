@@ -24,11 +24,11 @@ export default async function RegisterPage({ searchParams }: { searchParams: SP 
         <label>Email<input name="email" type="email" autoComplete="email" required /></label>
         <label>Password<input name="password" type="password" minLength={8} autoComplete="new-password" required /></label>
         <div>
-          <p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Pick your critter</p>
+          <p className="small fw-600 mb-6">Pick your critter</p>
           <AvatarPicker />
         </div>
         <SubmitButton className="btn block">Create account</SubmitButton>
-        {!first && <p className="small muted" style={{ textAlign: "center", margin: 0 }}>Have an account? <Link href="/login">Sign in</Link></p>}
+        {!first && <p className="small muted text-center m0">Have an account? <Link href="/login">Sign in</Link></p>}
       </form>
     </div>
   );

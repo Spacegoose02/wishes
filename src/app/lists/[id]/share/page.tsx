@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { familyPeople, getList, isManager } from "@/lib/access";
 import { all } from "@/lib/db";
-import { addGuest, quickHide, removeGuest } from "../../../actions/app";
+import { addGuest, removeGuest } from "../../../actions/guests";
+import { quickHide } from "../../../actions/lists";
 import { Avatar } from "@/components/Avatar";
 import { CopyButton } from "@/components/CopyButton";
 import { Flash, type SP } from "@/components/Flash";
@@ -27,7 +28,7 @@ export default async function SharePage({ params, searchParams }: { params: Prom
     "SELECT * FROM list_guests WHERE list_id = ? ORDER BY created_at", list.id,
   );
   return (
-    <div style={{ maxWidth: 680, margin: "0 auto" }}>
+    <div className="narrow-680">
       <p><Link href={`/lists/${list.id}`}>← Back to list</Link></p>
       <h1>Share &quot;{list.title}&quot;</h1>
       <Flash searchParams={searchParams} />
@@ -38,15 +39,15 @@ export default async function SharePage({ params, searchParams }: { params: Prom
       </div>
       <div className="card stack">
         <h2>Hide from specific people</h2>
-        <p className="small muted" style={{ margin: 0 }}>
+        <p className="small muted m0">
           Keep this list away from someone even though they&apos;re in your family, like a partner you&apos;re shopping for or the kids.
         </p>
-        {people.length === 0 && <p className="small muted" style={{ margin: 0 }}>Nobody else is in your families yet.</p>}
+        {people.length === 0 && <p className="small muted m0">Nobody else is in your families yet.</p>}
         {people.map((p) => {
           const isHidden = hidden.has(p.id);
           return (
             <div key={p.id} className="row between">
-              <span className="row" style={{ gap: 8 }}>
+              <span className="row gap-8">
                 <Avatar id={p.avatar} size={30} /> {p.name}
                 {isHidden && <span className="pill">🙈 Hidden</span>}
               </span>
@@ -62,12 +63,12 @@ export default async function SharePage({ params, searchParams }: { params: Prom
       </div>
       <div className="card stack">
         <h2>Guests without an account</h2>
-        <p className="small muted" style={{ margin: 0 }}>
+        <p className="small muted m0">
           Add someone&apos;s email to make a private link just for them. With editing on, they can add and remove wishes (great for a grandparent helping a kid), and they can mark gifts they bought. They see what&apos;s already bought so nobody doubles up, but not who bought it.
         </p>
-        <form action={addGuest} className="row" style={{ alignItems: "flex-end" }}>
+        <form action={addGuest} className="row items-end">
           <input type="hidden" name="list_id" value={list.id} />
-          <label style={{ flex: 1, minWidth: 200 }}>Email<input name="email" type="email" required placeholder="grandma@example.com" /></label>
+          <label className="grow min-200">Email<input name="email" type="email" required placeholder="grandma@example.com" /></label>
           <label className="inline"><input type="checkbox" name="can_edit" defaultChecked /> Can edit</label>
           <SubmitButton className="btn">Add</SubmitButton>
         </form>
@@ -77,8 +78,8 @@ export default async function SharePage({ params, searchParams }: { params: Prom
               {guests.map((g) => (
                 <tr key={g.id}>
                   <td>{g.email}<div className="tiny muted">{g.can_edit ? "Can edit" : "View only"}</div></td>
-                  <td style={{ textAlign: "right" }}>
-                    <div className="row" style={{ justifyContent: "flex-end", gap: 6 }}>
+                  <td className="text-right">
+                    <div className="row justify-end gap-6">
                       <CopyButton text={`/s/${g.token}`} label="Copy link" />
                       <form action={removeGuest}>
                         <input type="hidden" name="list_id" value={list.id} />

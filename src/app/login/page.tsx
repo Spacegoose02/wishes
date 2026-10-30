@@ -35,7 +35,7 @@ export default async function LoginPage({ searchParams }: { searchParams: SP }) 
           </form>
         )}
         {signupAllowed() && passwordOn && (
-          <p className="small muted" style={{ textAlign: "center", margin: 0 }}>
+          <p className="small muted text-center m0">
             New here? <Link href="/register">Create an account</Link>
           </p>
         )}

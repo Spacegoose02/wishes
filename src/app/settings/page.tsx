@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { familyProfiles, myProfiles } from "@/lib/access";
 import type { Profile } from "@/lib/types";
 import { logout } from "../actions/auth";
-import { deleteProfile, rollAvatar, saveAccount, saveProfile } from "../actions/app";
+import { deleteProfile, rollAvatar, saveAccount, saveProfile } from "../actions/account";
 import { AvatarPicker, parseCollection } from "@/components/AvatarPicker";
 import { Avatar, avatarLabel, avatarTier, TIER_LABEL } from "@/components/Avatar";
 import { ThemePicker } from "@/components/ThemePicker";
@@ -38,7 +38,7 @@ function RollCard({ rolled, profileId }: { rolled?: string; profileId?: number }
         {profileId ? <input type="hidden" name="profile_id" value={profileId} /> : null}
         <SubmitButton className="btn secondary">🎲 Roll a random critter</SubmitButton>
       </form>
-      <p className="tiny muted" style={{ margin: 0 }}>Common, Rare and Epic geese and raccoons. Space Goose is Legendary (2% chance). Every roll joins your collection.</p>
+      <p className="tiny muted m0">Common, Rare and Epic geese and raccoons. Space Goose is Legendary (2% chance). Every roll joins your collection.</p>
     </div>
   );
 }
@@ -47,12 +47,12 @@ function ProfileCard({ p, open, rolled, collection, canDelete, note }: { p: Prof
   return (
     <details id={`profile-${p.id}`} className="card" open={open}>
       <summary>
-        <span className="row" style={{ display: "inline-flex", gap: 8 }}>
+        <span className="row gap-8" style={{ display: "inline-flex" }}>
           <Avatar id={p.avatar} size={28} />{p.name}{note && <span className="tiny muted">{note}</span>}<span className="small muted">✏️ Edit</span>
         </span>
       </summary>
       {canDelete && <RollCard rolled={p.avatar === rolled ? rolled : undefined} profileId={p.id} />}
-      <form action={saveProfile} className="stack" style={{ marginTop: 12 }}>
+      <form action={saveProfile} className="stack mt-12">
         <input type="hidden" name="profile_id" value={p.id} />
         <div className="form-grid">
           <label>Name<input name="name" defaultValue={p.name} required /></label>
@@ -63,7 +63,7 @@ function ProfileCard({ p, open, rolled, collection, canDelete, note }: { p: Prof
         <SubmitButton className="btn">Save profile</SubmitButton>
       </form>
       {canDelete && (
-        <form action={deleteProfile} style={{ marginTop: 10 }}>
+        <form action={deleteProfile} className="mt-10">
           <input type="hidden" name="profile_id" value={p.id} />
           <SubmitButton className="btn small danger" confirm="Remove profile and all its lists?">Remove profile and its lists</SubmitButton>
         </form>
@@ -85,9 +85,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
   const collection = parseCollection(user.unlocked_avatars);
 
   return (
-    <div style={{ maxWidth: 860, margin: "0 auto" }}>
+    <div className="narrow-860">
       <div className="section-head">
-        <h1 style={{ margin: 0 }}>Settings</h1>
+        <h1 className="m0">Settings</h1>
         <form action={logout}><SubmitButton className="btn small ghost">Sign out</SubmitButton></form>
       </div>
       <nav className="tabs">
@@ -115,10 +115,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
               <label>Name<input name="name" defaultValue={user.name} required /></label>
               <label>Birthday<input name="birthday" type="date" defaultValue={primary?.birthday ?? ""} /></label>
             </div>
-            <p className="small muted" style={{ margin: 0 }}>{user.email}</p>
+            <p className="small muted m0">{user.email}</p>
             <ProfileDetailsFields p={primary} />
-            <div><p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Avatar ({collection.length} rolled)</p><AvatarPicker value={user.avatar} collection={collection} /></div>
-            <div><p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Theme</p><ThemePicker value={user.theme} /></div>
+            <div><p className="small fw-600 mb-6">Avatar ({collection.length} rolled)</p><AvatarPicker value={user.avatar} collection={collection} /></div>
+            <div><p className="small fw-600 mb-6">Theme</p><ThemePicker value={user.theme} /></div>
             <SubmitButton className="btn">Save</SubmitButton>
           </form>
         </>
@@ -128,7 +128,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
         <>
           <section className="card stack">
             <h2>Profiles you manage</h2>
-            <p className="small muted" style={{ margin: 0 }}>Kids (or pets, or grandparents!) who don&apos;t need their own login. Their lists show up for your families, and you see who&apos;s buying what so you can coordinate.</p>
+            <p className="small muted m0">Kids (or pets, or grandparents!) who don&apos;t need their own login. Their lists show up for your families, and you see who&apos;s buying what so you can coordinate.</p>
             {others.map((p) => (
               <ProfileCard key={p.id} p={p} open={editId === p.id || (rolled !== undefined && p.avatar === rolled)} rolled={rolled} collection={collection} canDelete note={p.linked_user_id ? "secret lists, hidden from them" : undefined} />
             ))}
@@ -148,7 +148,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
           {familyKids.length > 0 && (
             <section className="card stack">
               <h2>Kids in your families</h2>
-              <p className="small muted" style={{ margin: 0 }}>Anyone in the family can fix a kid&apos;s name, birthday or critter.</p>
+              <p className="small muted m0">Anyone in the family can fix a kid&apos;s name, birthday or critter.</p>
               {familyKids.map((p) => (
                 <ProfileCard key={p.id} p={p} open={editId === p.id} collection={collection} note={`managed by ${p.owner_name}`} />
               ))}

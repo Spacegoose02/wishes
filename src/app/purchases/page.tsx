@@ -16,16 +16,16 @@ export default async function MyPurchasesPage() {
   );
   const total = rows.filter((r) => r.status !== "rejected").reduce((s, r) => s + (r.price_cents ?? 0) * r.quantity, 0);
   return (
-    <div style={{ maxWidth: 820, margin: "0 auto" }}>
+    <div className="narrow-820">
       <div className="section-head">
-        <h1 style={{ margin: 0 }}>🛍️ What I&apos;ve bought</h1>
+        <h1 className="m0">🛍️ What I&apos;ve bought</h1>
         {total > 0 && <span className="muted">{formatMoney(total)} total</span>}
       </div>
       <div className="card">
         {rows.length === 0 && <div className="empty"><div className="big" aria-hidden="true">🪿</div>Nothing yet. Open a family list and tap &quot;I bought this&quot;.</div>}
         {rows.map((r) => (
           <div key={r.id} className="notice">
-            <div style={{ flex: 1 }}>
+            <div className="grow">
               <div className="msg">
                 {r.quantity > 1 ? `${r.quantity} × ` : ""}{r.item_title} <span className="muted">for {r.for_name}</span>
               </div>

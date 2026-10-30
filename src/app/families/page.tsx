@@ -1,9 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { myFamilies } from "@/lib/access";
-import {
-  connectFamily, createFamily, disconnectFamily, joinFamily, leaveFamily, newInviteCode, removeMember, setMemberRole,
-} from "../actions/app";
+import { connectFamily, createFamily, disconnectFamily, joinFamily, leaveFamily, newInviteCode, removeMember, setMemberRole } from "../actions/families";
 import { Avatar } from "@/components/Avatar";
 import { CopyButton } from "@/components/CopyButton";
 import { RenameKid } from "@/components/RenameKid";
@@ -23,7 +21,7 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
       <p className="muted">A family is everyone who can see each other&apos;s lists. Connect another family (like the grandparents&apos; house) to share specific lists with them too.</p>
       <Flash searchParams={searchParams} />
 
-      <div className="grid" style={{ marginTop: 12 }}>
+      <div className="grid mt-12">
         <form action={createFamily} className="card stack">
           <h2>Start a family</h2>
           <label>Family name<input name="name" placeholder="The Underwoods" required /></label>
@@ -31,7 +29,7 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
         </form>
         <form action={joinFamily} className="card stack">
           <h2>Join with a code</h2>
-          <label>Invite code<input name="code" placeholder="GOOSE-AB12C" required style={{ textTransform: "uppercase" }} /></label>
+          <label>Invite code<input name="code" placeholder="GOOSE-AB12C" required className="uppercase" /></label>
           <SubmitButton className="btn secondary">Join</SubmitButton>
         </form>
       </div>
@@ -53,8 +51,8 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
         return (
           <section key={f.id} className="card section">
             <div className="section-head">
-              <h2 style={{ margin: 0 }}>🏡 {f.name}</h2>
-              <div className="row" style={{ gap: 6 }}>
+              <h2 className="m0">🏡 {f.name}</h2>
+              <div className="row gap-6">
                 <span className="small muted">Invite code</span>
                 <span className="code">{f.invite_code}</span>
                 <CopyButton text={f.invite_code} />
@@ -67,10 +65,10 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
               <tbody>
                 {members.map((m) => (
                   <tr key={m.id}>
-                    <td><span className="row" style={{ gap: 8 }}><Avatar id={m.avatar} size={30} />{m.name}{m.role === "admin" && <span className="pill">admin</span>}</span></td>
-                    <td style={{ textAlign: "right" }}>
+                    <td><span className="row gap-8"><Avatar id={m.avatar} size={30} />{m.name}{m.role === "admin" && <span className="pill">admin</span>}</span></td>
+                    <td className="text-right">
                       {admin && m.id !== user.id && (
-                        <div className="row" style={{ justifyContent: "flex-end", gap: 6 }}>
+                        <div className="row justify-end gap-6">
                           <form action={setMemberRole}>
                             <input type="hidden" name="family_id" value={f.id} />
                             <input type="hidden" name="user_id" value={m.id} />
@@ -89,8 +87,8 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
                 ))}
                 {kids.map((k) => (
                   <tr key={`k${k.id}`}>
-                    <td><span className="row" style={{ gap: 8 }}><Avatar id={k.avatar} size={30} />{k.name}<span className="pill">profile managed by {k.parent}</span></span></td>
-                    <td style={{ textAlign: "right" }}><RenameKid id={k.id} name={k.name} back="/families" /></td>
+                    <td><span className="row gap-8"><Avatar id={k.avatar} size={30} />{k.name}<span className="pill">profile managed by {k.parent}</span></span></td>
+                    <td className="text-right"><RenameKid id={k.id} name={k.name} back="/families" /></td>
                   </tr>
                 ))}
               </tbody>
@@ -99,12 +97,12 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
             <div className="section">
               <h3>Connected families</h3>
               {links.length === 0 && <p className="small muted">None yet.</p>}
-              <div className="row" style={{ gap: 6 }}>
+              <div className="row gap-6">
                 {links.map((l) => (
                   <span key={l.id} className="pill" style={{ padding: "4px 4px 4px 12px" }}>
                     {l.name}
                     {admin && (
-                      <form action={disconnectFamily} style={{ display: "inline" }}>
+                      <form action={disconnectFamily} className="inline-form">
                         <input type="hidden" name="family_id" value={f.id} />
                         <input type="hidden" name="other_id" value={l.id} />
                         <SubmitButton className="btn small ghost" style={{ minHeight: 24, padding: "0 8px" }} aria-label={`Disconnect ${l.name}`} confirm="Disconnect?">×</SubmitButton>
@@ -114,15 +112,15 @@ export default async function FamiliesPage({ searchParams }: { searchParams: SP 
                 ))}
               </div>
               {admin && (
-                <form action={connectFamily} className="row" style={{ marginTop: 10, alignItems: "flex-end" }}>
+                <form action={connectFamily} className="row mt-10 items-end">
                   <input type="hidden" name="family_id" value={f.id} />
-                  <label style={{ flex: 1, minWidth: 180 }}>Their invite code<input name="code" required style={{ textTransform: "uppercase" }} /></label>
+                  <label className="grow min-180">Their invite code<input name="code" required className="uppercase" /></label>
                   <SubmitButton className="btn secondary">Connect</SubmitButton>
                 </form>
               )}
             </div>
 
-            <form action={leaveFamily} style={{ marginTop: 16 }}>
+            <form action={leaveFamily} className="mt-16">
               <input type="hidden" name="family_id" value={f.id} />
               <SubmitButton className="btn small ghost" confirm={`Really leave ${f.name}?`}>Leave {f.name}</SubmitButton>
             </form>
