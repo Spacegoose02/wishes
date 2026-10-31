@@ -26,3 +26,19 @@ describe("must-haves", () => {
     expect(w.mustHaveCount(l.id)).toBe(3);
   });
 });
+
+describe("kid-mode approvals", () => {
+  it("keeps unapproved wishes out of shoppers' counts until approved", () => {
+    const parent = t.user("kparent");
+    const l = t.list(t.profileOf(parent, "Mia"));
+    t.item(l.id, "Approved");
+    const pending = t.item(l.id, "Unicorn");
+    t.db.run("UPDATE items SET needs_approval = 1 WHERE id = ?", pending.id);
+    expect(w.pendingApprovals(l.id)).toBe(1);
+    expect(w.visibleToShoppers(fresh(pending))).toBe(false);
+    expect(t.access.getList(l.id)!.item_count).toBe(1);
+    w.approveItem(pending.id);
+    expect(w.visibleToShoppers(fresh(pending))).toBe(true);
+    expect(t.access.getList(l.id)!.item_count).toBe(2);
+  });
+});

@@ -25,7 +25,7 @@ export function toBuy(user: User): ToBuy[] {
     `SELECT i.id, i.list_id, i.title, i.url, i.price_cents, i.quantity, l.title AS list_title, l.emoji AS list_emoji,
             l.event_date, p.name AS for_name, p.avatar AS for_avatar
      FROM items i JOIN lists l ON l.id = i.list_id JOIN profiles p ON p.id = l.profile_id
-     WHERE i.claimed_by = ? AND i.purchased = 0
+     WHERE i.claimed_by = ? AND i.purchased = 0 AND i.needs_approval = 0
        AND NOT EXISTS (SELECT 1 FROM purchases pu WHERE pu.item_id = i.id AND pu.buyer_user_id = ? AND pu.status != 'rejected')
      ORDER BY l.event_date IS NULL, l.event_date, p.name, i.title`,
     user.id, user.id,

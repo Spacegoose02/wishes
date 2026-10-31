@@ -56,6 +56,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
                 <h2 className="m0">{p.is_primary ? "My lists" : `${p.name}'s lists`}</h2>
               </div>
               <div className="row gap-6">
+                {!p.is_primary && !p.linked_user_id && <Link href={`/kid/${p.id}`} className="btn small">🧒 Kid mode</Link>}
                 {!p.is_primary && <RenameKid id={p.id} name={p.name} back="/" />}
                 {!p.is_primary && <Link href={`/settings?tab=profiles&edit=${p.id}#profile-${p.id}`} className="btn small ghost">Details</Link>}
                 <Link href={`/lists/new?profile=${p.id}`} className="btn small secondary">＋ List</Link>

@@ -278,6 +278,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE users ADD COLUMN badges TEXT NOT NULL DEFAULT '';
   ALTER TABLE users ADD COLUMN bonus_rolls INTEGER NOT NULL DEFAULT 0;
   `,
+  // 11: wishes added in kid mode wait for a parent before shoppers see them
+  `
+  ALTER TABLE items ADD COLUMN needs_approval INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 function open(): DatabaseSync {

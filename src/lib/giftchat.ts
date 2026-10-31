@@ -14,7 +14,7 @@ export type ProfileTip = { likes?: string; dislikes?: string; note?: string };
 // own list can't spoil a surprise.
 export function systemPrompt(list: ListWithOwner, profile: Profile, chatterName: string, isRecipient: boolean): string {
   const items = all<{ title: string; price_cents: number | null; priority: number }>(
-    "SELECT title, price_cents, priority FROM items WHERE list_id = ? ORDER BY priority DESC LIMIT 60", list.id,
+    "SELECT title, price_cents, priority FROM items WHERE list_id = ? AND needs_approval = 0 ORDER BY priority DESC LIMIT 60", list.id,
   );
   const days = daysUntil(list.event_date);
   return [

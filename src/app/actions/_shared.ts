@@ -83,14 +83,16 @@ export function itemFields(form: FormData) {
   };
 }
 
-export function insertItem(listId: number, f: ReturnType<typeof itemFields>, guest: string | null = null) {
+export function insertItem(listId: number, f: ReturnType<typeof itemFields>, guest: string | null = null, needsApproval = false): number {
   const r = run(
-    `INSERT INTO items (list_id, title, url, store, price_cents, image_url, notes, priority, quantity, created_by_guest, price_checked_at, category, variant, color, size)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO items (list_id, title, url, store, price_cents, image_url, notes, priority, quantity, created_by_guest, price_checked_at, category, variant, color, size, needs_approval)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     listId, f.title, f.url, f.store, f.price, f.image_url, f.notes, f.priority, f.quantity, guest,
-    null, f.category, f.variant, f.color, f.size,
+    null, f.category, f.variant, f.color, f.size, needsApproval ? 1 : 0,
   );
-  if (f.price) run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", Number(r.lastInsertRowid), f.price, f.store);
+  const id = Number(r.lastInsertRowid);
+  if (f.price) run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", id, f.price, f.store);
+  return id;
 }
 
 export function isSearchLink(url: string): boolean {

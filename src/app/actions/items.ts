@@ -3,15 +3,16 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { get, run, tx } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { getList, isManager, isRecipient, listManagers } from "@/lib/access";
+import { canEditProfile, getList, isManager, isRecipient, listManagers } from "@/lib/access";
 import { fetchProduct, type ProductInfo } from "@/lib/scrape";
 import { compareItem } from "@/lib/compare";
 import { formatMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
-import { setMustHave } from "@/lib/wishes";
+import { approveItem, setMustHave } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
-import type { Item } from "@/lib/types";
+import type { Item, Profile } from "@/lib/types";
 import { s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased } from "./_shared";
+import { validCategory } from "@/lib/categories";
 
 export async function autofill(url: string): Promise<{ ok: true; info: ProductInfo & { category: string } } | { ok: false; error: string }> {
   await requireUser();
@@ -57,7 +58,7 @@ export async function claimItem(form: FormData) {
   const { user, list } = await viewList(item.list_id);
   if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
   const action = s(form, "action");
-  if (action === "claim" && !item.claimed_by) {
+  if (action === "claim" && !item.claimed_by && !item.needs_approval) {
     run("UPDATE items SET claimed_by = ?, claimed_name = ? WHERE id = ?", user.id, user.name, item.id);
   } else if (action === "unclaim" && item.claimed_by === user.id) {
     run("UPDATE items SET claimed_by = NULL, claimed_name = NULL WHERE id = ?", item.id);
@@ -131,4 +132,29 @@ export async function toggleMustHave(form: FormData) {
   const r = setMustHave(item, s(form, "action") === "star");
   if (!r.ok) redirect(`/lists/${list.id}?error=${encodeURIComponent(r.error)}#item-${item.id}`);
   revalidatePath(`/lists/${list.id}`);
+}
+
+// Kid mode: a wish typed (or drawn) by a kid on a parent's device. It waits for a parent's OK.
+export async function kidAddItem(form: FormData) {
+  const user = await requireUser();
+  const list = getList(n(form, "list_id"));
+  const profile = list && get<Profile>("SELECT * FROM profiles WHERE id = ?", list.profile_id);
+  if (!list || !profile || profile.is_primary || !canEditProfile(user.id, profile)) redirect("/");
+  const back = `/kid/${profile.id}?list=${list.id}`;
+  const title = s(form, "title").slice(0, 200);
+  if (!title) redirect(`${back}&error=${encodeURIComponent("Tell us what you wish for!")}`);
+  const f = { ...itemFields(form), title, category: validCategory(s(form, "category")) || "other" };
+  const id = insertItem(list.id, f, null, true);
+  for (const uid of listManagers(list)) {
+    notify(uid, "approval", `${profile.name} wished for ${title}. Approve it so shoppers can see it.`, `/lists/${list.id}#item-${id}`);
+  }
+  redirect(`${back}&ok=${encodeURIComponent("Wish sent! A grown-up will check it.")}`);
+}
+
+export async function approveWish(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { list } = await ownList(item.list_id);
+  approveItem(item.id);
+  redirect(`/lists/${list.id}?ok=Approved#item-${item.id}`);
 }

@@ -15,6 +15,7 @@ export async function recordPurchase(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
   const { user, list } = await viewList(item.list_id);
+  if (item.needs_approval && !isManager(user.id, list)) redirect(`/lists/${list.id}`);
   const self = isRecipient(user.id, list); // the list's own person marking "I got it myself"
   const manager = isManager(user.id, list);
   const pending = !!list.review_purchases && !manager && !self;
@@ -67,7 +68,7 @@ export async function pledgeToItem(form: FormData) {
   const { user, list } = await viewList(item.list_id);
   if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
   const back = (key: "ok" | "error", msg: string) => redirect(`/lists/${list.id}?${key}=${encodeURIComponent(msg)}#item-${item.id}`);
-  if (!item.price_cents || item.purchased) return back("error", "This wish can't take pledges right now.");
+  if (!item.price_cents || item.purchased || item.needs_approval) return back("error", "This wish can't take pledges right now.");
   const { amount, progress, justFunded } = setPledge(item, user.id, parseMoney(form.get("amount")) ?? 0);
   if (justFunded) {
     for (const uid of pledgers(item.id)) {

@@ -453,6 +453,26 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   .gift-box:hover .gift-lid { transform: none; }
 }
 
+/* Kid mode: big, round, picture-first */
+.kid { font-size: 1.15rem; }
+.kid-head { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0 20px; }
+.kid-head h1 { font-size: 2.2rem; }
+.kid-say { font-size: 1.5rem; font-weight: 800; text-align: center; }
+.kid-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.kid-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 12px; border-radius: 24px; background: var(--card); border: 3px solid var(--border); text-align: center; font-weight: 800; color: var(--text); }
+a.kid-tile:hover { border-color: var(--accent); text-decoration: none; }
+.kid-emoji { font-size: 3.5rem; line-height: 1; }
+.kid-pic { width: 110px; height: 110px; display: grid; place-items: center; font-size: 4rem; border-radius: 18px; overflow: hidden; background: var(--bg-2); }
+.kid-pic img { width: 100%; height: 100%; object-fit: cover; }
+.kid-add { display: flex; flex-direction: column; gap: 12px; }
+.kid-add input[name="title"] { font-size: 1.4rem; min-height: 60px; text-align: center; }
+.kid-cats { border: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.kid-cats input { position: absolute; opacity: 0; }
+.kid-cats span[aria-hidden] { display: grid; place-items: center; width: 64px; height: 64px; font-size: 2.2rem; border-radius: 18px; border: 3px solid var(--border); background: var(--bg-2); cursor: pointer; }
+.kid-cats input:checked + span { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--card)); }
+.kid-cats input:focus-visible + span { outline: 3px solid var(--accent); }
+.kid-btn { min-height: 64px; font-size: 1.3rem; border-radius: 20px; }
+
 /* Utilities (keep last so they win over component rules) */
 .m0 { margin: 0; }
 .mt-4 { margin-top: 4px; } .mt-6 { margin-top: 6px; } .mt-8 { margin-top: 8px; } .mt-10 { margin-top: 10px; }

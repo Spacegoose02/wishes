@@ -75,6 +75,7 @@ export type Item = {
   size: string;
   offers_checked_at: number | null;
   must_have: number;
+  needs_approval: number;
   created_at: number;
 };
 

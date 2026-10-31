@@ -18,3 +18,16 @@ export function setMustHave(item: Item, on: boolean): { ok: true } | { ok: false
   run("UPDATE items SET must_have = ? WHERE id = ?", on ? 1 : 0, item.id);
   return { ok: true };
 }
+
+// Shoppers only see wishes a parent has approved; the list's managers see everything.
+export function visibleToShoppers(item: Pick<Item, "needs_approval">): boolean {
+  return !item.needs_approval;
+}
+
+export function pendingApprovals(listId: number): number {
+  return get<{ n: number }>("SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND needs_approval = 1", listId)!.n;
+}
+
+export function approveItem(itemId: number) {
+  run("UPDATE items SET needs_approval = 0 WHERE id = ?", itemId);
+}

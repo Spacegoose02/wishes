@@ -10,7 +10,7 @@ import { aiEnabled } from "@/lib/ai";
 import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
-import { addItem, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
+import { addItem, approveWish, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { MAX_MUST_HAVES } from "@/lib/wishes";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
 import { revealOpen } from "@/lib/reveal";
@@ -105,7 +105,9 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const maxPrice = Number(sp.max) || 0;
   const must = sp.must === "1";
 
-  const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? ORDER BY purchased, priority DESC, created_at DESC", list.id);
+  // Kid-mode wishes stay with the list's managers until one of them approves.
+  const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? ORDER BY purchased, priority DESC, created_at DESC", list.id)
+    .filter((i) => owner || !i.needs_approval);
   // The list's own person only sees what they marked themselves.
   const purchases = recipient
     ? all<Purchase>("SELECT * FROM purchases WHERE list_id = ? AND buyer_user_id = ? ORDER BY created_at", list.id, user.id)
@@ -282,6 +284,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         <span className="item-title">{it.title}</span>
                       )}
                       <div className="row gap-8" style={{ marginTop: 2 }}>
+                        {it.needs_approval ? <span className="pill accent">🧒 Waiting for approval</span> : null}
                         {it.must_have ? <span className="pill must">⭐ Must-have</span> : null}
                         {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents, it.currency)}</span> : null}
                         {it.store && <span className="pill">{it.store}</span>}
@@ -324,7 +327,10 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       {it.url && it.price_checked_at ? <p className="tiny muted m0 mt-4">Price checked {ago(it.price_checked_at)}{it.offers_checked_at ? `, stores compared ${ago(it.offers_checked_at)}` : ""}</p> : null}
                     </div>
                     <div className="item-actions">
-                      {((showClaims && !it.claimed_by) || (claimedByMe && boughtQty === 0)) && !it.purchased && (
+                      {owner && it.needs_approval ? (
+                        <form action={approveWish}><Hidden item={it.id} /><SubmitButton className="btn small">✔ Approve</SubmitButton></form>
+                      ) : null}
+                      {!it.needs_approval && ((showClaims && !it.claimed_by) || (claimedByMe && boughtQty === 0)) && !it.purchased && (
                         <ClaimButton itemId={it.id} claimed={claimedByMe} action={claimItem} />
                       )}
                       <Menu label={`More for ${it.title}`}>
@@ -350,7 +356,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         <SubmitButton className="btn small ghost">✔ I got this myself</SubmitButton>
                       </form>
                     )}
-                    {showClaims && remaining > 0 && (
+                    {showClaims && remaining > 0 && !it.needs_approval && (
                       <details className="buy full">
                         <summary className="small pointer fw-700 text-accent">🛍️ I bought this</summary>
                         <form action={recordPurchase} className="form-grid mt-10">
@@ -364,7 +370,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         </form>
                       </details>
                     )}
-                    {showClaims && it.price_cents && (!it.purchased || pledges.some((x) => x.item_id === it.id)) ? (
+                    {showClaims && it.price_cents && !it.needs_approval && (!it.purchased || pledges.some((x) => x.item_id === it.id)) ? (
                       <GroupGift item={it} pledges={pledges.filter((x) => x.item_id === it.id)} userId={user.id} />
                     ) : null}
                     {owner && (
