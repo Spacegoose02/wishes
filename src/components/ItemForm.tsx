@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DrawPad } from "@/components/DrawPad";
@@ -13,13 +13,15 @@ export type ItemDefaults = {
 };
 
 export function ItemForm({
-  action, autofill, hidden, defaults = {}, submitLabel = "Add wish",
+  action, autofill, hidden, defaults = {}, submitLabel = "Add wish", autoFetch = false,
 }: {
   action: (f: FormData) => void | Promise<void>;
   autofill: AutofillFn;
   hidden: Record<string, string | number>;
   defaults?: ItemDefaults;
   submitLabel?: string;
+  // Look up defaults.url right away (e.g. a link shared from another app).
+  autoFetch?: boolean;
 }) {
   const [url, setUrl] = useState(defaults.url ?? "");
   const [title, setTitle] = useState(defaults.title ?? "");
@@ -55,6 +57,15 @@ export function ItemForm({
       setMsg(i.price_cents ? `Found it at ${i.store}! Add the type, color or size if it matters.` : `Got what ${i.store} would share. Add the price yourself if it's missing.`);
     });
   }
+
+  const fetched = useRef(false);
+  useEffect(() => {
+    if (!autoFetch || fetched.current || !defaults.url) return;
+    fetched.current = true;
+    const t = setTimeout(() => fetchDetails(defaults.url), 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, []);
 
   return (
     <form action={action} className="stack">

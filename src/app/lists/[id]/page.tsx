@@ -106,6 +106,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const maxPrice = Number(sp.max) || 0;
   const must = sp.must === "1";
   const board = sp.view === "board";
+  // A link shared into the app (see /share) opens the add form already filled in.
+  const shared = owner && typeof sp.add === "string" ? sp.add : "";
 
   // Kid-mode wishes stay with the list's managers until one of them approves.
   const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? ORDER BY purchased, priority DESC, created_at DESC", list.id)
@@ -202,9 +204,9 @@ export default async function ListPage({ params, searchParams }: { params: Param
       {profile && <AboutProfile p={profile} editHref={canEditProfile(user.id, profile) ? (profile.is_primary ? "/settings?tab=me" : `/settings?tab=profiles&edit=${profile.id}#profile-${profile.id}`) : undefined} />}
 
       {owner && (
-        <details className="card mt-12" open={allItems.length === 0}>
+        <details className="card mt-12" open={allItems.length === 0 || !!shared}>
           <summary>Add a wish</summary>
-          <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} />
+          <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} defaults={shared ? { url: shared } : undefined} autoFetch={!!shared} />
         </details>
       )}
 

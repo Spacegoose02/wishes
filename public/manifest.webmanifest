@@ -18,5 +18,14 @@
   "shortcuts": [
     { "name": "New list", "url": "/lists/new" },
     { "name": "Family lists", "url": "/shared" }
-  ]
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
