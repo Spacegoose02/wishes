@@ -104,6 +104,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const sort = (typeof sp.sort === "string" && sp.sort in SORTS ? sp.sort : "priority") as keyof typeof SORTS;
   const maxPrice = Number(sp.max) || 0;
   const must = sp.must === "1";
+  const board = sp.view === "board";
 
   // Kid-mode wishes stay with the list's managers until one of them approves.
   const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? ORDER BY purchased, priority DESC, created_at DESC", list.id)
@@ -208,6 +209,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
       {allItems.length > 0 && (
         <form className="card filters" method="get">
           {must && <input type="hidden" name="must" value="1" />}
+          {board && <input type="hidden" name="view" value="board" />}
           <input name="q" defaultValue={q} placeholder="Search this list" aria-label="Search" />
           <select name="cat" defaultValue={cat} aria-label="Category">
             <option value="">All categories</option>
@@ -252,13 +254,30 @@ export default async function ListPage({ params, searchParams }: { params: Param
           <h2 className="m0">
             {items.length} {items.length === 1 ? "wish" : "wishes"}{filtered ? ` of ${allItems.length}` : ""}
           </h2>
-          {total > 0 && <span className="muted small">About {formatMoney(total)} total</span>}
+          <div className="row gap-6">
+            {total > 0 && <span className="muted small">About {formatMoney(total)} total</span>}
+            {allItems.length > 0 && (
+              <div className="seg" role="group" aria-label="View">
+                <Link href={`/lists/${list.id}?${new URLSearchParams({ ...(q && { q }), ...(cat && { cat }), ...(must && { must: "1" }), sort })}`} aria-current={!board || undefined}>☰ List</Link>
+                <Link href={`/lists/${list.id}?${new URLSearchParams({ ...(q && { q }), ...(cat && { cat }), ...(must && { must: "1" }), sort, view: "board" })}`} aria-current={board || undefined}>🖼️ Dream board</Link>
+              </div>
+            )}
+          </div>
         </div>
         {allItems.length === 0 && (
           <div className="card empty"><div className="big" aria-hidden="true">🌟</div>{owner ? "Paste a link above to add your first wish." : "Nothing here yet."}</div>
         )}
         {allItems.length > 0 && items.length === 0 && <div className="card empty">Nothing matches those filters.</div>}
-        {groups.map((g) => (
+        {board ? (
+          <div className="board">
+            {items.map((it) => (
+              <a key={it.id} href={`/lists/${list.id}?sort=${sort}#item-${it.id}`} className={`board-tile${!recipient && it.purchased ? " claimed" : ""}`}>
+                {it.image_url ? <img src={it.image_url} alt="" referrerPolicy="no-referrer" loading="lazy" /> : <span className="board-icon" aria-hidden="true">{categoryIcon(it.category)}</span>}
+                <span className="board-cap">{it.must_have ? "⭐ " : ""}{it.title}{it.price_cents ? ` · ${formatMoney(it.price_cents, it.currency)}` : ""}</span>
+              </a>
+            ))}
+          </div>
+        ) : groups.map((g) => (
           <div key={g.key || "all"} className="stack" style={{ marginBottom: 18 }}>
             {g.key && <h3 className="m0 mt-6">{categoryIcon(g.key)} {categoryLabel(g.key)}</h3>}
             <div className="items">
