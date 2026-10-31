@@ -6,6 +6,7 @@ import { randomToken } from "@/lib/crypto";
 import { parseMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
 import type { Item } from "@/lib/types";
+import { peopleBuying } from "@/lib/wishes";
 import { s, n, ownList, doAutofill, itemFields, insertItem, recomputePurchased, guestByToken, withPicture } from "./_shared";
 
 export async function addGuest(form: FormData) {
@@ -38,7 +39,15 @@ export async function guestDeleteItem(form: FormData) {
   const token = s(form, "token");
   const g = guestByToken(token);
   if (!g || !g.can_edit) redirect("/");
-  run("DELETE FROM items WHERE id = ? AND list_id = ?", n(form, "item_id"), g.list_id);
+  const item = get<Item>("SELECT * FROM items WHERE id = ? AND list_id = ?", n(form, "item_id"), g.list_id);
+  const list = getList(g.list_id);
+  if (item && list) {
+    const tell = peopleBuying(item).filter((uid) => !isRecipient(uid, list));
+    run("DELETE FROM items WHERE id = ?", item.id);
+    for (const uid of tell) {
+      notify(uid, "unwanted", `${item.title} was taken off ${list.profile_name}'s list "${list.title}". If you already got it, check with them.`, `/lists/${list.id}`);
+    }
+  }
   redirect(`/s/${token}`);
 }
 

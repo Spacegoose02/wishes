@@ -99,19 +99,20 @@ function parseIdeas(text: string): Idea[] {
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
-async function openAiCompatible(c: AiConfig, system: string, turns: ChatTurn[]): Promise<string> {
+async function openAiCompatible(c: AiConfig, system: string, turns: ChatTurn[], signal?: AbortSignal): Promise<string> {
   const messages = [...(system ? [{ role: "system", content: system }] : []), ...turns];
   const res = await fetch(c.baseUrl + "/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", ...(c.apiKey ? { authorization: "Bearer " + c.apiKey } : {}) },
     body: JSON.stringify({ model: c.model, messages }),
+    signal,
   });
   if (!res.ok) throw new Error("AI request failed (" + res.status + "): " + (await res.text()).slice(0, 200));
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-async function gemini(c: AiConfig, system: string, turns: ChatTurn[], json: boolean): Promise<string> {
+async function gemini(c: AiConfig, system: string, turns: ChatTurn[], json: boolean, signal?: AbortSignal): Promise<string> {
   const res = await fetch(
     "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(c.model) + ":generateContent",
     {
@@ -122,6 +123,7 @@ async function gemini(c: AiConfig, system: string, turns: ChatTurn[], json: bool
         contents: turns.map((t) => ({ role: t.role === "assistant" ? "model" : "user", parts: [{ text: t.content }] })),
         ...(json ? { generationConfig: { responseMimeType: "application/json" } } : {}),
       }),
+      signal,
     },
   );
   if (!res.ok) throw new Error("AI request failed (" + res.status + "): " + (await res.text()).slice(0, 200));
@@ -152,33 +154,37 @@ export function friendlyError(e: unknown): string {
 }
 
 // Single-shot Claude call. With a schema, the reply is guaranteed to be JSON matching it.
-async function claude(c: AiConfig, system: string, turns: ChatTurn[], schema?: Record<string, unknown>): Promise<string> {
-  const response = await claudeClient(c.apiKey).beta.messages.create({
-    model: c.model,
-    max_tokens: 16000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: { effort: "low", ...(schema ? { format: { type: "json_schema", schema } } : {}) },
-    ...(system ? { system } : {}),
-    messages: turns,
-  });
+async function claude(c: AiConfig, system: string, turns: ChatTurn[], schema?: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
+  const response = await claudeClient(c.apiKey).beta.messages.create(
+    {
+      model: c.model,
+      max_tokens: 16000,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: { effort: "low", ...(schema ? { format: { type: "json_schema", schema } } : {}) },
+      ...(system ? { system } : {}),
+      messages: turns,
+    },
+    { signal },
+  );
   if (response.stop_reason === "refusal") throw new AiError("Claude declined this request.");
   return response.content.map((b) => (b.type === "text" ? b.text : "")).join("");
 }
 
 // One entry point for every provider. Claude gets a strict JSON schema when one is given;
 // the others are asked for JSON in the prompt.
-export async function converse(system: string, turns: ChatTurn[], opts: { json?: boolean; schema?: Record<string, unknown> } = {}): Promise<string> {
+// A signal lets the caller stop the request (e.g. Bandit's Stop button).
+export async function converse(system: string, turns: ChatTurn[], opts: { json?: boolean; schema?: Record<string, unknown>; signal?: AbortSignal } = {}): Promise<string> {
   const c = aiConfig();
   switch (c.provider) {
     case "anthropic":
-      return claude(c, system, turns, opts.schema);
+      return claude(c, system, turns, opts.schema, opts.signal);
     case "gemini":
-      return gemini(c, system, turns, !!opts.json);
+      return gemini(c, system, turns, !!opts.json, opts.signal);
     case "openai":
     case "meta":
     case "local":
-      return openAiCompatible(c, system, turns);
+      return openAiCompatible(c, system, turns, opts.signal);
     default:
       throw new Error("AI is turned off. An admin can enable it in Settings → Server.");
   }
