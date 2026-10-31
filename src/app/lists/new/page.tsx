@@ -58,6 +58,7 @@ export default async function NewListPage({ searchParams }: { searchParams: SP }
           <label>Occasion<input name="occasion" placeholder="Birthday, Christmas, Wedding…" /></label>
           <label>Date<input name="event_date" type="date" /></label>
         </div>
+        <label className="inline"><input type="checkbox" name="yearly" /> Every year (moves to next year&apos;s date after the day)</label>
         <label>Description<textarea name="description" placeholder="Sizes, favorite colors, things to avoid…" /></label>
         <label>Who can see it?
           <select name="visibility" defaultValue="family">

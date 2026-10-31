@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { get, run, tx } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { shareableFamilies, familyPeople } from "@/lib/access";
+import { familyPeople, isManager, shareableFamilies } from "@/lib/access";
+import { copyList, profileById } from "@/lib/lists";
 import type { Profile } from "@/lib/types";
 import { rollAvatar as roll } from "@/components/Avatar";
-import { s, n, ownList, setHiddenUsers } from "./_shared";
+import { s, n, ownList, setHiddenUsers, viewList } from "./_shared";
 
 // "Who is it for?" can be: one of my profiles (p:ID), any profile in my families (p:ID),
 // a family member (u:ID, optionally kept secret from them), or a brand-new name.
@@ -47,8 +48,8 @@ export async function createList(form: FormData) {
     }
     if (!profile) return 0;
     const r = run(
-      "INSERT INTO lists (profile_id, title, description, emoji, occasion, event_date, visibility) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      profile.id, title, s(form, "description"), s(form, "emoji") || "🎁", s(form, "occasion"), s(form, "event_date") || null, vis,
+      "INSERT INTO lists (profile_id, title, description, emoji, occasion, event_date, visibility, yearly) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      profile.id, title, s(form, "description"), s(form, "emoji") || "🎁", s(form, "occasion"), s(form, "event_date") || null, vis, form.get("yearly") ? 1 : 0,
     );
     const listId = Number(r.lastInsertRowid);
     // Making a list for someone else's profile makes you a co-owner of it.
@@ -69,9 +70,9 @@ export async function updateList(form: FormData) {
   const people = new Set(familyPeople(list.owner_user_id).map((p) => p.id));
   tx(() => {
     run(
-      "UPDATE lists SET title = ?, description = ?, emoji = ?, occasion = ?, event_date = ?, visibility = ?, profile_id = ?, review_purchases = ? WHERE id = ?",
+      "UPDATE lists SET title = ?, description = ?, emoji = ?, occasion = ?, event_date = ?, visibility = ?, profile_id = ?, review_purchases = ?, yearly = ? WHERE id = ?",
       s(form, "title") || list.title, s(form, "description"), s(form, "emoji") || "🎁", s(form, "occasion"),
-      s(form, "event_date") || null, vis, profileOk ? profileId : list.profile_id, form.get("review_purchases") ? 1 : 0, list.id,
+      s(form, "event_date") || null, vis, profileOk ? profileId : list.profile_id, form.get("review_purchases") ? 1 : 0, form.get("yearly") ? 1 : 0, list.id,
     );
     run("DELETE FROM list_families WHERE list_id = ?", list.id);
     for (const fid of form.getAll("families").map(Number)) {
@@ -102,4 +103,14 @@ export async function deleteList(form: FormData) {
   if (list.owner_user_id !== user.id) redirect(`/lists/${list.id}?error=Only+the+main+owner+can+delete+this+list`);
   run("DELETE FROM lists WHERE id = ?", list.id);
   redirect("/?ok=List+deleted");
+}
+
+// Copy a list (e.g. last year's) for one of my profiles. Only its managers can copy it.
+export async function duplicateList(form: FormData) {
+  const { user, list } = await viewList(n(form, "list_id"));
+  if (!isManager(user.id, list)) redirect(`/lists/${list.id}`);
+  const profile = profileById(n(form, "profile_id"));
+  if (!profile || profile.user_id !== user.id) redirect(`/lists/${list.id}/edit?error=Pick+one+of+your+profiles`);
+  const id = copyList(list, profile, s(form, "title") || `${list.title} (copy)`, user.id);
+  redirect(`/lists/${id}?ok=List+copied`);
 }

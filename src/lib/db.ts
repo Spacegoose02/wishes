@@ -287,6 +287,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE items ADD COLUMN archived_at INTEGER;
   ALTER TABLE items ADD COLUMN archive_reason TEXT NOT NULL DEFAULT '';
   `,
+  // 13: yearly occasions roll their date forward
+  `
+  ALTER TABLE lists ADD COLUMN yearly INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 function open(): DatabaseSync {

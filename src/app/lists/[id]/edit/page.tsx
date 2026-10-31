@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { familyPeople, getList, isManager, myProfiles, shareableFamilies } from "@/lib/access";
 import { all } from "@/lib/db";
-import { deleteList, updateList } from "../../../actions/lists";
+import { deleteList, duplicateList, updateList } from "../../../actions/lists";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
@@ -19,6 +19,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
   const families = shareableFamilies(list.owner_user_id);
   const people = familyPeople(list.owner_user_id);
   const profiles = myProfiles(list.owner_user_id);
+  const mine = myProfiles(user.id);
   const owners = new Set(all<{ user_id: number }>("SELECT user_id FROM list_owners WHERE list_id = ?", list.id).map((r) => r.user_id));
   const chosen = new Set(all<{ family_id: number }>("SELECT family_id FROM list_families WHERE list_id = ?", list.id).map((r) => r.family_id));
   const hidden = new Set(all<{ user_id: number }>("SELECT user_id FROM list_hidden_users WHERE list_id = ?", list.id).map((r) => r.user_id));
@@ -42,6 +43,7 @@ export default async function EditListPage({ params, searchParams }: { params: P
             <label>Occasion<input name="occasion" defaultValue={list.occasion} /></label>
             <label>Date<input name="event_date" type="date" defaultValue={list.event_date ?? ""} /></label>
           </div>
+          <label className="inline"><input type="checkbox" name="yearly" defaultChecked={!!list.yearly} /> Every year (like a birthday): two weeks after the day it moves to next year&apos;s date and bought gifts go to past gifts</label>
           <label>Description<textarea name="description" defaultValue={list.description} /></label>
         </div>
 
@@ -106,6 +108,21 @@ export default async function EditListPage({ params, searchParams }: { params: P
           </div>
         )}
         <SubmitButton className="btn">Save</SubmitButton>
+      </form>
+
+      <form action={duplicateList} className="card stack mt-24">
+        <h2 className="m0">Copy this list</h2>
+        <input type="hidden" name="list_id" value={list.id} />
+        <div className="form-grid">
+          <label>New name<input name="title" defaultValue={`${list.title} (copy)`} /></label>
+          <label>For
+            <select name="profile_id" defaultValue={mine.some((p) => p.id === list.profile_id) ? list.profile_id : undefined}>
+              {mine.map((p) => <option key={p.id} value={p.id}>{p.is_primary ? `${p.name} (me)` : p.name}</option>)}
+            </select>
+          </label>
+        </div>
+        <p className="tiny muted m0">Copies the wishes still on the list; claims, purchases and stars start fresh.</p>
+        <SubmitButton className="btn secondary">Copy list</SubmitButton>
       </form>
 
       {mainOwner && <form action={deleteList} className="card mt-24">

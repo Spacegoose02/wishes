@@ -49,6 +49,7 @@ export type WishList = {
   event_date: string | null;
   visibility: Visibility;
   review_purchases: number;
+  yearly: number;
   created_at: number;
 };
 
