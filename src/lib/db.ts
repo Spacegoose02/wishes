@@ -319,6 +319,18 @@ const MIGRATIONS: string[] = [
     PRIMARY KEY (list_id, event_date)
   );
   `,
+  // 19: a giver's budgets per person (optionally per occasion), per year
+  `
+  CREATE TABLE budgets (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    occasion TEXT NOT NULL DEFAULT '',
+    year INTEGER NOT NULL,
+    amount_cents INTEGER NOT NULL,
+    UNIQUE (user_id, profile_id, occasion, year)
+  );
+  `,
 ];
 
 function open(): DatabaseSync {

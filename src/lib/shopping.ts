@@ -1,6 +1,6 @@
 import "server-only";
-import { all } from "./db";
-import { getList, listAccess } from "./access";
+import { all, run } from "./db";
+import { familyProfiles, getList, listAccess, myProfiles } from "./access";
 import type { User } from "./types";
 
 // A giver's side of things: what they've promised to get, and what they've spent on whom.
@@ -50,4 +50,67 @@ export function spendByPerson(userId: number, year?: number): Spend[] {
      GROUP BY p.id ORDER BY spent_cents DESC, p.name`,
     userId, userId, range[0], range[1],
   );
+}
+
+export type Budget = {
+  id: number;
+  profile_id: number;
+  name: string;
+  avatar: string;
+  occasion: string;
+  amount_cents: number;
+  spent_cents: number;
+  left_cents: number;
+  pct: number;
+  over: boolean;
+};
+
+const yearRange = (year: number) => [Math.floor(Date.UTC(year, 0, 1) / 1000), Math.floor(Date.UTC(year + 1, 0, 1) / 1000)];
+
+// Spent vs left for each budget the user set this year. An occasion budget only counts
+// purchases on lists with that occasion; a blank one counts everything for that person.
+export function budgetsFor(userId: number, year: number): Budget[] {
+  const [from, to] = yearRange(year);
+  return all<Omit<Budget, "left_cents" | "pct" | "over">>(
+    `SELECT b.id, b.profile_id, p.name, p.avatar, b.occasion, b.amount_cents,
+       (SELECT COALESCE(SUM(COALESCE(pu.price_cents, 0) * pu.quantity), 0) FROM purchases pu JOIN lists l ON l.id = pu.list_id
+        WHERE pu.buyer_user_id = b.user_id AND l.profile_id = b.profile_id AND pu.status != 'rejected'
+          AND pu.created_at >= ? AND pu.created_at < ?
+          AND (b.occasion = '' OR lower(l.occasion) = lower(b.occasion))) AS spent_cents
+     FROM budgets b JOIN profiles p ON p.id = b.profile_id
+     WHERE b.user_id = ? AND b.year = ? ORDER BY p.name, b.occasion`,
+    from, to, userId, year,
+  ).map((b) => ({
+    ...b,
+    left_cents: Math.max(0, b.amount_cents - b.spent_cents),
+    pct: b.amount_cents ? Math.min(100, Math.round((b.spent_cents / b.amount_cents) * 100)) : 0,
+    over: b.spent_cents > b.amount_cents,
+  }));
+}
+
+// People a user can set a budget for: their own profiles and their families' profiles.
+export function budgetPeople(userId: number) {
+  return [...myProfiles(userId), ...familyProfiles(userId)].filter((p) => !(p.user_id === userId && p.is_primary));
+}
+
+export function setBudget(userId: number, profileId: number, occasion: string, year: number, amountCents: number | null): boolean {
+  if (!budgetPeople(userId).some((p) => p.id === profileId)) return false;
+  const occ = occasion.trim().slice(0, 40);
+  if (!amountCents) {
+    run("DELETE FROM budgets WHERE user_id = ? AND profile_id = ? AND occasion = ? AND year = ?", userId, profileId, occ, year);
+    return true;
+  }
+  run(
+    `INSERT INTO budgets (user_id, profile_id, occasion, year, amount_cents) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, profile_id, occasion, year) DO UPDATE SET amount_cents = excluded.amount_cents`,
+    userId, profileId, occ, year, amountCents,
+  );
+  return true;
+}
+
+// What's left to spend on someone for a given occasion: the occasion's own budget if set,
+// otherwise their all-occasions budget. Undefined when no budget applies.
+export function budgetLeft(userId: number, profileId: number, occasion: string, year: number): Budget | undefined {
+  const mine = budgetsFor(userId, year).filter((b) => b.profile_id === profileId);
+  return mine.find((b) => b.occasion && b.occasion.toLowerCase() === occasion.toLowerCase()) ?? mine.find((b) => !b.occasion);
 }

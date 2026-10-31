@@ -47,3 +47,31 @@ describe("shopping list", () => {
     expect(sh.spendByPerson(giver.id, 1999)).toEqual([]);
   });
 });
+
+describe("budgets", () => {
+  it("tracks spent vs left per person and per occasion", () => {
+    const [me, sis] = ["bme", "bsis"].map(t.user);
+    t.family("BFam", me, sis);
+    const sisP = t.profileOf(sis);
+    const xmas = t.list(sisP, { occasion: "Christmas" }).id;
+    const bday = t.list(sisP, { occasion: "Birthday" }).id;
+    const year = new Date().getFullYear();
+    expect(sh.setBudget(me.id, sisP, "", year, 10000)).toBe(true);
+    expect(sh.setBudget(me.id, sisP, "christmas", year, 3000)).toBe(true);
+    // Strangers' profiles aren't budgetable.
+    expect(sh.setBudget(me.id, t.profileOf(t.user("bstranger")), "", year, 100)).toBe(false);
+    const buy = (listId: number, cents: number) =>
+      t.db.run("INSERT INTO purchases (list_id, item_title, buyer_user_id, buyer_name, price_cents) VALUES (?, 'x', ?, 'bme', ?)", listId, me.id, cents);
+    buy(xmas, 4000);
+    buy(bday, 1500);
+    const b = sh.budgetsFor(me.id, year);
+    expect(b.map((x) => [x.occasion, x.spent_cents, x.left_cents, x.over])).toEqual([
+      ["", 5500, 4500, false],
+      ["christmas", 4000, 0, true],
+    ]);
+    expect(sh.budgetLeft(me.id, sisP, "Christmas", year)!.occasion).toBe("christmas");
+    expect(sh.budgetLeft(me.id, sisP, "Birthday", year)!.occasion).toBe("");
+    sh.setBudget(me.id, sisP, "christmas", year, null);
+    expect(sh.budgetsFor(me.id, year)).toHaveLength(1);
+  });
+});

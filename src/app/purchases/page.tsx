@@ -2,18 +2,23 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { daysUntil, formatMoney } from "@/lib/format";
-import { spendByPerson, toBuy } from "@/lib/shopping";
+import { budgetPeople, budgetsFor, spendByPerson, toBuy } from "@/lib/shopping";
+import { saveBudget } from "../actions/purchases";
+import { Flash, type SP } from "@/components/Flash";
+import { SubmitButton } from "@/components/SubmitButton";
 import { Avatar } from "@/components/Avatar";
 
 export const metadata = { title: "My shopping" };
 
 // The giver's view: what's still to buy (soonest event first), spend per person,
 // and everything bought so far across all lists.
-export default async function MyShoppingPage() {
+export default async function MyShoppingPage({ searchParams }: { searchParams: SP }) {
   const user = await requireUser();
   const todo = toBuy(user);
   const year = new Date().getFullYear();
   const spend = spendByPerson(user.id, year);
+  const budgets = budgetsFor(user.id, year);
+  const people = budgetPeople(user.id);
   const rows = all<{ id: number; list_id: number; item_title: string; quantity: number; price_cents: number | null; store: string; status: string; created_at: number; list_title: string; for_name: string }>(
     `SELECT pu.*, l.title AS list_title, p.name AS for_name FROM purchases pu
      JOIN lists l ON l.id = pu.list_id JOIN profiles p ON p.id = l.profile_id
@@ -24,6 +29,7 @@ export default async function MyShoppingPage() {
   const todoTotal = todo.reduce((s, r) => s + (r.price_cents ?? 0) * r.quantity, 0);
   return (
     <div className="narrow-820">
+      <Flash searchParams={searchParams} />
       <h1>🛍️ My shopping</h1>
 
       <section className="section">
@@ -70,6 +76,37 @@ export default async function MyShoppingPage() {
           </div>
         </section>
       )}
+
+      <section id="budgets" className="section">
+        <div className="section-head"><h2 className="m0">Budgets for {year}</h2></div>
+        <div className="card stack">
+          {budgets.length === 0 && <p className="small muted m0">Set a budget per person (or per occasion) to see spent vs left.</p>}
+          {budgets.map((b) => (
+            <div key={b.id}>
+              <div className="row gap-8">
+                <Avatar id={b.avatar} size={26} />
+                <strong className="grow">{b.name}{b.occasion ? <span className="muted"> · {b.occasion}</span> : null}</strong>
+                <span className={`small fw-700${b.over ? " text-bad" : ""}`}>
+                  {formatMoney(b.spent_cents)} of {formatMoney(b.amount_cents)} · {b.over ? `${formatMoney(b.spent_cents - b.amount_cents)} over` : `${formatMoney(b.left_cents)} left`}
+                </span>
+              </div>
+              <div className={`progress mt-6${b.over ? " over" : ""}`} role="progressbar" aria-valuenow={b.pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Budget used for ${b.name}`}>
+                <span style={{ width: `${b.pct}%` }} />
+              </div>
+            </div>
+          ))}
+          {people.length > 0 && (
+            <form action={saveBudget} className="form-grid">
+              <label>Who
+                <select name="profile_id">{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              </label>
+              <label>Occasion (optional)<input name="occasion" placeholder="Christmas" /></label>
+              <label>Budget<input name="amount" inputMode="decimal" placeholder="100 (0 to remove)" /></label>
+              <SubmitButton className="btn small secondary">Save budget</SubmitButton>
+            </form>
+          )}
+        </div>
+      </section>
 
       <section className="section">
         <div className="section-head">

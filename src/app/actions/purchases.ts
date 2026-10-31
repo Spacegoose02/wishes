@@ -8,6 +8,8 @@ import { notify } from "@/lib/prices";
 import { pledgers, setPledge } from "@/lib/pledges";
 import { revealOpen, sendThanks } from "@/lib/reveal";
 import { award } from "@/lib/rewards";
+import { setBudget } from "@/lib/shopping";
+import { requireUser } from "@/lib/auth";
 import type { Item } from "@/lib/types";
 import { s, n, ownList, viewList, recomputePurchased } from "./_shared";
 
@@ -86,4 +88,11 @@ export async function thankGiver(form: FormData) {
   const r = sendThanks(list, n(form, "purchase_id"), user.id, s(form, "sticker"), s(form, "note"));
   if (r.ok) award(user.id, "thank_you");
   redirect(`${back}?${r.ok ? "ok=Thank-you+sent!" : `error=${encodeURIComponent(r.error)}`}`);
+}
+
+// Set (or with no amount, clear) a budget for someone this year.
+export async function saveBudget(form: FormData) {
+  const user = await requireUser();
+  const ok = setBudget(user.id, n(form, "profile_id"), s(form, "occasion"), new Date().getFullYear(), parseMoney(form.get("amount")));
+  redirect(`/purchases?${ok ? "ok=Budget+saved" : "error=Pick+someone+from+your+families"}#budgets`);
 }

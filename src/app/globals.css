@@ -535,7 +535,7 @@ a.kid-tile:hover { border-color: var(--accent); text-decoration: none; }
 .grow { flex: 1; } .min-0 { min-width: 0; } .min-180 { min-width: 180px; } .min-200 { min-width: 200px; } .min-h-60 { min-height: 60px; }
 .fw-600 { font-weight: 600; } .fw-700 { font-weight: 700; } .fw-800 { font-weight: 800; }
 .text-right { text-align: right; } .text-center { text-align: center; } .uppercase { text-transform: uppercase; }
-.text-good { color: var(--good); } .text-accent { color: var(--accent-ink); }
+.text-good { color: var(--good); } .text-bad { color: var(--bad); } .text-accent { color: var(--accent-ink); }
 .justify-end { justify-content: flex-end; } .justify-center { justify-content: center; }
 .items-start { align-items: flex-start; } .items-end { align-items: flex-end; }
 .nowrap { flex-wrap: nowrap; } .pointer { cursor: pointer; } .inline-form { display: inline; }
