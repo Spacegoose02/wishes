@@ -6,10 +6,11 @@ import { requireUser } from "@/lib/auth";
 import { canEditProfile, getList, isManager, isRecipient, listManagers } from "@/lib/access";
 import { fetchProduct, type ProductInfo } from "@/lib/scrape";
 import { compareItem } from "@/lib/compare";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, parseMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
 import { approveItem, archiveWish, restoreWish, setMustHave } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
+import { checkWatches, setWatch } from "@/lib/watches";
 import type { Item, Profile } from "@/lib/types";
 import { s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
 import { guessCategory, validCategory } from "@/lib/categories";
@@ -92,6 +93,7 @@ export async function refreshItem(form: FormData) {
     "UPDATE items SET price_cents = ?, image_url = CASE WHEN image_url = '' THEN ? ELSE image_url END WHERE id = ?",
     info.price_cents, info.image_url ?? "", item.id,
   );
+  checkWatches(item.id, info.price_cents);
   if (item.price_cents === info.price_cents) return back("ok", `${info.store} still has it for ${formatMoney(info.price_cents)}.`);
   if (item.price_cents && info.price_cents < item.price_cents) {
     for (const uid of listManagers(list)) if (!isRecipient(uid, list)) notify(uid, "deal", `Price drop on ${item.title}: ${formatMoney(info.price_cents)}`, `/lists/${list.id}#item-${item.id}`);
@@ -208,4 +210,16 @@ export async function restoreItem(form: FormData) {
   const { list } = await ownList(item.list_id);
   restoreWish(item.id);
   redirect(`/lists/${list.id}?ok=Back+on+the+list#item-${item.id}`);
+}
+
+// Watch a wish's price; an empty target stops watching.
+export async function watchPrice(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { user, list } = await viewList(item.list_id);
+  if (item.needs_approval && !isManager(user.id, list)) redirect(`/lists/${list.id}`);
+  const target = form.get("stop") ? null : parseMoney(form.get("target"));
+  setWatch(user.id, item.id, target);
+  if (target && item.price_cents && item.price_cents <= target) checkWatches(item.id, item.price_cents);
+  redirect(`/lists/${list.id}?ok=${encodeURIComponent(target ? `We'll tell you when it's ${formatMoney(target)} or less` : "Stopped watching")}#item-${item.id}`);
 }

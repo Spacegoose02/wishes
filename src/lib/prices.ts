@@ -3,6 +3,7 @@ import { all, get, run } from "./db";
 import { fetchProduct } from "./scrape";
 import { cheaperElsewhere, compareItem } from "./compare";
 import { formatMoney } from "./format";
+import { checkWatches } from "./watches";
 import type { Item } from "./types";
 
 type Row = Item & { owner_id: number; is_primary: number; list_title: string };
@@ -48,6 +49,7 @@ export async function refreshPrices(maxItems = 30): Promise<number> {
             }
           }
           run("UPDATE items SET price_cents = ? WHERE id = ?", info.price_cents, r.id);
+          checkWatches(r.id, info.price_cents);
         }
       }
       if (compare) {

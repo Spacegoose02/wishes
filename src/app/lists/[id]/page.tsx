@@ -10,7 +10,8 @@ import { aiEnabled } from "@/lib/ai";
 import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
-import { addItem, approveWish, archiveItem, bulkAddItems, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
+import { watchesFor } from "@/lib/watches";
+import { addItem, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { MAX_MUST_HAVES } from "@/lib/wishes";
 import { isFund, kindInfo } from "@/lib/kinds";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
@@ -124,6 +125,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   for (const o of offerRows) offersByItem.set(o.item_id, [...(offersByItem.get(o.item_id) ?? []), o]);
   // Pledges are for shoppers; the list's own person never sees them.
   const pledges = recipient ? [] : pledgesForList(list.id);
+  const watches = watchesFor(user.id, list.id);
   const byItem = new Map<number, Purchase[]>();
   for (const p of purchases) if (p.item_id) byItem.set(p.item_id, [...(byItem.get(p.item_id) ?? []), p]);
 
@@ -416,6 +418,19 @@ export default async function ListPage({ params, searchParams }: { params: Param
                     )}
                     {showClaims && it.price_cents && !it.needs_approval && (!it.purchased || pledges.some((x) => x.item_id === it.id)) ? (
                       <GroupGift item={it} pledges={pledges.filter((x) => x.item_id === it.id)} userId={user.id} />
+                    ) : null}
+                    {it.url && it.price_cents && !it.purchased && !it.needs_approval ? (
+                      <details className="full">
+                        <summary className="small muted pointer">🎯 {watches.has(it.id) ? `Watching for ${formatMoney(watches.get(it.id))} or less` : "Watch the price"}</summary>
+                        <form action={watchPrice} className="row mt-8 items-end">
+                          <Hidden item={it.id} />
+                          <label className="grow min-180">Tell me when it&apos;s at or below
+                            <input name="target" inputMode="decimal" defaultValue={watches.has(it.id) ? (watches.get(it.id)! / 100).toFixed(2) : ((it.price_cents * 0.85) / 100).toFixed(2)} />
+                          </label>
+                          <SubmitButton className="btn small secondary">{watches.has(it.id) ? "Update" : "Watch"}</SubmitButton>
+                          {watches.has(it.id) && <SubmitButton className="btn small ghost" name="stop" value="1">Stop</SubmitButton>}
+                        </form>
+                      </details>
                     ) : null}
                     {owner && (
                       <details className="full">

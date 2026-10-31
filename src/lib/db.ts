@@ -331,6 +331,18 @@ const MIGRATIONS: string[] = [
     UNIQUE (user_id, profile_id, occasion, year)
   );
   `,
+  // 20: price-drop watchlist
+  `
+  CREATE TABLE price_watches (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    target_cents INTEGER NOT NULL,
+    notified_at INTEGER,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (user_id, item_id)
+  );
+  CREATE INDEX idx_price_watches_item ON price_watches(item_id);
+  `,
 ];
 
 function open(): DatabaseSync {
