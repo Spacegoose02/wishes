@@ -325,9 +325,10 @@ details.buy { border-top: 1px dashed var(--border); padding-top: 10px; }
 .chat-input { display: flex; gap: 8px; align-items: flex-end; }
 .chat-input textarea { min-height: 48px; resize: none; overflow-y: auto; }
 .chat .alert { margin: 0; align-items: center; justify-content: space-between; }
-/* Phones: the conversation fills the screen above the input instead of a short box. */
-@media (max-width: 640px) {
-  .chat-log { max-height: none; height: calc(100dvh - 330px); min-height: 260px; }
+/* Phones: the conversation flows with the page and the input stays pinned above the tab bar. */
+@media (max-width: 720px) {
+  .chat-log { max-height: none; overflow: visible; }
+  .chat-input { position: sticky; bottom: calc(64px + env(safe-area-inset-bottom)); background: var(--card); padding: 8px 0; z-index: 2; }
 }
 .chip-btn { border: none; cursor: pointer; font: inherit; font-size: 0.8rem; white-space: nowrap; }
 .typing { display: flex; gap: 4px; align-items: center; }

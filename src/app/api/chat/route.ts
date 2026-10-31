@@ -3,7 +3,7 @@ import { get } from "@/lib/db";
 import { getList, isRecipient, listAccess } from "@/lib/access";
 import { aiEnabled, friendlyError, type ChatTurn } from "@/lib/ai";
 import { banditMode, banditReply, historyWindow, replayTurn } from "@/lib/bandit";
-import { addAssistantMessage, addUserMessage, chatView, chatViews, dailyCap, deleteMessage, sentToday } from "@/lib/chatstore";
+import { addAssistantMessage, addUserMessage, chatView, chatViews, dailyCap, deleteMessage, dropTurn, logTurn, recordUsage, sentToday } from "@/lib/chatstore";
 import { chatContext, giverContext, stableBrief } from "@/lib/giftchat";
 import type { Profile } from "@/lib/types";
 
@@ -29,6 +29,7 @@ export async function POST(req: Request) {
 
   const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", list.profile_id)!;
   const recipient = isRecipient(user.id, list);
+  const turnId = logTurn(user.id);
   const userMsgId = addUserMessage(list.id, user.id, text);
   const turns: ChatTurn[] = historyWindow(chatViews(list.id, user.id)).map((m) => ({
     role: m.role,
@@ -58,15 +59,17 @@ export async function POST(req: Request) {
               send({ type: "text", text: t });
             },
           });
+          recordUsage(turnId, r.model, r.usage);
           const id = addAssistantMessage(list.id, user.id, { ...r, text: r.text || streamed || "Sorry, I lost my train of thought. Could you say that again?" });
           send({ type: "done", user: chatView(userMsgId), reply: chatView(id) });
         } catch (e) {
           if (req.signal.aborted) {
             // Stopped by the shopper: keep what Bandit had said so far.
-            if (streamed.trim()) addAssistantMessage(list.id, user.id, { text: streamed, ideas: [], stopped: true, model: "", usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, webSearches: 0 } });
+            if (streamed.trim()) addAssistantMessage(list.id, user.id, { text: streamed, ideas: [], stopped: true });
             else deleteMessage(userMsgId);
           } else {
             deleteMessage(userMsgId);
+            dropTurn(turnId);
             console.error("Bandit chat failed", e);
             send({ type: "error", error: friendlyError(e) });
           }

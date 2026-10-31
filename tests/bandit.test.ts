@@ -3,18 +3,20 @@ import { testDb } from "./helpers";
 import type * as Bandit from "@/lib/bandit";
 import type * as Store from "@/lib/chatstore";
 import type * as GiftChat from "@/lib/giftchat";
-import { estimateCost } from "@/lib/ai";
+import type * as Ai from "@/lib/ai";
 
 let t: Awaited<ReturnType<typeof testDb>>;
 let b: typeof Bandit;
 let cs: typeof Store;
 let gc: typeof GiftChat;
+let estimateCost: typeof Ai.estimateCost;
 
 beforeAll(async () => {
   t = await testDb();
   b = await import("@/lib/bandit");
   cs = await import("@/lib/chatstore");
   gc = await import("@/lib/giftchat");
+  ({ estimateCost } = await import("@/lib/ai"));
 });
 
 const usage = { input: 1_000_000, output: 100_000, cacheRead: 0, cacheWrite: 0, webSearches: 0 };
@@ -58,12 +60,14 @@ describe("cost estimates", () => {
 });
 
 describe("chat store", () => {
-  it("saves replies with their cards and usage, and adds them up for the month", () => {
+  it("saves replies with their cards, and logs usage for the month", () => {
     const u = t.user("chatter");
     const l = t.list(t.profileOf(u));
     cs.addUserMessage(l.id, u.id, "Ideas?");
-    const id = cs.addAssistantMessage(l.id, u.id, { text: "A kite!", ideas: [{ title: "Kite", why: "Windy" }], tip: { likes: "wind" }, model: "claude-opus-5-5", usage });
-    cs.addAssistantMessage(l.id, u.id, { text: "Half a tho", ideas: [], stopped: true, model: "", usage: { ...usage, input: 0, output: 0 } });
+    cs.recordUsage(cs.logTurn(u.id), "claude-opus-5-5", usage);
+    const id = cs.addAssistantMessage(l.id, u.id, { text: "A kite!", ideas: [{ title: "Kite", why: "Windy" }], tip: { likes: "wind" } });
+    cs.addAssistantMessage(l.id, u.id, { text: "Half a tho", ideas: [], stopped: true });
+    cs.dropTurn(cs.logTurn(u.id));
     const views = cs.chatViews(l.id, u.id);
     expect(views.map((v) => v.role)).toEqual(["user", "assistant", "assistant"]);
     expect(cs.chatView(id)).toMatchObject({ body: "A kite!", ideas: [{ title: "Kite" }], tip: { likes: "wind" } });
@@ -72,6 +76,10 @@ describe("chat store", () => {
     const m = cs.monthUsage();
     expect(m.replies).toBe(1);
     expect(m.cost).toBeCloseTo(6);
+    // Erasing the chat doesn't reset the limit or the bill.
+    t.db.run("DELETE FROM chat_messages WHERE user_id = ?", u.id);
+    expect(cs.sentToday(u.id)).toBe(1);
+    expect(cs.monthUsage().replies).toBe(1);
   });
 
   it("still reads replies saved in the old fenced format", () => {

@@ -101,10 +101,17 @@ export function ChatBox({ listId, initial, name, starters, canManage, canEditPro
   const sending = live !== null;
 
   // Follow the conversation as it grows, unless the shopper scrolled up to read.
+  // On phones the log grows with the page instead, so follow the page.
   useEffect(() => {
     const el = log.current;
-    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 160) el.scrollTo({ top: el.scrollHeight });
-  }, [messages, live]);
+    if (!el) return;
+    if (el.scrollHeight > el.clientHeight + 1) {
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 160) el.scrollTo({ top: el.scrollHeight });
+    } else if (messages.length > initial.length || live !== null) {
+      const page = document.documentElement;
+      if (page.scrollHeight - window.scrollY - window.innerHeight < 320) window.scrollTo({ top: page.scrollHeight });
+    }
+  }, [messages, live, initial.length]);
 
   useLayoutEffect(() => {
     const el = input.current;

@@ -32,15 +32,27 @@ export function deleteMessage(id: number) {
   run("DELETE FROM chat_messages WHERE id = ?", id);
 }
 
-export function addAssistantMessage(listId: number, userId: number, r: { text: string; ideas: ChatIdea[]; tip?: ProfileTip; stopped?: boolean; model: string; usage: Usage }): number {
+export function addAssistantMessage(listId: number, userId: number, r: { text: string; ideas: ChatIdea[]; tip?: ProfileTip; stopped?: boolean }): number {
   const meta: Meta = { ideas: r.ideas, ...(r.tip ? { tip: r.tip } : {}), ...(r.stopped ? { stopped: true } : {}) };
-  return Number(
-    run(
-      `INSERT INTO chat_messages (list_id, user_id, role, content, meta, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, web_searches)
-       VALUES (?, ?, 'assistant', ?, ?, ?, ?, ?, ?, ?, ?)`,
-      listId, userId, r.text, JSON.stringify(meta), r.model, r.usage.input, r.usage.output, r.usage.cacheRead, r.usage.cacheWrite, r.usage.webSearches,
-    ).lastInsertRowid,
+  return Number(run("INSERT INTO chat_messages (list_id, user_id, role, content, meta) VALUES (?, ?, 'assistant', ?, ?)", listId, userId, r.text, JSON.stringify(meta)).lastInsertRowid);
+}
+
+// One row per message sent to Bandit, kept when a chat is erased. Counts toward the daily
+// limit from the moment it's sent; usage is filled in once the reply is done.
+export function logTurn(userId: number): number {
+  return Number(run("INSERT INTO chat_usage (user_id) VALUES (?)", userId).lastInsertRowid);
+}
+
+export function recordUsage(turnId: number, model: string, u: Usage) {
+  run(
+    "UPDATE chat_usage SET model = ?, input_tokens = ?, output_tokens = ?, cache_read_tokens = ?, cache_write_tokens = ?, web_searches = ? WHERE id = ?",
+    model, u.input, u.output, u.cacheRead, u.cacheWrite, u.webSearches, turnId,
   );
+}
+
+// A turn that failed doesn't count against the shopper.
+export function dropTurn(turnId: number) {
+  run("DELETE FROM chat_usage WHERE id = ?", turnId);
 }
 
 export const DEFAULT_DAILY_CAP = 100;
@@ -53,7 +65,7 @@ export function dailyCap(): number {
 
 // Messages this person sent Bandit in the last 24 hours, across all lists.
 export function sentToday(userId: number): number {
-  return get<{ n: number }>("SELECT COUNT(*) AS n FROM chat_messages WHERE user_id = ? AND role = 'user' AND created_at > unixepoch() - 86400", userId)!.n;
+  return get<{ n: number }>("SELECT COUNT(*) AS n FROM chat_usage WHERE user_id = ? AND created_at > unixepoch() - 86400", userId)!.n;
 }
 
 export type MonthUsage = { replies: number; cost: number; cacheShare: number; byModel: { model: string; replies: number; cost: number }[] };
@@ -64,7 +76,7 @@ export function monthUsage(now = new Date()): MonthUsage {
   const rows = all<{ model: string; replies: number; input: number; output: number; cacheRead: number; cacheWrite: number; webSearches: number }>(
     `SELECT model, COUNT(*) AS replies, SUM(input_tokens) AS input, SUM(output_tokens) AS output, SUM(cache_read_tokens) AS cacheRead,
             SUM(cache_write_tokens) AS cacheWrite, SUM(web_searches) AS webSearches
-     FROM chat_messages WHERE role = 'assistant' AND model != '' AND created_at >= ? GROUP BY model ORDER BY replies DESC`,
+     FROM chat_usage WHERE model != '' AND created_at >= ? GROUP BY model ORDER BY replies DESC`,
     since,
   );
   const byModel = rows.map((r) => ({ model: r.model, replies: r.replies, cost: estimateCost(r.model, r) }));
