@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { get } from "@/lib/db";
-import { getList, listAccess, myLists, sharedWithMe } from "@/lib/access";
+import { getList, isRecipient, listAccess, myLists, sharedWithMe } from "@/lib/access";
 import { Avatar, AGENT_NAME, GIFT_RACCOON } from "@/components/Avatar";
 import { GiftChatPanel } from "@/components/GiftChatPanel";
 import type { SP } from "@/components/Flash";
@@ -44,6 +44,7 @@ export default async function ChatTab({ searchParams }: { searchParams: SP }) {
             <div className="mt-12">
               <p className="small muted m0">
                 Talking about <Link href={`/lists/${current.id}`}>{current.title}</Link>
+                {!isRecipient(user.id, current) && <> · Bandit knows which of {current.profile_name}&apos;s wishes are still up for grabs, and your <Link href="/purchases#budgets">budget</Link> for them.</>}
               </p>
               <GiftChatPanel user={user} list={current} />
             </div>

@@ -3,7 +3,7 @@ import { all, get, run } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canEditProfile, getList, isManager, isRecipient, listAccess } from "@/lib/access";
 import { aiEnabled, converse, type ChatTurn } from "@/lib/ai";
-import { parseReply, systemPrompt, type ChatIdea, type ProfileTip } from "@/lib/giftchat";
+import { giverContext, parseReply, systemPrompt, type ChatIdea, type ProfileTip } from "@/lib/giftchat";
 import { bestMatches, searchStores } from "@/lib/scrape/search";
 import { storeSearch } from "@/lib/scrape/stores";
 import { guessCategory, validCategory } from "@/lib/categories";
@@ -37,7 +37,8 @@ export async function sendChat(listId: number, text: string): Promise<{ ok: true
     list.id, user.id,
   );
   try {
-    const reply = await converse(systemPrompt(list, profile, user.name, isRecipient(user.id, list)), history);
+    const recipient = isRecipient(user.id, list);
+    const reply = await converse(systemPrompt(list, profile, user.name, recipient, recipient ? undefined : giverContext(user, list)), history);
     run("INSERT INTO chat_messages (list_id, user_id, role, content) VALUES (?, ?, 'assistant', ?)", list.id, user.id, reply || "Sorry, I lost my train of thought. Could you say that again?");
   } catch (e) {
     return { ok: false, error: (e as Error).message };
