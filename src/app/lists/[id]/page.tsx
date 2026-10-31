@@ -12,6 +12,7 @@ import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
 import { addItem, approveWish, archiveItem, bulkAddItems, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { MAX_MUST_HAVES } from "@/lib/wishes";
+import { isFund, kindInfo } from "@/lib/kinds";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
 import { revealOpen } from "@/lib/reveal";
 import { pledgeGoal, pledgeProgress, pledgesForList, type Pledge } from "@/lib/pledges";
@@ -55,8 +56,8 @@ function GroupGift({ item, pledges, userId }: { item: Item; pledges: Pledge[]; u
   const p = pledgeProgress(pledgeGoal(item), pledges);
   const mine = pledges.find((x) => x.user_id === userId);
   return (
-    <details className="buy full" open={pledges.length > 0}>
-      <summary className="small pointer fw-700 text-accent">🤝 Group gift{pledges.length > 0 && `: ${formatMoney(p.total)} of ${formatMoney(p.goal)}`}</summary>
+    <details className="buy full" open={pledges.length > 0 || isFund(item.kind)}>
+      <summary className="small pointer fw-700 text-accent">{isFund(item.kind) ? "🏦 Chip in" : "🤝 Group gift"}{pledges.length > 0 && `: ${formatMoney(p.total)} of ${formatMoney(p.goal)}`}</summary>
       <div className="progress mt-6" role="progressbar" aria-valuenow={p.pct} aria-valuemin={0} aria-valuemax={100} aria-label="Chipped in so far">
         <span style={{ width: `${p.pct}%` }} />
       </div>
@@ -321,6 +322,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       <div className="row gap-8" style={{ marginTop: 2 }}>
                         {it.needs_approval ? <span className="pill accent">🧒 Waiting for approval</span> : null}
                         {it.must_have ? <span className="pill must">⭐ Must-have</span> : null}
+                        {it.kind !== "product" && <span className="pill accent">{kindInfo(it.kind).icon} {kindInfo(it.kind).label}</span>}
                         {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents, it.currency)}</span> : null}
                         {it.store && <span className="pill">{it.store}</span>}
                         {it.category && <span className="pill">{categoryIcon(it.category)} {categoryLabel(it.category)}</span>}
@@ -365,7 +367,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       {owner && it.needs_approval ? (
                         <form action={approveWish}><Hidden item={it.id} /><SubmitButton className="btn small">✔ Approve</SubmitButton></form>
                       ) : null}
-                      {!it.needs_approval && ((showClaims && !it.claimed_by) || (claimedByMe && boughtQty === 0)) && !it.purchased && (
+                      {!it.needs_approval && !isFund(it.kind) && ((showClaims && !it.claimed_by) || (claimedByMe && boughtQty === 0)) && !it.purchased && (
                         <ClaimButton itemId={it.id} claimed={claimedByMe} action={claimItem} />
                       )}
                       <Menu label={`More for ${it.title}`}>
@@ -397,7 +399,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         <SubmitButton className="btn small ghost">✔ I got this myself</SubmitButton>
                       </form>
                     )}
-                    {showClaims && remaining > 0 && !it.needs_approval && (
+                    {showClaims && remaining > 0 && !it.needs_approval && !isFund(it.kind) && (
                       <details className="buy full">
                         <summary className="small pointer fw-700 text-accent">🛍️ I bought this</summary>
                         <form action={recordPurchase} className="form-grid mt-10">
@@ -427,7 +429,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                               title: it.title, url: it.url, store: it.store,
                               price: it.price_cents ? (it.price_cents / 100).toFixed(2) : "",
                               image_url: it.image_url, notes: it.notes, priority: it.priority, quantity: it.quantity,
-                              category: it.category, variant: it.variant, color: it.color, size: it.size,
+                              category: it.category, variant: it.variant, color: it.color, size: it.size, kind: it.kind,
                             }}
                           />
                           {otherLists.length > 0 && (

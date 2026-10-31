@@ -291,6 +291,10 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE lists ADD COLUMN yearly INTEGER NOT NULL DEFAULT 0;
   `,
+  // 14: non-product wishes (experiences, gift cards, money funds)
+  `
+  ALTER TABLE items ADD COLUMN kind TEXT NOT NULL DEFAULT 'product';
+  `,
 ];
 
 function open(): DatabaseSync {

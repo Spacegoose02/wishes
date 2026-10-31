@@ -78,6 +78,7 @@ export type Item = {
   must_have: number;
   needs_approval: number;
   archived_at: number | null;
+  kind: "product" | "experience" | "gift_card" | "fund";
   archive_reason: "" | "received" | "unwanted";
   created_at: number;
 };

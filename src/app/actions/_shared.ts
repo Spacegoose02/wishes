@@ -10,6 +10,7 @@ import { parseMoney } from "@/lib/format";
 import { guessCategory, validCategory } from "@/lib/categories";
 import { sizesFromForm } from "@/lib/profile";
 import { imageFromForm, isUploadUrl } from "@/lib/uploads";
+import { validKind } from "@/lib/kinds";
 import type { Item, User } from "@/lib/types";
 import { isValidAvatar, AVATARS } from "@/components/Avatar";
 import { parseCollection } from "@/components/AvatarPicker";
@@ -68,7 +69,9 @@ export function itemFields(form: FormData) {
   const store = s(form, "store") || (url ? storeFromHost(new URL(url).hostname).name : "");
   const image = s(form, "image_url");
   const title = s(form, "title").slice(0, 200);
+  const kind = validKind(s(form, "kind"));
   return {
+    kind,
     title,
     url,
     store,
@@ -77,7 +80,7 @@ export function itemFields(form: FormData) {
     notes: s(form, "notes").slice(0, 1000),
     priority: Math.min(3, Math.max(1, n(form, "priority") || 2)),
     quantity: Math.min(99, Math.max(1, n(form, "quantity") || 1)),
-    category: validCategory(s(form, "category")) || guessCategory(title, store),
+    category: validCategory(s(form, "category")) || (kind === "product" ? guessCategory(title, store) : "experiences"),
     variant: s(form, "variant").slice(0, 100),
     color: s(form, "color").slice(0, 60),
     size: s(form, "size").slice(0, 60),
@@ -91,12 +94,12 @@ export async function withPicture<F extends { image_url: string }>(form: FormDat
   return pic ? { ...f, image_url: pic.url } : f;
 }
 
-export function insertItem(listId: number, f: ReturnType<typeof itemFields>, guest: string | null = null, needsApproval = false): number {
+export function insertItem(listId: number, f: Omit<ReturnType<typeof itemFields>, "kind"> & { kind?: string }, guest: string | null = null, needsApproval = false): number {
   const r = run(
-    `INSERT INTO items (list_id, title, url, store, price_cents, image_url, notes, priority, quantity, created_by_guest, price_checked_at, category, variant, color, size, needs_approval)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO items (list_id, title, url, store, price_cents, image_url, notes, priority, quantity, created_by_guest, price_checked_at, category, variant, color, size, needs_approval, kind)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     listId, f.title, f.url, f.store, f.price, f.image_url, f.notes, f.priority, f.quantity, guest,
-    null, f.category, f.variant, f.color, f.size, needsApproval ? 1 : 0,
+    null, f.category, f.variant, f.color, f.size, needsApproval ? 1 : 0, f.kind ?? "product",
   );
   const id = Number(r.lastInsertRowid);
   if (f.price) run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", id, f.price, f.store);

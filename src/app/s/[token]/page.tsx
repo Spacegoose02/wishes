@@ -10,6 +10,7 @@ import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Confetti } from "@/components/Confetti";
+import { kindInfo } from "@/lib/kinds";
 
 export const metadata = { title: "Shared list" };
 
@@ -54,6 +55,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
                 {it.url ? <a className="item-title" href={it.url} target="_blank" rel="noopener noreferrer nofollow">{it.title}</a> : <span className="item-title">{it.title}</span>}
                 <div className="row gap-8">
                   {it.must_have ? <span className="pill must">⭐ Must-have</span> : null}
+                  {it.kind !== "product" && <span className="pill accent">{kindInfo(it.kind).icon} {kindInfo(it.kind).label}</span>}
                   {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents)}</span> : null}
                   {it.store && <span className="pill">{it.store}</span>}
                   <span className="stars" role="img" aria-label={`Wanted ${it.priority} of 3`}>{"★".repeat(it.priority)}</span>

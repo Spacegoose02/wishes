@@ -3,13 +3,14 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DrawPad } from "@/components/DrawPad";
+import { kindInfo, WISH_KINDS } from "@/lib/kinds";
 
 type Info = { blocked?: boolean; title?: string; price_cents?: number; image_url?: string; store: string; description?: string; category?: string };
 type AutofillFn = (url: string) => Promise<{ ok: true; info: Info } | { ok: false; error: string }>;
 
 export type ItemDefaults = {
   title?: string; url?: string; store?: string; price?: string; image_url?: string; notes?: string; priority?: number; quantity?: number;
-  category?: string; variant?: string; color?: string; size?: string;
+  category?: string; variant?: string; color?: string; size?: string; kind?: string;
 };
 
 export function ItemForm({
@@ -34,6 +35,8 @@ export function ItemForm({
   const [pending, start] = useTransition();
   const [lastFetched, setLastFetched] = useState("");
   const [photo, setPhoto] = useState("");
+  const [kind, setKind] = useState(defaults.kind ?? "product");
+  const product = kind === "product";
 
   function fetchDetails(target = url) {
     if (!target.trim() || target === lastFetched) return;
@@ -70,8 +73,17 @@ export function ItemForm({
   return (
     <form action={action} className="stack">
       {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+      <fieldset className="kind-pick">
+        <legend className="small fw-700">What kind of wish?</legend>
+        {WISH_KINDS.map((k) => (
+          <label key={k.id}>
+            <input type="radio" name="kind" value={k.id} checked={kind === k.id} onChange={() => setKind(k.id)} />
+            <span>{k.icon} {k.label}</span>
+          </label>
+        ))}
+      </fieldset>
       <label>
-        Link (Amazon, Walmart, Target, Kohl&apos;s, anywhere)
+        {product ? <>Link (Amazon, Walmart, Target, Kohl&apos;s, anywhere)</> : "Link (optional)"}
         <div className="row nowrap">
           <input
             name="url" type="url" inputMode="url" placeholder="Paste a product link" value={url}
@@ -87,8 +99,8 @@ export function ItemForm({
       <div className="row items-start nowrap">
         {(photo || image) && <div className="item-img"><img src={photo || image} alt="" referrerPolicy="no-referrer" /></div>}
         <div className="form-grid grow">
-          <label className="full">What is it?<input name="title" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="LEGO Botanical Bonsai" /></label>
-          <label>Price<input name="price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="29.99" /></label>
+          <label className="full">What is it?<input name="title" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder={product ? "LEGO Botanical Bonsai" : kind === "fund" ? "College fund" : kind === "gift_card" ? "Bookstore gift card" : "Zoo trip with Grandma"} /></label>
+          <label>{kindInfo(kind).price}<input name="price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="29.99" /></label>
           <label>Store<input name="store" value={store} onChange={(e) => setStore(e.target.value)} placeholder="Target" /></label>
         </div>
       </div>

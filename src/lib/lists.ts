@@ -18,8 +18,8 @@ export function copyList(from: WishList, profile: Profile, title: string, byUser
     );
     const id = Number(r.lastInsertRowid);
     run(
-      `INSERT INTO items (list_id, title, url, store, price_cents, currency, image_url, notes, priority, quantity, category, variant, color, size)
-       SELECT ?, title, url, store, price_cents, currency, image_url, notes, priority, quantity, category, variant, color, size
+      `INSERT INTO items (list_id, title, url, store, price_cents, currency, image_url, notes, priority, quantity, category, variant, color, size, kind)
+       SELECT ?, title, url, store, price_cents, currency, image_url, notes, priority, quantity, category, variant, color, size, kind
        FROM items WHERE list_id = ? AND archived_at IS NULL AND needs_approval = 0 ORDER BY id`,
       id, from.id,
     );
