@@ -310,6 +310,15 @@ const MIGRATIONS: string[] = [
   ALTER TABLE profiles ADD COLUMN sizes_updated_at INTEGER;
   UPDATE profiles SET sizes_updated_at = created_at WHERE sizes NOT IN ('', '{}');
   `,
+  // 18: week-before event reminders, sent once per list date
+  `
+  CREATE TABLE reminders_sent (
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    event_date TEXT NOT NULL,
+    sent_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (list_id, event_date)
+  );
+  `,
 ];
 
 function open(): DatabaseSync {
