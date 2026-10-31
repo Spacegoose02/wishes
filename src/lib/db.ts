@@ -273,6 +273,11 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE items ADD COLUMN must_have INTEGER NOT NULL DEFAULT 0;
   `,
+  // 10: badges and the golden rolls they earn
+  `
+  ALTER TABLE users ADD COLUMN badges TEXT NOT NULL DEFAULT '';
+  ALTER TABLE users ADD COLUMN bonus_rolls INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 function open(): DatabaseSync {

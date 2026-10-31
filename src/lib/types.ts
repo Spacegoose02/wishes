@@ -10,6 +10,8 @@ export type User = {
   totp_enabled: number;
   is_admin: number;
   unlocked_avatars: string;
+  badges: string;
+  bonus_rolls: number;
   created_at: number;
 };
 

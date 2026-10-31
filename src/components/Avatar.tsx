@@ -68,8 +68,9 @@ export function isValidAvatar(id: string): boolean {
 }
 
 // Roll odds: legendary 2%, epic 13%, rare 30%, common 55%.
-export function rollAvatar(rand: () => number = Math.random): string {
-  const r = rand();
+// A golden roll (earned with badges) skips the commons: about 4% / 29% / 67%.
+export function rollAvatar(rand: () => number = Math.random, golden = false): string {
+  const r = golden ? rand() * 0.45 : rand();
   if (r < 0.02) return SPACE_GOOSE;
   const tier: Tier = r < 0.15 ? "epic" : r < 0.45 ? "rare" : "common";
   const pool = ACCESSORIES.filter((a) => a.tier === tier);

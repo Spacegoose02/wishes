@@ -7,6 +7,7 @@ import { canEditProfile } from "@/lib/access";
 import type { Profile } from "@/lib/types";
 import { rollAvatar as roll } from "@/components/Avatar";
 import { parseCollection } from "@/components/AvatarPicker";
+import { spendBonusRoll } from "@/lib/rewards";
 import { s, n, THEMES, avatarFor, details } from "./_shared";
 
 export async function saveAccount(form: FormData) {
@@ -23,9 +24,11 @@ export async function saveAccount(form: FormData) {
 }
 
 // Roll a random critter into the user's collection (and wear it). Space Goose is the 2% legendary.
+// Golden rolls, earned with badges, never land on a common.
 export async function rollAvatar(form: FormData) {
   const user = await requireUser();
-  const got = roll();
+  const golden = s(form, "golden") === "1" && spendBonusRoll(user.id);
+  const got = roll(Math.random, golden);
   const collection = [got, ...parseCollection(user.unlocked_avatars).filter((a) => a !== got)].slice(0, 24);
   run("UPDATE users SET unlocked_avatars = ? WHERE id = ?", collection.join(","), user.id);
   const profileId = n(form, "profile_id");

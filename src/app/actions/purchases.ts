@@ -7,6 +7,7 @@ import { formatMoney, parseMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
 import { pledgers, setPledge } from "@/lib/pledges";
 import { revealOpen, sendThanks } from "@/lib/reveal";
+import { award } from "@/lib/rewards";
 import type { Item } from "@/lib/types";
 import { s, n, ownList, viewList, recomputePurchased } from "./_shared";
 
@@ -25,6 +26,7 @@ export async function recordPurchase(form: FormData) {
   );
   if (!item.claimed_by && !self) run("UPDATE items SET claimed_by = ?, claimed_name = ? WHERE id = ?", user.id, user.name, item.id);
   recomputePurchased(item.id);
+  if (!self) award(user.id, "first_gift");
   if (pending) {
     for (const uid of listManagers(list)) {
       if (!isRecipient(uid, list)) notify(uid, "purchase", `${user.name} bought ${item.title}. Please review it.`, `/lists/${list.id}/purchases`);
@@ -81,5 +83,6 @@ export async function thankGiver(form: FormData) {
   const back = `/lists/${list.id}/reveal`;
   if (!revealOpen(list)) redirect(`/lists/${list.id}`);
   const r = sendThanks(list, n(form, "purchase_id"), user.id, s(form, "sticker"), s(form, "note"));
+  if (r.ok) award(user.id, "thank_you");
   redirect(`${back}?${r.ok ? "ok=Thank-you+sent!" : `error=${encodeURIComponent(r.error)}`}`);
 }

@@ -9,6 +9,7 @@ import { compareItem } from "@/lib/compare";
 import { formatMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
 import { setMustHave } from "@/lib/wishes";
+import { award } from "@/lib/rewards";
 import type { Item } from "@/lib/types";
 import { s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased } from "./_shared";
 
@@ -18,10 +19,11 @@ export async function autofill(url: string): Promise<{ ok: true; info: ProductIn
 }
 
 export async function addItem(form: FormData) {
-  const { list } = await ownList(n(form, "list_id"));
+  const { user, list } = await ownList(n(form, "list_id"));
   const f = itemFields(form);
   if (!f.title) redirect(`/lists/${list.id}?error=Every+wish+needs+a+name`);
   insertItem(list.id, f);
+  award(user.id, "first_wish");
   redirect(`/lists/${list.id}?ok=Added`);
 }
 

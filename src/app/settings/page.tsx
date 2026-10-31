@@ -12,6 +12,7 @@ import { SecurityPanel } from "@/components/settings/SecurityPanel";
 import { AdminPanel } from "@/components/settings/AdminPanel";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
+import { BADGES, parseBadges } from "@/lib/rewards";
 
 export const metadata = { title: "Settings" };
 
@@ -22,7 +23,7 @@ const TABS = [
   { id: "admin", label: "🛠️ Server", admin: true },
 ] as const;
 
-function RollCard({ rolled, profileId }: { rolled?: string; profileId?: number }) {
+function RollCard({ rolled, profileId, golden = 0 }: { rolled?: string; profileId?: number; golden?: number }) {
   return (
     <div className="roll-card">
       {rolled && (
@@ -34,16 +35,25 @@ function RollCard({ rolled, profileId }: { rolled?: string; profileId?: number }
           </div>
         </div>
       )}
-      <form action={rollAvatar}>
-        {profileId ? <input type="hidden" name="profile_id" value={profileId} /> : null}
-        <SubmitButton className="btn secondary">🎲 Roll a random critter</SubmitButton>
-      </form>
+      <div className="row gap-6">
+        <form action={rollAvatar}>
+          {profileId ? <input type="hidden" name="profile_id" value={profileId} /> : null}
+          <SubmitButton className="btn secondary">🎲 Roll a random critter</SubmitButton>
+        </form>
+        {golden > 0 && (
+          <form action={rollAvatar}>
+            {profileId ? <input type="hidden" name="profile_id" value={profileId} /> : null}
+            <input type="hidden" name="golden" value="1" />
+            <SubmitButton className="btn">✨ Golden roll ({golden} left)</SubmitButton>
+          </form>
+        )}
+      </div>
       <p className="tiny muted m0">Common, Rare and Epic geese and raccoons. Space Goose is Legendary (2% chance). Every roll joins your collection.</p>
     </div>
   );
 }
 
-function ProfileCard({ p, open, rolled, collection, canDelete, note }: { p: Profile; open: boolean; rolled?: string; collection: string[]; canDelete?: boolean; note?: string }) {
+function ProfileCard({ p, open, rolled, collection, canDelete, note, golden }: { p: Profile; open: boolean; rolled?: string; collection: string[]; canDelete?: boolean; note?: string; golden?: number }) {
   return (
     <details id={`profile-${p.id}`} className="card" open={open}>
       <summary>
@@ -51,7 +61,7 @@ function ProfileCard({ p, open, rolled, collection, canDelete, note }: { p: Prof
           <Avatar id={p.avatar} size={28} />{p.name}{note && <span className="tiny muted">{note}</span>}<span className="small muted">✏️ Edit</span>
         </span>
       </summary>
-      {canDelete && <RollCard rolled={p.avatar === rolled ? rolled : undefined} profileId={p.id} />}
+      {canDelete && <RollCard rolled={p.avatar === rolled ? rolled : undefined} profileId={p.id} golden={golden} />}
       <form action={saveProfile} className="stack mt-12">
         <input type="hidden" name="profile_id" value={p.id} />
         <div className="form-grid">
@@ -83,6 +93,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
   const familyKids = familyProfiles(user.id).filter((p) => !p.is_primary && !p.linked_user_id);
   const editId = Number(sp.edit) || 0;
   const collection = parseCollection(user.unlocked_avatars);
+  const badges = parseBadges(user.badges);
 
   return (
     <div className="narrow-860">
@@ -107,7 +118,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
               <Avatar id={user.avatar} size={72} />
               <div><strong>{avatarLabel(user.avatar)}</strong><div className={`tier tier-${avatarTier(user.avatar)}`}>{TIER_LABEL[avatarTier(user.avatar)]}</div></div>
             </div>
-            <RollCard rolled={rolled} />
+            <RollCard rolled={rolled} golden={user.bonus_rolls} />
+            <div>
+              <p className="small fw-700 mb-6">Badges</p>
+              <div className="row chips gap-6">
+                {Object.entries(BADGES).map(([id, b]) => {
+                  const got = badges.includes(id as keyof typeof BADGES);
+                  return <span key={id} className={`pill${got ? " accent" : ""}`} title={got ? "Earned" : "Not yet"}>{got ? b.icon : "🔒"} {b.label}</span>;
+                })}
+              </div>
+              <p className="tiny muted m0 mt-6">Each badge earns a golden roll: Rare or better, guaranteed.</p>
+            </div>
           </section>
           <form action={saveAccount} className="card stack">
             <h2>You</h2>
@@ -130,7 +151,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
             <h2>Profiles you manage</h2>
             <p className="small muted m0">Kids (or pets, or grandparents!) who don&apos;t need their own login. Their lists show up for your families, and you see who&apos;s buying what so you can coordinate.</p>
             {others.map((p) => (
-              <ProfileCard key={p.id} p={p} open={editId === p.id || (rolled !== undefined && p.avatar === rolled)} rolled={rolled} collection={collection} canDelete note={p.linked_user_id ? "secret lists, hidden from them" : undefined} />
+              <ProfileCard key={p.id} p={p} open={editId === p.id || (rolled !== undefined && p.avatar === rolled)} rolled={rolled} collection={collection} canDelete golden={user.bonus_rolls} note={p.linked_user_id ? "secret lists, hidden from them" : undefined} />
             ))}
             <details className="card" open={others.length === 0}>
               <summary>Add a profile</summary>

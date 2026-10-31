@@ -4,6 +4,7 @@ import { run } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { parseMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
+import { award } from "@/lib/rewards";
 import { getExchange, participants, runDraw, setParticipants } from "@/lib/santa";
 import { s, n, familyAdmin } from "./_shared";
 
@@ -61,6 +62,7 @@ export async function markSantaDone(form: FormData) {
   const ex = getExchange(n(form, "exchange_id"));
   if (!ex) redirect("/santa");
   const done = s(form, "done") === "1" ? 1 : 0;
-  run("UPDATE exchange_people SET done = ? WHERE exchange_id = ? AND user_id = ?", done, ex.id, user.id);
+  const r = run("UPDATE exchange_people SET done = ? WHERE exchange_id = ? AND user_id = ? AND giftee_id IS NOT NULL", done, ex.id, user.id);
+  if (done && Number(r.changes)) award(user.id, "santa_done");
   redirect(`/santa/${ex.id}?ok=${done ? "Nice+work%2C+Santa!" : "Marked+not+done"}`);
 }
