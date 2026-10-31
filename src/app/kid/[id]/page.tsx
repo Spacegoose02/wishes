@@ -9,6 +9,7 @@ import { kidAddItem } from "../../actions/items";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DrawPad } from "@/components/DrawPad";
 
 export const metadata = { title: "Kid mode" };
 
@@ -58,6 +59,10 @@ export default async function KidMode({ params, searchParams }: { params: Promis
                 </label>
               ))}
             </fieldset>
+            <details>
+              <summary className="kid-say pointer">🎨 Draw it!</summary>
+              <DrawPad />
+            </details>
             <SubmitButton className="btn kid-btn">✨ Make a wish</SubmitButton>
           </form>
 

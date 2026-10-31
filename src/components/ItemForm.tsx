@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DrawPad } from "@/components/DrawPad";
 
 type Info = { blocked?: boolean; title?: string; price_cents?: number; image_url?: string; store: string; description?: string; category?: string };
 type AutofillFn = (url: string) => Promise<{ ok: true; info: Info } | { ok: false; error: string }>;
@@ -30,6 +31,7 @@ export function ItemForm({
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [lastFetched, setLastFetched] = useState("");
+  const [photo, setPhoto] = useState("");
 
   function fetchDetails(target = url) {
     if (!target.trim() || target === lastFetched) return;
@@ -72,7 +74,7 @@ export function ItemForm({
       </label>
       {msg && <p className="small muted m0">{msg}</p>}
       <div className="row items-start nowrap">
-        {image && <div className="item-img"><img src={image} alt="" referrerPolicy="no-referrer" /></div>}
+        {(photo || image) && <div className="item-img"><img src={photo || image} alt="" referrerPolicy="no-referrer" /></div>}
         <div className="form-grid grow">
           <label className="full">What is it?<input name="title" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="LEGO Botanical Bonsai" /></label>
           <label>Price<input name="price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="29.99" /></label>
@@ -98,6 +100,19 @@ export function ItemForm({
         </label>
         <label>How many?<input name="quantity" type="number" min={1} max={99} defaultValue={defaults.quantity ?? 1} /></label>
         <label className="full">Image link<input name="image_url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="Filled in automatically" /></label>
+        <details className="full">
+          <summary className="small pointer fw-700">📷 Add a photo or 🎨 draw it</summary>
+          <div className="stack mt-10">
+            <label>Photo (PNG, JPEG, WebP or GIF, up to 1.5 MB)
+              <input
+                name="photo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={(e) => { const f = e.target.files?.[0]; setPhoto(f ? URL.createObjectURL(f) : ""); }}
+              />
+            </label>
+            <p className="small muted m0">…or draw it:</p>
+            <DrawPad />
+          </div>
+        </details>
         <label className="full">Notes<textarea name="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything that helps someone buy the right one" /></label>
       </div>
       <SubmitButton className="btn" disabled={pending}>{submitLabel}</SubmitButton>

@@ -6,7 +6,7 @@ import { randomToken } from "@/lib/crypto";
 import { parseMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
 import type { Item } from "@/lib/types";
-import { s, n, ownList, doAutofill, itemFields, insertItem, recomputePurchased, guestByToken } from "./_shared";
+import { s, n, ownList, doAutofill, itemFields, insertItem, recomputePurchased, guestByToken, withPicture } from "./_shared";
 
 export async function addGuest(form: FormData) {
   const { list } = await ownList(n(form, "list_id"));
@@ -29,7 +29,7 @@ export async function guestAddItem(form: FormData) {
   const token = s(form, "token");
   const g = guestByToken(token);
   if (!g || !g.can_edit) redirect("/");
-  const f = itemFields(form);
+  const f = await withPicture(form, itemFields(form), `/s/${token}`);
   if (f.title) insertItem(g.list_id, f, g.email);
   redirect(`/s/${token}?ok=Added`);
 }

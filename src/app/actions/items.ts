@@ -11,7 +11,7 @@ import { notify } from "@/lib/prices";
 import { approveItem, setMustHave } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
 import type { Item, Profile } from "@/lib/types";
-import { s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased } from "./_shared";
+import { s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
 import { validCategory } from "@/lib/categories";
 
 export async function autofill(url: string): Promise<{ ok: true; info: ProductInfo & { category: string } } | { ok: false; error: string }> {
@@ -21,7 +21,7 @@ export async function autofill(url: string): Promise<{ ok: true; info: ProductIn
 
 export async function addItem(form: FormData) {
   const { user, list } = await ownList(n(form, "list_id"));
-  const f = itemFields(form);
+  const f = await withPicture(form, itemFields(form), `/lists/${list.id}`);
   if (!f.title) redirect(`/lists/${list.id}?error=Every+wish+needs+a+name`);
   insertItem(list.id, f);
   award(user.id, "first_wish");
@@ -32,7 +32,7 @@ export async function updateItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
   const { list } = await ownList(item.list_id);
-  const f = itemFields(form);
+  const f = await withPicture(form, itemFields(form), `/lists/${list.id}`);
   if (f.price && f.price !== item.price_cents) {
     run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", item.id, f.price, `${f.store} (edited)`);
   }
@@ -143,7 +143,7 @@ export async function kidAddItem(form: FormData) {
   const back = `/kid/${profile.id}?list=${list.id}`;
   const title = s(form, "title").slice(0, 200);
   if (!title) redirect(`${back}&error=${encodeURIComponent("Tell us what you wish for!")}`);
-  const f = { ...itemFields(form), title, category: validCategory(s(form, "category")) || "other" };
+  const f = await withPicture(form, { ...itemFields(form), title, category: validCategory(s(form, "category")) || "other" }, back);
   const id = insertItem(list.id, f, null, true);
   for (const uid of listManagers(list)) {
     notify(uid, "approval", `${profile.name} wished for ${title}. Approve it so shoppers can see it.`, `/lists/${list.id}#item-${id}`);

@@ -9,6 +9,7 @@ import { storeFromHost } from "@/lib/scrape/stores";
 import { parseMoney } from "@/lib/format";
 import { guessCategory, validCategory } from "@/lib/categories";
 import { sizesFromForm } from "@/lib/profile";
+import { imageFromForm, isUploadUrl } from "@/lib/uploads";
 import type { Item, User } from "@/lib/types";
 import { isValidAvatar, AVATARS } from "@/components/Avatar";
 import { parseCollection } from "@/components/AvatarPicker";
@@ -72,7 +73,7 @@ export function itemFields(form: FormData) {
     url,
     store,
     price: parseMoney(form.get("price")),
-    image_url: /^https?:\/\//.test(image) ? image : "",
+    image_url: /^https?:\/\//.test(image) || isUploadUrl(image) ? image : "",
     notes: s(form, "notes").slice(0, 1000),
     priority: Math.min(3, Math.max(1, n(form, "priority") || 2)),
     quantity: Math.min(99, Math.max(1, n(form, "quantity") || 1)),
@@ -81,6 +82,13 @@ export function itemFields(form: FormData) {
     color: s(form, "color").slice(0, 60),
     size: s(form, "size").slice(0, 60),
   };
+}
+
+// Swap in an uploaded photo or drawing when the form has one; bounce back on a bad file.
+export async function withPicture<F extends { image_url: string }>(form: FormData, f: F, back: string): Promise<F> {
+  const pic = await imageFromForm(form);
+  if (pic && !pic.ok) redirect(`${back}${back.includes("?") ? "&" : "?"}error=${encodeURIComponent(pic.error)}`);
+  return pic ? { ...f, image_url: pic.url } : f;
 }
 
 export function insertItem(listId: number, f: ReturnType<typeof itemFields>, guest: string | null = null, needsApproval = false): number {
