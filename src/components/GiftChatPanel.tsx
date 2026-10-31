@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { canEditProfile, isManager, type ListWithOwner } from "@/lib/access";
+import { canEditProfile, isManager, isRecipient, type ListWithOwner } from "@/lib/access";
+import { chatStarters, giverContext } from "@/lib/giftchat";
 import { get } from "@/lib/db";
 import { aiEnabled } from "@/lib/ai";
 import type { Profile, User } from "@/lib/types";
-import { chatIdeaToReview, clearChat, loadChat, saveChatTip, sendChat } from "@/app/actions/chat";
+import { chatIdeaToReview, clearChat, loadChat, saveChatTip } from "@/app/actions/chat";
 import { ChatBox } from "./ChatBox";
 import { AboutProfile } from "./AboutProfile";
 
@@ -11,6 +12,8 @@ import { AboutProfile } from "./AboutProfile";
 export async function GiftChatPanel({ user, list }: { user: User; list: ListWithOwner }) {
   const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", list.profile_id)!;
   const editable = canEditProfile(user.id, profile);
+  const recipient = isRecipient(user.id, list);
+  const starters = chatStarters(profile, recipient, recipient ? undefined : giverContext(user, list).budget?.left_cents);
   return (
     <>
       <AboutProfile p={profile} editHref={editable ? (profile.is_primary ? "/settings?tab=me" : `/settings?tab=profiles&edit=${profile.id}#profile-${profile.id}`) : undefined} />
@@ -21,9 +24,10 @@ export async function GiftChatPanel({ user, list }: { user: User; list: ListWith
             listId={list.id}
             initial={await loadChat(list.id)}
             name={profile.name}
+            starters={starters}
             canManage={isManager(user.id, list)}
             canEditProfile={editable}
-            actions={{ send: sendChat, clear: clearChat, toReview: chatIdeaToReview, saveTip: saveChatTip }}
+            actions={{ clear: clearChat, toReview: chatIdeaToReview, saveTip: saveChatTip }}
           />
         </div>
       ) : (

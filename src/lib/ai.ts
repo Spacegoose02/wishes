@@ -18,6 +18,22 @@ export const PROVIDERS: { id: AiProvider; label: string; defaultModel: string; d
   { id: "local", label: "Local LLM (Ollama, LM Studio, any OpenAI-compatible)", defaultModel: "llama3.2", defaultBaseUrl: "http://ollama:11434/v1", needsKey: false },
 ];
 
+// Current Claude models for the Admin picker, with list prices per million tokens.
+export const CLAUDE_MODELS = [
+  { id: "claude-opus-5-5", label: "Claude Opus 5.5 (best gift sense, default)", input: 4, output: 20, cacheRead: 0.2 },
+  { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5 (about half the price)", input: 2, output: 10, cacheRead: 0.2 },
+  { id: "claude-haiku-5-5", label: "Claude Haiku 5.5 (cheapest, less thoughtful)", input: 0.1, output: 0.5, cacheRead: 0.01 },
+] as const;
+const WEB_SEARCH_USD = 0.01;
+
+export type Usage = { input: number; output: number; cacheRead: number; cacheWrite: number; webSearches: number };
+
+// Estimated US dollars for one reply. Cache writes cost 1.25x input. Unknown models count as Opus.
+export function estimateCost(model: string, u: Usage): number {
+  const m = CLAUDE_MODELS.find((x) => x.id === model) ?? CLAUDE_MODELS[0];
+  return (u.input * m.input + u.cacheWrite * m.input * 1.25 + u.cacheRead * m.cacheRead + u.output * m.output) / 1e6 + u.webSearches * WEB_SEARCH_USD;
+}
+
 export type AiConfig = { provider: AiProvider; model: string; apiKey: string; baseUrl: string };
 
 export function aiConfig(): AiConfig {
@@ -113,25 +129,50 @@ async function gemini(c: AiConfig, system: string, turns: ChatTurn[], json: bool
   return data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
 }
 
-async function claude(c: AiConfig, system: string, turns: ChatTurn[], effort: "low" | "medium"): Promise<string> {
-  const client = new Anthropic({ apiKey: c.apiKey });
-  const response = await client.messages.create({
+// One client per API key, reused across requests (keeps connections warm).
+const clients = new Map<string, Anthropic>();
+export function claudeClient(apiKey: string): Anthropic {
+  let c = clients.get(apiKey);
+  if (!c) clients.set(apiKey, (c = new Anthropic({ apiKey })));
+  return c;
+}
+
+export class AiError extends Error {}
+
+// Turns SDK errors into messages a family member can act on.
+export function friendlyError(e: unknown): string {
+  if (e instanceof AiError) return e.message;
+  if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return "The Claude API key isn't working. An admin can check it in Settings → Server.";
+  if (e instanceof Anthropic.RateLimitError) return "Bandit is answering a lot of questions right now. Try again in a minute.";
+  if (e instanceof Anthropic.NotFoundError) return "That AI model isn't available. An admin can pick another in Settings → Server.";
+  if (e instanceof Anthropic.APIConnectionError) return "Couldn't reach Claude. Check the server's internet connection.";
+  if (e instanceof Anthropic.APIError && (e.status === 529 || (e.status ?? 0) >= 500)) return "Claude is busy right now. Try again in a moment.";
+  if (e instanceof Anthropic.BadRequestError) return "Claude couldn't handle that request. Try rephrasing, or start over.";
+  return e instanceof Error ? e.message : "Something went wrong talking to the AI.";
+}
+
+// Single-shot Claude call. With a schema, the reply is guaranteed to be JSON matching it.
+async function claude(c: AiConfig, system: string, turns: ChatTurn[], schema?: Record<string, unknown>): Promise<string> {
+  const response = await claudeClient(c.apiKey).beta.messages.create({
     model: c.model,
     max_tokens: 16000,
-    output_config: { effort },
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    output_config: { effort: "low", ...(schema ? { format: { type: "json_schema", schema } } : {}) },
     ...(system ? { system } : {}),
     messages: turns,
   });
-  if (response.stop_reason === "refusal") throw new Error("Claude declined this request.");
+  if (response.stop_reason === "refusal") throw new AiError("Claude declined this request.");
   return response.content.map((b) => (b.type === "text" ? b.text : "")).join("");
 }
 
-// One entry point for every provider. Single-shot JSON tasks use low effort; chat uses medium.
-export async function converse(system: string, turns: ChatTurn[], opts: { json?: boolean } = {}): Promise<string> {
+// One entry point for every provider. Claude gets a strict JSON schema when one is given;
+// the others are asked for JSON in the prompt.
+export async function converse(system: string, turns: ChatTurn[], opts: { json?: boolean; schema?: Record<string, unknown> } = {}): Promise<string> {
   const c = aiConfig();
   switch (c.provider) {
     case "anthropic":
-      return claude(c, system, turns, opts.json ? "low" : "medium");
+      return claude(c, system, turns, opts.schema);
     case "gemini":
       return gemini(c, system, turns, !!opts.json);
     case "openai":
@@ -143,13 +184,32 @@ export async function converse(system: string, turns: ChatTurn[], opts: { json?:
   }
 }
 
-async function complete(text: string): Promise<string> {
-  return converse("", [{ role: "user", content: text }], { json: true });
+async function complete(text: string, schema?: Record<string, unknown>): Promise<string> {
+  return converse("", [{ role: "user", content: text }], { json: true, schema });
 }
+
+const str = { type: "string" } as const;
+const IDEAS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["ideas"],
+  properties: {
+    ideas: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "reason", "est_price", "store", "search", "category"],
+        properties: { title: str, reason: str, est_price: { type: "number" }, store: { type: "string", enum: SEARCH_STORES }, search: str, category: { type: "string", enum: CATEGORIES.map((c) => c.id) } },
+      },
+    },
+  },
+};
+const SAME_SCHEMA = { type: "object", additionalProperties: false, required: ["same"], properties: { same: { type: "array", items: { type: "integer" } } } };
 
 export async function generateIdeas(ctx: IdeaContext): Promise<{ ideas: Idea[]; source: string }> {
   const c = aiConfig();
-  return { ideas: parseIdeas(await complete(prompt(ctx))), source: c.provider + ":" + c.model };
+  return { ideas: parseIdeas(await complete(prompt(ctx), IDEAS_SCHEMA)), source: c.provider + ":" + c.model };
 }
 
 // Ask the model which store listings are the same product as the wish (same item, size and
@@ -164,7 +224,7 @@ export async function confirmMatches(wish: string, details: string, candidates: 
     'Reply with only JSON: {"same":[0,2]}',
   ].join("\n\n");
   try {
-    const reply = await complete(text);
+    const reply = await complete(text, SAME_SCHEMA);
     const m = reply.match(/\{[\s\S]*\}/);
     const data = m ? (JSON.parse(m[0]) as { same?: unknown[] }) : {};
     return (data.same ?? []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < candidates.length);

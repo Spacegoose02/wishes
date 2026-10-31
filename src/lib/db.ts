@@ -349,6 +349,17 @@ const MIGRATIONS: string[] = [
   ALTER TABLE purchases ADD COLUMN carrier TEXT NOT NULL DEFAULT '';
   ALTER TABLE purchases ADD COLUMN expected_at TEXT;
   `,
+  // 22: Bandit chat: gift cards and tips stored as data, plus token usage for the cost readout
+  `
+  ALTER TABLE chat_messages ADD COLUMN meta TEXT;
+  ALTER TABLE chat_messages ADD COLUMN model TEXT NOT NULL DEFAULT '';
+  ALTER TABLE chat_messages ADD COLUMN input_tokens INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE chat_messages ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE chat_messages ADD COLUMN cache_read_tokens INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE chat_messages ADD COLUMN cache_write_tokens INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE chat_messages ADD COLUMN web_searches INTEGER NOT NULL DEFAULT 0;
+  CREATE INDEX idx_chat_user_time ON chat_messages(user_id, created_at);
+  `,
 ];
 
 function open(): DatabaseSync {
