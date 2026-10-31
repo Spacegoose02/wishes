@@ -3,7 +3,9 @@ import { requireUser } from "@/lib/auth";
 import { familyProfiles, myProfiles } from "@/lib/access";
 import type { Profile } from "@/lib/types";
 import { logout } from "../actions/auth";
-import { deleteProfile, rollAvatar, saveAccount, saveProfile } from "../actions/account";
+import { deleteProfile, resetCalendarLink, rollAvatar, saveAccount, saveProfile } from "../actions/account";
+import { CopyButton } from "@/components/CopyButton";
+import { siteOrigin } from "@/lib/origin";
 import { AvatarPicker, parseCollection } from "@/components/AvatarPicker";
 import { Avatar, avatarLabel, avatarTier, TIER_LABEL } from "@/components/Avatar";
 import { ThemePicker } from "@/components/ThemePicker";
@@ -129,6 +131,21 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
               </div>
               <p className="tiny muted m0 mt-6">Each badge earns a golden roll: Rare or better, guaranteed.</p>
             </div>
+          </section>
+          <section id="calendar" className="card stack">
+            <h2 className="m0">📅 Calendar feed</h2>
+            <p className="small muted m0">Birthdays and list dates you can see, in your phone&apos;s calendar. Keep the link to yourself.</p>
+            {user.calendar_token ? (
+              <>
+                <div className="row nowrap">
+                  <input readOnly value={`${await siteOrigin()}/calendar/${user.calendar_token}.ics`} aria-label="Calendar link" />
+                  <CopyButton text={`/calendar/${user.calendar_token}.ics`} />
+                </div>
+                <form action={resetCalendarLink}><input type="hidden" name="reset" value="1" /><SubmitButton className="btn small ghost" confirm="The old link stops working. Sure?">New link</SubmitButton></form>
+              </>
+            ) : (
+              <form action={resetCalendarLink}><SubmitButton className="btn small secondary">Turn on calendar feed</SubmitButton></form>
+            )}
           </section>
           <form action={saveAccount} className="card stack">
             <h2>You</h2>

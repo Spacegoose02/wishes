@@ -8,6 +8,7 @@ import type { Profile } from "@/lib/types";
 import { rollAvatar as roll } from "@/components/Avatar";
 import { parseCollection } from "@/components/AvatarPicker";
 import { spendBonusRoll } from "@/lib/rewards";
+import { calendarToken } from "@/lib/calendar";
 import { s, n, THEMES, avatarFor, details } from "./_shared";
 
 export async function saveAccount(form: FormData) {
@@ -90,4 +91,11 @@ export async function markAllRead() {
   const user = await requireUser();
   run("UPDATE notifications SET read = 1 WHERE user_id = ?", user.id);
   revalidatePath("/", "layout");
+}
+
+// Turn on the calendar feed, or swap its secret link for a new one.
+export async function resetCalendarLink(form: FormData) {
+  const user = await requireUser();
+  calendarToken(user.id, !!form.get("reset"));
+  redirect("/settings?tab=me&ok=" + encodeURIComponent(form.get("reset") ? "New calendar link made. Re-subscribe with it." : "Calendar feed is on") + "#calendar");
 }

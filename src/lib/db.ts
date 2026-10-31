@@ -300,6 +300,11 @@ const MIGRATIONS: string[] = [
   ALTER TABLE lists ADD COLUMN view_token TEXT;
   CREATE UNIQUE INDEX idx_lists_view_token ON lists(view_token);
   `,
+  // 16: private calendar feed
+  `
+  ALTER TABLE users ADD COLUMN calendar_token TEXT;
+  CREATE UNIQUE INDEX idx_users_calendar_token ON users(calendar_token);
+  `,
 ];
 
 function open(): DatabaseSync {

@@ -12,6 +12,7 @@ export type User = {
   unlocked_avatars: string;
   badges: string;
   bonus_rolls: number;
+  calendar_token: string | null;
   created_at: number;
 };
 
