@@ -5,6 +5,7 @@ import { ListCard } from "@/components/ListCard";
 import { RenameKid } from "@/components/RenameKid";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
+import { sleepsLabel, upcomingEvents } from "@/lib/countdown";
 
 export const metadata = { title: "My lists" };
 
@@ -14,6 +15,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   const lists = myLists(user.id);
   const families = myFamilies(user.id);
   const sp = await searchParams;
+  const upcoming = upcomingEvents(user).slice(0, 3);
   return (
     <>
       <Flash searchParams={searchParams} />
@@ -27,6 +29,20 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
         </div>
         <Link href="/lists/new" className="btn">＋ New list</Link>
       </div>
+
+      {upcoming.length > 0 && (
+        <div className="countdown mt-12">
+          {upcoming.map((u) => (
+            <Link key={u.key} href={u.href} className="countdown-item">
+              <span className="countdown-emoji" aria-hidden="true">{u.emoji}</span>
+              <span>
+                {sleepsLabel(u.days, u.label).count !== null && <strong className="countdown-n">{u.days}</strong>}
+                <span>{sleepsLabel(u.days, u.label).text}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {(sp.welcome || families.length === 0) && (
         <div className="card mt-12">
