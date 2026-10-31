@@ -6,7 +6,10 @@ import { SubmitButton } from "@/components/SubmitButton";
 
 export const metadata = { title: "Alerts" };
 
-const ICON: Record<string, string> = { deal: "🏷️", family: "🏡", purchase: "🧾", info: "💡" };
+const ICON: Record<string, string> = {
+  deal: "🏷️", family: "🏡", purchase: "🧾", info: "💡", approval: "🧒", badge: "🌟", pledge: "🤝",
+  reminder: "⏰", santa: "🎅", thanks: "💌", unwanted: "🙅",
+};
 
 export default async function NotificationsPage() {
   const user = await requireUser();
@@ -19,7 +22,7 @@ export default async function NotificationsPage() {
         <h1 className="m0">Alerts</h1>
         {rows.some((r) => !r.read) && <form action={markAllRead}><SubmitButton className="btn small secondary">Mark all read</SubmitButton></form>}
       </div>
-      <p className="muted">Price drops on gifts you&apos;re getting (or on your own wishes), and family news.</p>
+      <p className="muted">Price drops, purchases and approvals, group gifts, Secret Santa, thank-yous, reminders before the big day, and family news.</p>
       <div className="card">
         {rows.length === 0 && <div className="empty"><div className="big" aria-hidden="true">🔔</div>All quiet.</div>}
         {rows.map((r) => (

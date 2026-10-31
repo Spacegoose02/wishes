@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { get, run, tx } from "./db";
 import { randomToken, sha256 } from "./crypto";
 import type { User } from "./types";
+import { nextQuery, PATH_HEADER } from "./next";
 
 const COOKIE = "wishes_session";
 const SESSION_DAYS = 30;
@@ -75,7 +76,11 @@ export async function getPending2faUser(): Promise<User | undefined> {
 
 export async function requireUser(): Promise<User> {
   const u = await getUser();
-  if (!u) redirect("/login");
+  if (!u) {
+    // Server actions post to the page they're on, so this is the page either way.
+    const h = await headers();
+    redirect(`/login${h.get("next-action") ? "" : nextQuery(h.get(PATH_HEADER))}`);
+  }
   return u;
 }
 

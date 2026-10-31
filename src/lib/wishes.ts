@@ -46,3 +46,14 @@ export function archiveWish(item: Item, reason: ArchiveReason): number[] {
 export function restoreWish(itemId: number) {
   run("UPDATE items SET archived_at = NULL, archive_reason = '' WHERE id = ?", itemId);
 }
+
+// Everyone with a stake in a wish that's about to be removed: whoever claimed it, chipped in,
+// or marked it bought. Read before deleting, since pledges go with the wish.
+export function peopleBuying(item: Pick<Item, "id" | "claimed_by">): number[] {
+  const rows = all<{ user_id: number }>(
+    `SELECT user_id FROM pledges WHERE item_id = ?
+     UNION SELECT buyer_user_id FROM purchases WHERE item_id = ? AND buyer_user_id IS NOT NULL AND status != 'rejected'`,
+    item.id, item.id,
+  ).map((r) => r.user_id);
+  return [...new Set([...(item.claimed_by ? [item.claimed_by] : []), ...rows])];
+}

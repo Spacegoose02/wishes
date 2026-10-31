@@ -37,6 +37,12 @@ export async function POST(req: Request) {
   }));
 
   const enc = new TextEncoder();
+  // Stopped when the shopper taps Stop or leaves: the request's own signal, or the browser
+  // cancelling the response stream, whichever the server notices first.
+  const stop = new AbortController();
+  const onAbort = () => stop.abort();
+  if (req.signal.aborted) stop.abort();
+  else req.signal.addEventListener("abort", onAbort, { once: true });
   return new Response(
     new ReadableStream({
       async start(controller) {
@@ -44,7 +50,7 @@ export async function POST(req: Request) {
           try {
             controller.enqueue(enc.encode(JSON.stringify(o) + "\n"));
           } catch {
-            /* the browser went away */
+            stop.abort(); // the browser went away
           }
         };
         let streamed = "";
@@ -53,20 +59,24 @@ export async function POST(req: Request) {
             stable: stableBrief(banditMode()),
             context: chatContext(list, profile, user.name, recipient, recipient ? undefined : giverContext(user, list)),
             turns,
-            signal: req.signal,
+            signal: stop.signal,
             onText: (t) => {
               streamed += t;
               send({ type: "text", text: t });
             },
           });
           recordUsage(turnId, r.model, r.usage);
-          const id = addAssistantMessage(list.id, user.id, { ...r, text: r.text || streamed || "Sorry, I lost my train of thought. Could you say that again?" });
-          send({ type: "done", user: chatView(userMsgId), reply: chatView(id) });
+          // A provider that can't be interrupted may still finish after Stop: keep what the
+          // shopper saw, not the rest.
+          if (stop.signal.aborted) {
+            keepStopped(streamed, list.id, user.id, userMsgId);
+          } else {
+            const id = addAssistantMessage(list.id, user.id, { ...r, text: r.text || streamed || "Sorry, I lost my train of thought. Could you say that again?" });
+            send({ type: "done", user: chatView(userMsgId), reply: chatView(id) });
+          }
         } catch (e) {
-          if (req.signal.aborted) {
-            // Stopped by the shopper: keep what Bandit had said so far.
-            if (streamed.trim()) addAssistantMessage(list.id, user.id, { text: streamed, ideas: [], stopped: true });
-            else deleteMessage(userMsgId);
+          if (stop.signal.aborted) {
+            keepStopped(streamed, list.id, user.id, userMsgId);
           } else {
             deleteMessage(userMsgId);
             dropTurn(turnId);
@@ -74,6 +84,7 @@ export async function POST(req: Request) {
             send({ type: "error", error: friendlyError(e) });
           }
         } finally {
+          req.signal.removeEventListener("abort", onAbort);
           try {
             controller.close();
           } catch {
@@ -81,7 +92,16 @@ export async function POST(req: Request) {
           }
         }
       },
+      cancel() {
+        stop.abort();
+      },
     }),
     { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", "x-accel-buffering": "no" } },
   );
+}
+
+// Stopped by the shopper: keep what Bandit had said so far, or drop the question if nothing came yet.
+function keepStopped(streamed: string, listId: number, userId: number, userMsgId: number) {
+  if (streamed.trim()) addAssistantMessage(listId, userId, { text: streamed, ideas: [], stopped: true });
+  else deleteMessage(userMsgId);
 }

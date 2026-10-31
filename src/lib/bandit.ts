@@ -179,7 +179,7 @@ async function claudeReply(req: BanditRequest): Promise<BanditReply> {
 }
 
 async function otherReply(req: BanditRequest): Promise<BanditReply> {
-  const raw = await converse(`${req.stable}\n\n${req.context}`, req.turns);
+  const raw = await converse(`${req.stable}\n\n${req.context}`, req.turns, { signal: req.signal });
   const { body, ideas, tip } = parseReply(raw);
   req.onText(body);
   return { text: body, ideas, tip, usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, webSearches: 0 }, model: aiConfig().model };
