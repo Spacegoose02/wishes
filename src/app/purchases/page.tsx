@@ -6,6 +6,7 @@ import { budgetPeople, budgetsFor, spendByPerson, toBuy } from "@/lib/shopping";
 import { saveBudget } from "../actions/purchases";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Tracking } from "@/components/Tracking";
 import { Avatar } from "@/components/Avatar";
 
 export const metadata = { title: "My shopping" };
@@ -19,7 +20,7 @@ export default async function MyShoppingPage({ searchParams }: { searchParams: S
   const spend = spendByPerson(user.id, year);
   const budgets = budgetsFor(user.id, year);
   const people = budgetPeople(user.id);
-  const rows = all<{ id: number; list_id: number; item_title: string; quantity: number; price_cents: number | null; store: string; status: string; created_at: number; list_title: string; for_name: string }>(
+  const rows = all<{ id: number; list_id: number; item_title: string; quantity: number; price_cents: number | null; store: string; status: string; created_at: number; list_title: string; for_name: string; tracking: string; carrier: string; expected_at: string | null }>(
     `SELECT pu.*, l.title AS list_title, p.name AS for_name FROM purchases pu
      JOIN lists l ON l.id = pu.list_id JOIN profiles p ON p.id = l.profile_id
      WHERE pu.buyer_user_id = ? ORDER BY pu.created_at DESC`,
@@ -125,6 +126,7 @@ export default async function MyShoppingPage({ searchParams }: { searchParams: S
                   <Link href={`/lists/${r.list_id}`}>{r.list_title}</Link> · {new Date(r.created_at * 1000).toLocaleDateString()}
                   {r.store ? ` · ${r.store}` : ""}{r.status === "pending" ? " · waiting for review" : r.status === "rejected" ? " · not confirmed" : ""}
                 </div>
+                {r.status !== "rejected" && <Tracking p={r} back="/purchases" />}
               </div>
               <strong>{r.price_cents ? formatMoney(r.price_cents * r.quantity) : ""}</strong>
             </div>

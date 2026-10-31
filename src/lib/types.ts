@@ -112,5 +112,8 @@ export type Purchase = {
   note: string;
   status: "confirmed" | "pending" | "rejected";
   reviewed_by: number | null;
+  tracking: string;
+  carrier: string;
+  expected_at: string | null;
   created_at: number;
 };

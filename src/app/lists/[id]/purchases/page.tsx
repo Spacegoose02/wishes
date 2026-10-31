@@ -8,6 +8,8 @@ import type { Purchase } from "@/lib/types";
 import { reviewPurchase, undoPurchase } from "../../../actions/purchases";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Tracking } from "@/components/Tracking";
+import { canSeeTracking } from "@/lib/tracking";
 
 export const metadata = { title: "Purchases" };
 
@@ -76,7 +78,10 @@ export default async function PurchasesPage({ params, searchParams }: { params: 
               <tbody>
                 {rows.map((p) => (
                   <tr key={p.id}>
-                    <td>{p.quantity > 1 ? `${p.quantity} × ` : ""}{p.item_title}{p.note && <div className="tiny muted">{p.note}</div>}</td>
+                    <td>
+                      {p.quantity > 1 ? `${p.quantity} × ` : ""}{p.item_title}{p.note && <div className="tiny muted">{p.note}</div>}
+                      {canSeeTracking(p, user.id, manager) && <Tracking p={p} back={`/lists/${list.id}/purchases`} />}
+                    </td>
                     <td>{p.buyer_name}</td>
                     <td>{p.price_cents ? formatMoney(p.price_cents * p.quantity) : "—"}{p.store && <div className="tiny muted">{p.store}</div>}</td>
                     <td className="small">{new Date(p.created_at * 1000).toLocaleDateString()}</td>

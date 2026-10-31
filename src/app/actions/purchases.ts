@@ -9,6 +9,7 @@ import { pledgers, setPledge } from "@/lib/pledges";
 import { revealOpen, sendThanks } from "@/lib/reveal";
 import { award } from "@/lib/rewards";
 import { setBudget } from "@/lib/shopping";
+import { canSeeTracking, cleanTracking, detectCarrier } from "@/lib/tracking";
 import { requireUser } from "@/lib/auth";
 import type { Item } from "@/lib/types";
 import { s, n, ownList, viewList, recomputePurchased } from "./_shared";
@@ -95,4 +96,17 @@ export async function saveBudget(form: FormData) {
   const user = await requireUser();
   const ok = setBudget(user.id, n(form, "profile_id"), s(form, "occasion"), new Date().getFullYear(), parseMoney(form.get("amount")));
   redirect(`/purchases?${ok ? "ok=Budget+saved" : "error=Pick+someone+from+your+families"}#budgets`);
+}
+
+// Tracking number and expected arrival, set by the buyer or a list manager.
+export async function saveTracking(form: FormData) {
+  const p = get<{ id: number; list_id: number; buyer_user_id: number | null }>("SELECT * FROM purchases WHERE id = ?", n(form, "purchase_id"));
+  if (!p) redirect("/");
+  const { user, list } = await viewList(p.list_id);
+  if (!canSeeTracking(p, user.id, isManager(user.id, list) && !isRecipient(user.id, list))) redirect(`/lists/${list.id}`);
+  const tracking = cleanTracking(s(form, "tracking"));
+  const expected = /^\d{4}-\d{2}-\d{2}$/.test(s(form, "expected_at")) ? s(form, "expected_at") : null;
+  run("UPDATE purchases SET tracking = ?, carrier = ?, expected_at = ? WHERE id = ?", tracking, detectCarrier(tracking), expected, p.id);
+  const back = s(form, "back");
+  redirect(`${back.startsWith("/") && !back.startsWith("//") ? back : `/lists/${list.id}`}${back.includes("?") ? "&" : "?"}ok=Shipping+saved`);
 }

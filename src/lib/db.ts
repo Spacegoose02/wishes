@@ -343,6 +343,12 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_price_watches_item ON price_watches(item_id);
   `,
+  // 21: shipping details on a purchase (buyer and list managers only)
+  `
+  ALTER TABLE purchases ADD COLUMN tracking TEXT NOT NULL DEFAULT '';
+  ALTER TABLE purchases ADD COLUMN carrier TEXT NOT NULL DEFAULT '';
+  ALTER TABLE purchases ADD COLUMN expected_at TEXT;
+  `,
 ];
 
 function open(): DatabaseSync {

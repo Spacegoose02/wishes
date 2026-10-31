@@ -23,6 +23,8 @@ import { Flash, type SP } from "@/components/Flash";
 import { ClaimButton } from "@/components/ClaimButton";
 import { Menu } from "@/components/Menu";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Tracking } from "@/components/Tracking";
+import { canSeeTracking } from "@/lib/tracking";
 import { Confetti } from "@/components/Confetti";
 
 type Params = Promise<{ id: string }>;
@@ -347,6 +349,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                                   <SubmitButton className="linkish">undo</SubmitButton>
                                 </form>
                               )}
+                              {!recipient && canSeeTracking(p, user.id, owner) && <Tracking p={p} back={`/lists/${list.id}`} />}
                             </div>
                           ))}
                           {claimed && !it.purchased && <div>🎀 {claimedByMe ? "You're getting this" : `${it.claimed_name ?? "Someone"} is getting this`}</div>}
