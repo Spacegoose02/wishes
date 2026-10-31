@@ -9,6 +9,7 @@ import { rollAvatar as roll } from "@/components/Avatar";
 import { parseCollection } from "@/components/AvatarPicker";
 import { spendBonusRoll } from "@/lib/rewards";
 import { calendarToken } from "@/lib/calendar";
+import { sizesFromForm } from "@/lib/profile";
 import { s, n, THEMES, avatarFor, details } from "./_shared";
 
 export async function saveAccount(form: FormData) {
@@ -17,6 +18,7 @@ export async function saveAccount(form: FormData) {
   const avatar = avatarFor(user, s(form, "avatar"), user.avatar);
   const theme = THEMES.includes(s(form, "theme")) ? s(form, "theme") : user.theme;
   run("UPDATE users SET name = ?, avatar = ?, theme = ? WHERE id = ?", name, avatar, theme, user.id);
+  run("UPDATE profiles SET sizes_updated_at = unixepoch() WHERE user_id = ? AND is_primary = 1 AND sizes IS NOT ?", user.id, sizesFromForm(form));
   run(
     "UPDATE profiles SET name = ?, avatar = ?, birthday = ?, age = ?, likes = ?, dislikes = ?, sizes = ?, gift_notes = ? WHERE user_id = ? AND is_primary = 1",
     name, avatar, s(form, "birthday") || null, ...details(form), user.id,
@@ -55,13 +57,14 @@ export async function saveProfile(form: FormData) {
     if (profile.is_primary) redirect(back + join + "error=Change+your+own+name+on+the+Me+tab");
     // Keep the kid's current critter even if it came from another parent's collection.
     if (s(form, "avatar") === profile.avatar) avatar = profile.avatar;
+    run("UPDATE profiles SET sizes_updated_at = unixepoch() WHERE id = ? AND sizes IS NOT ?", profile.id, sizesFromForm(form));
     run(
       "UPDATE profiles SET name = ?, avatar = ?, birthday = ?, age = ?, likes = ?, dislikes = ?, sizes = ?, gift_notes = ? WHERE id = ?",
       name, avatar, s(form, "birthday") || null, ...details(form), profile.id,
     );
   } else {
     run(
-      "INSERT INTO profiles (user_id, name, avatar, birthday, age, likes, dislikes, sizes, gift_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO profiles (user_id, name, avatar, birthday, age, likes, dislikes, sizes, gift_notes, sizes_updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())",
       user.id, name, avatar, s(form, "birthday") || null, ...details(form),
     );
   }
@@ -98,4 +101,13 @@ export async function resetCalendarLink(form: FormData) {
   const user = await requireUser();
   calendarToken(user.id, !!form.get("reset"));
   redirect("/settings?tab=me&ok=" + encodeURIComponent(form.get("reset") ? "New calendar link made. Re-subscribe with it." : "Calendar feed is on") + "#calendar");
+}
+
+// "Sizes still fit": push the size check out another six months.
+export async function confirmSizes(form: FormData) {
+  const user = await requireUser();
+  const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", n(form, "profile_id"));
+  if (!profile || !canEditProfile(user.id, profile)) redirect("/");
+  run("UPDATE profiles SET sizes_updated_at = unixepoch() WHERE id = ?", profile.id);
+  redirect("/?ok=" + encodeURIComponent(`Thanks! We'll ask about ${profile.name}'s sizes again in six months.`));
 }

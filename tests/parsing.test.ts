@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { decodeEntities, parseJsonLd, toCents } from "@/lib/scrape/generic";
 import { formatMoney, parseMoney } from "@/lib/format";
 import { guessCategory } from "@/lib/categories";
+import { monthsAgo, sizesStale } from "@/lib/profile";
 
 describe("toCents", () => {
   it.each([
@@ -45,4 +46,19 @@ describe("guessCategory", () => {
   it("spots obvious categories", () => {
     expect(guessCategory("LEGO Botanicals Bonsai Tree", "LEGO")).toBe("toys");
   });
+});
+
+describe("size checks", () => {
+  const now = Date.UTC(2026, 9, 30) / 1000;
+  const sizes = JSON.stringify({ shirt: "Kids M" });
+  it("flags sizes older than six months", () => {
+    expect(sizesStale({ sizes, sizes_updated_at: now - 200 * 86400 }, now * 1000)).toBe(true);
+    expect(sizesStale({ sizes, sizes_updated_at: now - 30 * 86400 }, now * 1000)).toBe(false);
+    expect(sizesStale({ sizes, sizes_updated_at: null }, now * 1000)).toBe(true);
+  });
+  it("ignores profiles with no sizes", () => {
+    expect(sizesStale({ sizes: "{}", sizes_updated_at: null })).toBe(false);
+    expect(sizesStale({ sizes: JSON.stringify({ shirt: "" }), sizes_updated_at: null })).toBe(false);
+  });
+  it("counts months", () => expect(monthsAgo(now - 200 * 86400, now * 1000)).toBe(6));
 });

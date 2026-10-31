@@ -29,6 +29,7 @@ export type Profile = {
   dislikes: string;
   sizes: string;
   gift_notes: string;
+  sizes_updated_at: number | null;
 };
 
 export type Family = {

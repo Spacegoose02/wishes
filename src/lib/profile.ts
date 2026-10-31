@@ -57,3 +57,15 @@ export function describeProfile(p: Profile): string {
     .filter(Boolean)
     .join("\n");
 }
+
+// Kids grow: sizes older than about six months deserve a quick check.
+export const SIZE_CHECK_DAYS = 182;
+
+export function sizesStale(p: Pick<Profile, "sizes" | "sizes_updated_at">, now = Date.now()): boolean {
+  if (!Object.values(parseSizes(p.sizes)).some(Boolean)) return false;
+  return !p.sizes_updated_at || now / 1000 - p.sizes_updated_at > SIZE_CHECK_DAYS * 86400;
+}
+
+export function monthsAgo(ts: number | null, now = Date.now()): number {
+  return ts ? Math.max(0, Math.floor((now / 1000 - ts) / (30.44 * 86400))) : 0;
+}

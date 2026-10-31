@@ -305,6 +305,11 @@ const MIGRATIONS: string[] = [
   ALTER TABLE users ADD COLUMN calendar_token TEXT;
   CREATE UNIQUE INDEX idx_users_calendar_token ON users(calendar_token);
   `,
+  // 17: when sizes were last checked (unknown before now, so start from the profile's age)
+  `
+  ALTER TABLE profiles ADD COLUMN sizes_updated_at INTEGER;
+  UPDATE profiles SET sizes_updated_at = created_at WHERE sizes NOT IN ('', '{}');
+  `,
 ];
 
 function open(): DatabaseSync {

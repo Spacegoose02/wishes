@@ -6,6 +6,9 @@ import { RenameKid } from "@/components/RenameKid";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { sleepsLabel, upcomingEvents } from "@/lib/countdown";
+import { monthsAgo, sizeSummary, sizesStale } from "@/lib/profile";
+import { confirmSizes } from "./actions/account";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export const metadata = { title: "My lists" };
 
@@ -16,6 +19,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   const families = myFamilies(user.id);
   const sp = await searchParams;
   const upcoming = upcomingEvents(user).slice(0, 3);
+  const sizeChecks = profiles.filter((p) => !p.linked_user_id && sizesStale(p));
   return (
     <>
       <Flash searchParams={searchParams} />
@@ -43,6 +47,21 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           ))}
         </div>
       )}
+
+      {sizeChecks.map((p) => (
+        <div key={p.id} className="card mt-12 row">
+          <span className="countdown-emoji" aria-hidden="true">📏</span>
+          <div className="grow min-180">
+            <strong>Size check{p.is_primary ? "" : ` for ${p.name}`}?</strong>
+            <p className="small muted m0">Last updated {monthsAgo(p.sizes_updated_at) || "6+"} months ago: {sizeSummary(p)}</p>
+          </div>
+          <form action={confirmSizes}>
+            <input type="hidden" name="profile_id" value={p.id} />
+            <SubmitButton className="btn small ghost">Still right</SubmitButton>
+          </form>
+          <Link href={p.is_primary ? "/settings?tab=me" : `/settings?tab=profiles&edit=${p.id}#profile-${p.id}`} className="btn small">Update sizes</Link>
+        </div>
+      ))}
 
       {(sp.welcome || families.length === 0) && (
         <div className="card mt-12">
