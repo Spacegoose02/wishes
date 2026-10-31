@@ -1,5 +1,7 @@
 import { all } from "@/lib/db";
-import { aiConfig, PROVIDERS } from "@/lib/ai";
+import { aiConfig, CLAUDE_MODELS, PROVIDERS } from "@/lib/ai";
+import { webSearchEnabled } from "@/lib/bandit";
+import { dailyCap, monthUsage } from "@/lib/chatstore";
 import { oidcConfig } from "@/lib/oidc";
 import type { User } from "@/lib/types";
 import { adminUser, saveAiSettings, saveScrapeSettings } from "@/app/actions/admin";
@@ -10,6 +12,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 export function AdminPanel({ me }: { me: User }) {
   const ai = aiConfig();
   const oidc = oidcConfig();
+  const usage = monthUsage();
+  const money = (usd: number) => (usd < 0.01 && usd > 0 ? "under 1¢" : `$${usd.toFixed(2)}`);
   const users = all<{ id: number; name: string; email: string; avatar: string; is_admin: number; totp_enabled: number; oidc_sub: string | null }>(
     "SELECT id, name, email, avatar, is_admin, totp_enabled, oidc_sub FROM users ORDER BY created_at",
   );
@@ -24,12 +28,28 @@ export function AdminPanel({ me }: { me: User }) {
               {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </label>
-          <label>Model<input name="model" defaultValue={ai.model} placeholder="Leave blank for the provider default" /></label>
+          <label>Model<input name="model" list="claude-models" defaultValue={ai.model} placeholder="Leave blank for the provider default" /></label>
+          <datalist id="claude-models">
+            {CLAUDE_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </datalist>
           <label className="full">Base URL (OpenAI, Meta and local only)<input name="base_url" defaultValue={ai.baseUrl} placeholder="http://192.168.1.10:11434/v1" /></label>
           <label className="full">API key<input name="api_key" type="password" placeholder={ai.apiKey ? "•••••••• saved (leave blank to keep)" : "Not set"} autoComplete="off" /></label>
         </div>
         <label className="inline"><input type="checkbox" name="clear_key" /> Clear saved key</label>
         <p className="tiny muted m0">Defaults: Claude {PROVIDERS[1].defaultModel}, OpenAI {PROVIDERS[2].defaultModel}, Gemini {PROVIDERS[3].defaultModel}. Local works with Ollama or LM Studio&apos;s OpenAI-compatible endpoint.</p>
+        <h3 className="m0 mt-12">🦝 Bandit chat</h3>
+        <label className="inline">
+          <input type="checkbox" name="web_search" defaultChecked={webSearchEnabled()} /> Let Bandit search the web for current products and prices (Claude only, about 1¢ per search)
+        </label>
+        <label>Messages per person per day (0 for no limit)
+          <input name="chat_daily_cap" type="number" min={0} max={10000} defaultValue={dailyCap()} />
+        </label>
+        <p className="small m0">
+          This month: <strong>{usage.replies}</strong> {usage.replies === 1 ? "reply" : "replies"}, about <strong>{money(usage.cost)}</strong>
+          {usage.replies > 0 && <> ({Math.round(usage.cacheShare * 100)}% of input served from cache)</>}
+          {usage.byModel.length > 1 && <span className="muted"> · {usage.byModel.map((m) => `${m.model}: ${m.replies} for ${money(m.cost)}`).join(" · ")}</span>}
+        </p>
+        <p className="tiny muted m0">Estimated from list prices, for Claude replies only. Your Anthropic console has the exact bill.</p>
         <SubmitButton className="btn">Save AI settings</SubmitButton>
       </form>
 
