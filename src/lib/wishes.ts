@@ -1,5 +1,5 @@
 import "server-only";
-import { get, run } from "./db";
+import { all, get, run } from "./db";
 import type { Item } from "./types";
 
 // Rules about the wishes themselves (as opposed to who's buying them).
@@ -7,7 +7,7 @@ import type { Item } from "./types";
 export const MAX_MUST_HAVES = 3;
 
 export function mustHaveCount(listId: number): number {
-  return get<{ n: number }>("SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND must_have = 1", listId)!.n;
+  return get<{ n: number }>("SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND must_have = 1 AND archived_at IS NULL", listId)!.n;
 }
 
 // Gold-star a wish, or take the star off. A list only gets three.
@@ -30,4 +30,19 @@ export function pendingApprovals(listId: number): number {
 
 export function approveItem(itemId: number) {
   run("UPDATE items SET needs_approval = 0 WHERE id = ?", itemId);
+}
+
+export type ArchiveReason = "received" | "unwanted";
+
+// Move a wish to the past-gifts archive. A "no longer wanted" wish that someone planned to
+// buy returns the people to tell (its claimer and anyone who chipped in) so they can stop.
+export function archiveWish(item: Item, reason: ArchiveReason): number[] {
+  run("UPDATE items SET archived_at = unixepoch(), archive_reason = ?, must_have = 0 WHERE id = ?", reason, item.id);
+  if (reason !== "unwanted" || item.purchased) return [];
+  const pledgers = all<{ user_id: number }>("SELECT user_id FROM pledges WHERE item_id = ?", item.id).map((r) => r.user_id);
+  return [...new Set([...(item.claimed_by ? [item.claimed_by] : []), ...pledgers])];
+}
+
+export function restoreWish(itemId: number) {
+  run("UPDATE items SET archived_at = NULL, archive_reason = '' WHERE id = ?", itemId);
 }

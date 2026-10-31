@@ -22,7 +22,7 @@ export default async function KidMode({ params, searchParams }: { params: Promis
   const lists = all<WishList>("SELECT * FROM lists WHERE profile_id = ? ORDER BY created_at DESC", profile.id);
   const sp = await searchParams;
   const list = lists.find((l) => l.id === Number(sp.list)) ?? (lists.length === 1 ? lists[0] : undefined);
-  const items = list ? all<Item>("SELECT * FROM items WHERE list_id = ? ORDER BY created_at DESC", list.id) : [];
+  const items = list ? all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NULL ORDER BY created_at DESC", list.id) : [];
 
   return (
     <div className="kid narrow-760">

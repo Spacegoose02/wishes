@@ -8,7 +8,7 @@ import { fetchProduct, type ProductInfo } from "@/lib/scrape";
 import { compareItem } from "@/lib/compare";
 import { formatMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
-import { approveItem, setMustHave } from "@/lib/wishes";
+import { approveItem, archiveWish, restoreWish, setMustHave } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
 import type { Item, Profile } from "@/lib/types";
 import { s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
@@ -188,4 +188,24 @@ export async function bulkAddItems(form: FormData) {
   award(user.id, "first_wish");
   const msg = `Added ${urls.length} ${urls.length === 1 ? "wish" : "wishes"}${thin ? `; ${thin} need a name or price filled in` : ""}`;
   redirect(`/lists/${list.id}?ok=${encodeURIComponent(msg)}`);
+}
+
+// "Got it" or "don't want it anymore": the wish moves to the past-gifts archive.
+export async function archiveItem(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { list } = await ownList(item.list_id);
+  const reason = s(form, "reason") === "unwanted" ? "unwanted" : "received";
+  for (const uid of archiveWish(item, reason)) {
+    notify(uid, "unwanted", `${list.profile_name} doesn't want ${item.title} anymore, so no need to get it.`, "/purchases");
+  }
+  redirect(`/lists/${list.id}?ok=${encodeURIComponent(reason === "received" ? "Yay! Moved to past gifts" : "Moved to past gifts")}`);
+}
+
+export async function restoreItem(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { list } = await ownList(item.list_id);
+  restoreWish(item.id);
+  redirect(`/lists/${list.id}?ok=Back+on+the+list#item-${item.id}`);
 }

@@ -282,6 +282,11 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE items ADD COLUMN needs_approval INTEGER NOT NULL DEFAULT 0;
   `,
+  // 12: past gifts: wishes marked received or no longer wanted move to an archive
+  `
+  ALTER TABLE items ADD COLUMN archived_at INTEGER;
+  ALTER TABLE items ADD COLUMN archive_reason TEXT NOT NULL DEFAULT '';
+  `,
 ];
 
 function open(): DatabaseSync {

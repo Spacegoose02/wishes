@@ -13,7 +13,7 @@ export type ListWithOwner = WishList & {
 const LIST_SELECT = `
   SELECT l.*, p.user_id AS owner_user_id, p.name AS profile_name, p.avatar AS profile_avatar,
          p.is_primary AS profile_is_primary,
-         (SELECT COUNT(*) FROM items i WHERE i.list_id = l.id AND i.needs_approval = 0) AS item_count
+         (SELECT COUNT(*) FROM items i WHERE i.list_id = l.id AND i.needs_approval = 0 AND i.archived_at IS NULL) AS item_count
   FROM lists l JOIN profiles p ON p.id = l.profile_id`;
 
 // Visibility rule for a viewer who does not manage the list.

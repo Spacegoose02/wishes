@@ -42,3 +42,23 @@ describe("kid-mode approvals", () => {
     expect(t.access.getList(l.id)!.item_count).toBe(2);
   });
 });
+
+describe("archive", () => {
+  it("moves wishes out of the list and says who to tell", () => {
+    const [kid, aunt, uncle] = ["akid", "aaunt", "auncle"].map(t.user);
+    const l = t.list(t.profileOf(kid));
+    const kite = t.item(l.id, "Kite");
+    t.db.run("UPDATE items SET claimed_by = ?, must_have = 1 WHERE id = ?", aunt.id, kite.id);
+    t.db.run("INSERT INTO pledges (item_id, user_id, amount_cents) VALUES (?, ?, 500)", kite.id, uncle.id);
+    expect(w.archiveWish(fresh(kite), "unwanted").sort()).toEqual([aunt.id, uncle.id].sort());
+    expect(fresh(kite)).toMatchObject({ archive_reason: "unwanted", must_have: 0 });
+    expect(t.access.getList(l.id)!.item_count).toBe(0);
+
+    const ball = t.item(l.id, "Ball");
+    t.db.run("UPDATE items SET claimed_by = ?, purchased = 1 WHERE id = ?", aunt.id, ball.id);
+    expect(w.archiveWish(fresh(ball), "received")).toEqual([]);
+
+    w.restoreWish(kite.id);
+    expect(fresh(kite)).toMatchObject({ archived_at: null, archive_reason: "" });
+  });
+});

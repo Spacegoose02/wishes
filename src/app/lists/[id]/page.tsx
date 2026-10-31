@@ -10,7 +10,7 @@ import { aiEnabled } from "@/lib/ai";
 import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
-import { addItem, approveWish, bulkAddItems, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
+import { addItem, approveWish, archiveItem, bulkAddItems, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { MAX_MUST_HAVES } from "@/lib/wishes";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
 import { revealOpen } from "@/lib/reveal";
@@ -110,7 +110,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const shared = owner && typeof sp.add === "string" ? sp.add : "";
 
   // Kid-mode wishes stay with the list's managers until one of them approves.
-  const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? ORDER BY purchased, priority DESC, created_at DESC", list.id)
+  const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NULL ORDER BY purchased, priority DESC, created_at DESC", list.id)
     .filter((i) => owner || !i.needs_approval);
   // The list's own person only sees what they marked themselves.
   const purchases = recipient
@@ -149,6 +149,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   if (!recipient) items.sort((a, b) => a.purchased - b.purchased);
 
   const usedCats = CATEGORIES.filter((c) => allItems.some((i) => i.category === c.id));
+  const pastCount = get<{ n: number }>("SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND archived_at IS NOT NULL AND needs_approval = 0", list.id)!.n;
   const pendingIdeas = owner ? get<{ n: number }>("SELECT COUNT(*) AS n FROM suggestions WHERE list_id = ? AND status = 'pending'", list.id)!.n : 0;
   const pendingReviews = owner && !recipient ? purchases.filter((p) => p.status === "pending").length : 0;
   const days = daysUntil(list.event_date);
@@ -196,6 +197,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
               ✨ Ideas{pendingIdeas > 0 && <span className="badge">{pendingIdeas}</span>}
             </Link>
           )}
+          {pastCount > 0 && <Link href={`/lists/${list.id}/archive`} className="btn small ghost">🗃️ Past gifts ({pastCount})</Link>}
           {owner && <Link href={`/lists/${list.id}/share`} className="btn small secondary">Share &amp; hide</Link>}
           {owner && <Link href={`/lists/${list.id}/edit`} className="btn small ghost">Edit</Link>}
         </div>
@@ -377,6 +379,12 @@ export default async function ListPage({ params, searchParams }: { params: Param
                             <SubmitButton className="menu-item">{it.must_have ? "☆ Not a must-have" : "⭐ Make a must-have"}</SubmitButton>
                           </form>
                         ) : null}
+                        {owner && (
+                          <>
+                            <form action={archiveItem}><Hidden item={it.id} /><input type="hidden" name="reason" value="received" /><SubmitButton className="menu-item">🎁 Got it!</SubmitButton></form>
+                            <form action={archiveItem}><Hidden item={it.id} /><input type="hidden" name="reason" value="unwanted" /><SubmitButton className="menu-item">🙅 Don&apos;t want it anymore</SubmitButton></form>
+                          </>
+                        )}
                         {owner && (
                           <form action={deleteItem}><Hidden item={it.id} /><SubmitButton className="menu-item danger" confirm="Tap again to remove">🗑️ Remove</SubmitButton></form>
                         )}

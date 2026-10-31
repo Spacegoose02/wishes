@@ -29,7 +29,7 @@ export async function refreshPrices(maxItems = 30): Promise<number> {
   const rows = all<Row>(
     `SELECT i.*, p.user_id AS owner_id, p.is_primary, l.title AS list_title
      FROM items i JOIN lists l ON l.id = i.list_id JOIN profiles p ON p.id = l.profile_id
-     WHERE i.purchased = 0 AND (i.price_checked_at IS NULL OR i.price_checked_at < unixepoch() - ?)
+     WHERE i.purchased = 0 AND i.archived_at IS NULL AND (i.price_checked_at IS NULL OR i.price_checked_at < unixepoch() - ?)
      ORDER BY i.price_checked_at IS NOT NULL, i.price_checked_at LIMIT ?`,
     hours * 3600,
     maxItems,

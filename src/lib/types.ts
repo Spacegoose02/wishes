@@ -76,6 +76,8 @@ export type Item = {
   offers_checked_at: number | null;
   must_have: number;
   needs_approval: number;
+  archived_at: number | null;
+  archive_reason: "" | "received" | "unwanted";
   created_at: number;
 };
 
