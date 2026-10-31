@@ -12,7 +12,11 @@ import { approveItem, setMustHave } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
 import type { Item, Profile } from "@/lib/types";
 import { s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
-import { validCategory } from "@/lib/categories";
+import { guessCategory, validCategory } from "@/lib/categories";
+import { extractUrls, mapLimit } from "@/lib/links";
+import { storeFromHost } from "@/lib/scrape/stores";
+
+const MAX_BULK_LINKS = 15;
 
 export async function autofill(url: string): Promise<{ ok: true; info: ProductInfo & { category: string } } | { ok: false; error: string }> {
   await requireUser();
@@ -157,4 +161,31 @@ export async function approveWish(form: FormData) {
   const { list } = await ownList(item.list_id);
   approveItem(item.id);
   redirect(`/lists/${list.id}?ok=Approved#item-${item.id}`);
+}
+
+// Paste a pile of links; each one is looked up and added as its own wish.
+export async function bulkAddItems(form: FormData) {
+  const { user, list } = await ownList(n(form, "list_id"));
+  const urls = extractUrls(s(form, "links"), MAX_BULK_LINKS);
+  if (!urls.length) redirect(`/lists/${list.id}?error=${encodeURIComponent("No links found in that text.")}`);
+  const found = await mapLimit(urls, 3, (u) => doAutofill(u));
+  let thin = 0;
+  urls.forEach((url, i) => {
+    const r = found[i];
+    const info = r.ok ? r.info : undefined;
+    const store = info?.store || storeFromHost(new URL(url).hostname).name;
+    if (!info?.title || !info.price_cents) thin++;
+    insertItem(list.id, {
+      title: (info?.title || `Wish from ${store || new URL(url).hostname}`).slice(0, 200),
+      url, store,
+      price: info?.price_cents ?? null,
+      image_url: info?.image_url && /^https?:\/\//.test(info.image_url) ? info.image_url : "",
+      notes: "", priority: 2, quantity: 1,
+      category: info?.category || guessCategory(info?.title ?? "", store),
+      variant: "", color: "", size: "",
+    });
+  });
+  award(user.id, "first_wish");
+  const msg = `Added ${urls.length} ${urls.length === 1 ? "wish" : "wishes"}${thin ? `; ${thin} need a name or price filled in` : ""}`;
+  redirect(`/lists/${list.id}?ok=${encodeURIComponent(msg)}`);
 }

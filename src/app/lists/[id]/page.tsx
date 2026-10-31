@@ -10,7 +10,7 @@ import { aiEnabled } from "@/lib/ai";
 import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
-import { addItem, approveWish, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
+import { addItem, approveWish, bulkAddItems, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { MAX_MUST_HAVES } from "@/lib/wishes";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
 import { revealOpen } from "@/lib/reveal";
@@ -207,6 +207,16 @@ export default async function ListPage({ params, searchParams }: { params: Param
         <details className="card mt-12" open={allItems.length === 0 || !!shared}>
           <summary>Add a wish</summary>
           <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} defaults={shared ? { url: shared } : undefined} autoFetch={!!shared} />
+          <details className="mt-12">
+            <summary className="small pointer fw-700">📋 Paste many links at once</summary>
+            <form action={bulkAddItems} className="stack mt-10">
+              <input type="hidden" name="list_id" value={list.id} />
+              <label>One link per line (up to 15), or paste a whole message with links in it
+                <textarea name="links" rows={5} required placeholder={"https://www.amazon.com/...\nhttps://www.target.com/..."} />
+              </label>
+              <SubmitButton className="btn secondary" pendingLabel="Looking them up…">Add them all</SubmitButton>
+            </form>
+          </details>
         </details>
       )}
 
