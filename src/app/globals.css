@@ -491,6 +491,12 @@ a.kid-tile:hover { border-color: var(--accent); text-decoration: none; }
 .seg a[aria-current="true"] { background: var(--bg-2); color: var(--accent-ink); }
 .seg a:hover { text-decoration: none; }
 
+/* Confetti */
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 200; overflow: hidden; }
+.confetti span { position: absolute; top: -40px; animation-name: fall; animation-timing-function: cubic-bezier(0.3, 0.6, 0.5, 1); animation-fill-mode: forwards; }
+@keyframes fall { to { transform: translate(var(--drift, 0), 110vh) rotate(540deg); opacity: 0.8; } }
+@media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
+
 /* Utilities (keep last so they win over component rules) */
 .m0 { margin: 0; }
 .mt-4 { margin-top: 4px; } .mt-6 { margin-top: 6px; } .mt-8 { margin-top: 8px; } .mt-10 { margin-top: 10px; }

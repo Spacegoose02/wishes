@@ -10,6 +10,7 @@ import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DrawPad } from "@/components/DrawPad";
+import { Confetti } from "@/components/Confetti";
 
 export const metadata = { title: "Kid mode" };
 
@@ -26,6 +27,7 @@ export default async function KidMode({ params, searchParams }: { params: Promis
   return (
     <div className="kid narrow-760">
       <Flash searchParams={searchParams} />
+      {sp.ok && <Confetti />}
       <div className="kid-head">
         <Avatar id={profile.avatar} size={96} />
         <h1 className="m0">Hi {profile.name}!</h1>

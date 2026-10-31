@@ -21,6 +21,7 @@ import { Flash, type SP } from "@/components/Flash";
 import { ClaimButton } from "@/components/ClaimButton";
 import { Menu } from "@/components/Menu";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Confetti } from "@/components/Confetti";
 
 type Params = Promise<{ id: string }>;
 
@@ -159,6 +160,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   return (
     <>
       <Flash searchParams={searchParams} />
+      {days === 0 ? <Confetti kind="event" /> : sp.ok === "Added" ? <Confetti /> : null}
       <div className="section-head mt-8">
         <div className="row items-start">
           <span style={{ fontSize: "2.6rem", lineHeight: 1 }} aria-hidden="true">{list.emoji}</span>

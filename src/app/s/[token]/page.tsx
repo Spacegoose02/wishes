@@ -9,6 +9,7 @@ import { ItemForm } from "@/components/ItemForm";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Confetti } from "@/components/Confetti";
 
 export const metadata = { title: "Shared list" };
 
@@ -33,6 +34,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
         </div>
       </div>
       <Flash searchParams={searchParams} />
+      {(await searchParams).ok === "Added" && <Confetti />}
       {guest.can_edit ? (
         <details className="card mt-16" open={items.length === 0}>
           <summary>Add a wish</summary>
