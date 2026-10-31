@@ -295,6 +295,11 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE items ADD COLUMN kind TEXT NOT NULL DEFAULT 'product';
   `,
+  // 15: secret read-only link for printouts and QR codes
+  `
+  ALTER TABLE lists ADD COLUMN view_token TEXT;
+  CREATE UNIQUE INDEX idx_lists_view_token ON lists(view_token);
+  `,
 ];
 
 function open(): DatabaseSync {

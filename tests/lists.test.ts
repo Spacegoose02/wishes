@@ -55,3 +55,15 @@ describe("yearly lists", () => {
     expect(ls.rollList(listRow(l.id))).toBeNull();
   });
 });
+
+describe("view links", () => {
+  it("creates a token on demand and finds the list by it", () => {
+    const l = t.list(t.profileOf(t.user("viewer")));
+    expect(ls.viewToken(l.id)).toBeNull();
+    const tok = ls.viewToken(l.id, true)!;
+    expect(ls.viewToken(l.id, true)).toBe(tok);
+    expect(ls.listByViewToken(tok)!.id).toBe(l.id);
+    expect(ls.listByViewToken("")).toBeUndefined();
+    expect(ls.listByViewToken("nope")).toBeUndefined();
+  });
+});

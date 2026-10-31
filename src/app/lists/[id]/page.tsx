@@ -198,6 +198,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
               ✨ Ideas{pendingIdeas > 0 && <span className="badge">{pendingIdeas}</span>}
             </Link>
           )}
+          <Link href={`/lists/${list.id}/print`} className="btn small ghost">🖨️ Print</Link>
           {pastCount > 0 && <Link href={`/lists/${list.id}/archive`} className="btn small ghost">🗃️ Past gifts ({pastCount})</Link>}
           {owner && <Link href={`/lists/${list.id}/share`} className="btn small secondary">Share &amp; hide</Link>}
           {owner && <Link href={`/lists/${list.id}/edit`} className="btn small ghost">Edit</Link>}

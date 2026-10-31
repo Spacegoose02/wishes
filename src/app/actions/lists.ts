@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { get, run, tx } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { familyPeople, isManager, shareableFamilies } from "@/lib/access";
-import { copyList, profileById } from "@/lib/lists";
+import { copyList, profileById, viewToken } from "@/lib/lists";
 import type { Profile } from "@/lib/types";
 import { rollAvatar as roll } from "@/components/Avatar";
 import { s, n, ownList, setHiddenUsers, viewList } from "./_shared";
@@ -113,4 +113,18 @@ export async function duplicateList(form: FormData) {
   if (!profile || profile.user_id !== user.id) redirect(`/lists/${list.id}/edit?error=Pick+one+of+your+profiles`);
   const id = copyList(list, profile, s(form, "title") || `${list.title} (copy)`, user.id);
   redirect(`/lists/${id}?ok=List+copied`);
+}
+
+export async function makeViewLink(form: FormData) {
+  const { list } = await ownList(n(form, "list_id"));
+  viewToken(list.id, true);
+  redirect(`/lists/${list.id}/print`);
+}
+
+// A new secret link (old QR codes stop working), or none at all.
+export async function resetViewLink(form: FormData) {
+  const { list } = await ownList(n(form, "list_id"));
+  run("UPDATE lists SET view_token = NULL WHERE id = ?", list.id);
+  if (!form.get("off")) viewToken(list.id, true);
+  redirect(`/lists/${list.id}/print`);
 }

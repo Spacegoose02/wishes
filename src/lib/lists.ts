@@ -2,6 +2,7 @@ import "server-only";
 import { all, get, run, tx } from "./db";
 import { daysUntil } from "./format";
 import { nextOccurrence } from "./countdown";
+import { randomToken } from "./crypto";
 import type { Profile, WishList } from "./types";
 
 // Copying lists, and yearly occasions that move to next year's date.
@@ -57,4 +58,17 @@ export function rollYearlyLists(now = Date.now()): number {
 
 export function profileById(id: number): Profile | undefined {
   return get<Profile>("SELECT * FROM profiles WHERE id = ?", id);
+}
+
+// A read-only, spoiler-free view of a list behind a secret link (for QR codes and printouts).
+export function viewToken(listId: number, create = false): string | null {
+  const cur = get<{ view_token: string | null }>("SELECT view_token FROM lists WHERE id = ?", listId)?.view_token ?? null;
+  if (cur || !create) return cur;
+  const token = randomToken(18);
+  run("UPDATE lists SET view_token = ? WHERE id = ?", token, listId);
+  return token;
+}
+
+export function listByViewToken(token: string): WishList | undefined {
+  return token ? get<WishList>("SELECT * FROM lists WHERE view_token = ?", token) : undefined;
 }
