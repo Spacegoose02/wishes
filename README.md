@@ -26,10 +26,11 @@ Self-hosted family wishlists for kids and grown-ups. Raccoons and geese welcome.
 
 ## Run it on Unraid
 
-1. Build the image on the server (or push it to your registry):
+1. Get the image. GitHub Actions publishes `ghcr.io/spacegoose02/wishes:latest` on every push to `master` (and `:1.0.0`-style tags for releases). While the repository is private, the image is too, so sign Unraid in once with a GitHub token that has `read:packages`:
    ```bash
-   docker build -t wishes:latest .
+   docker login ghcr.io -u Spacegoose02
    ```
+   Or build it on the server instead: `docker build -t wishes:latest .`
 2. Copy `unraid/wishes.xml` to `/boot/config/plugins/dockerMan/templates-user/` and add the container from **Docker → Add Container → Template: wishes**. Appdata defaults to `/mnt/user/appdata/wishes`.
 3. Open `http://[server]:3000` and create the first (admin) account.
 
