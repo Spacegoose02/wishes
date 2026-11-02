@@ -1,13 +1,13 @@
 import { getUser } from "@/lib/auth";
 import { getList, isRecipient, listAccess, listProfile } from "@/lib/access";
 import { aiEnabled, friendlyError, type ChatTurn } from "@/lib/ai";
-import { banditMode, banditReply, historyWindow, replayTurn } from "@/lib/bandit";
+import { baxterMode, baxterReply, historyWindow, replayTurn } from "@/lib/baxter";
 import { addAssistantMessage, addUserMessage, chatView, chatViews, dailyCap, deleteMessage, dropTurn, logTurn, recordUsage, sentToday } from "@/lib/chatstore";
 import { chatContext, giverContext, stableBrief } from "@/lib/giftchat";
 
 export const dynamic = "force-dynamic";
 
-// Streams one Bandit reply as newline-delimited JSON:
+// Streams one Baxter reply as newline-delimited JSON:
 //   {"type":"text","text":"..."}  pieces of the reply as they're written
 //   {"type":"done","user":ChatView,"reply":ChatView}
 //   {"type":"error","error":"..."}
@@ -19,10 +19,10 @@ export async function POST(req: Request) {
   if (!list || listAccess(user, list) === "none") return Response.json({ error: "List not found." }, { status: 404 });
   const text = String(body.text ?? "").trim().slice(0, 2000);
   if (!text) return Response.json({ error: "Type a message first." }, { status: 400 });
-  if (!aiEnabled()) return Response.json({ error: "Bandit needs AI turned on in Settings → Server." }, { status: 400 });
+  if (!aiEnabled()) return Response.json({ error: "Baxter needs AI turned on in Settings → Server." }, { status: 400 });
   const cap = dailyCap();
   if (cap && sentToday(user.id) >= cap) {
-    return Response.json({ error: `You've reached today's limit of ${cap} messages to Bandit. He'll be back tomorrow!` }, { status: 429 });
+    return Response.json({ error: `You've reached today's limit of ${cap} messages to Baxter. He'll be back tomorrow!` }, { status: 429 });
   }
 
   const profile = listProfile(list.profile_id)!;
@@ -53,8 +53,8 @@ export async function POST(req: Request) {
         };
         let streamed = "";
         try {
-          const r = await banditReply({
-            stable: stableBrief(banditMode()),
+          const r = await baxterReply({
+            stable: stableBrief(baxterMode()),
             context: chatContext(list, profile, user.name, recipient, recipient ? undefined : giverContext(user, list)),
             turns,
             signal: stop.signal,
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
           } else {
             deleteMessage(userMsgId);
             dropTurn(turnId);
-            console.error("Bandit chat failed", e);
+            console.error("Baxter chat failed", e);
             send({ type: "error", error: friendlyError(e) });
           }
         } finally {
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
   );
 }
 
-// Stopped by the shopper: keep what Bandit had said so far, or drop the question if nothing came yet.
+// Stopped by the shopper: keep what Baxter had said so far, or drop the question if nothing came yet.
 function keepStopped(streamed: string, listId: number, userId: number, userMsgId: number) {
   if (streamed.trim()) addAssistantMessage(listId, userId, { text: streamed, ideas: [], stopped: true });
   else deleteMessage(userMsgId);

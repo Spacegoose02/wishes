@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description: "Family wishlists for kids and grown-ups",
   applicationName: "Wishes",
   manifest: "/manifest.webmanifest",
-  icons: { icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192" }], apple: "/apple-touch-icon.png" },
+  icons: { icon: [{ url: "/icon-48.png", sizes: "48x48", type: "image/png" }, { url: "/icon-192.png", sizes: "192x192", type: "image/png" }], apple: "/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "Wishes", statusBarStyle: "default" },
   formatDetection: { telephone: false },
 };
@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <header className="topbar">
               <div className="topbar-inner">
                 <Link href="/" className="brand">
-                  <span className="spark" aria-hidden="true">✦</span> Wishes
+                  <img src="/brand/logo-sm.png" alt="" width={34} height={36} className="brand-logo" /> Wishes
                 </Link>
                 <TopNav unread={unread} avatar={<Avatar id={user.avatar} size={30} />} />
               </div>

@@ -43,7 +43,7 @@ export function sizeSummary(p: Pick<Profile, "sizes">): string {
   return SIZE_FIELDS.filter((f) => sizes[f.id]).map((f) => `${f.label.split(" /")[0]} ${sizes[f.id]}`).join(" · ");
 }
 
-// True when the About card has anything for shoppers and Bandit to go on.
+// True when the About card has anything for shoppers and Baxter to go on.
 export function hasDetails(p: Pick<Profile, "birthday" | "age" | "likes" | "dislikes" | "sizes" | "gift_notes">): boolean {
   return profileAge(p) !== undefined || !!(p.likes || p.dislikes || p.gift_notes || sizeSummary(p));
 }

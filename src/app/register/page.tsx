@@ -15,6 +15,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: SP 
   return (
     <div className="auth-wrap">
       <div className="hero">
+        <img src="/brand/logo.png" alt="Wishes raccoon holding a wish list" width={151} height={160} className="hero-logo" />
         <h1>{first ? "Set up Wishes" : "Join Wishes"}</h1>
         <p className="muted">{first ? "You'll be the admin of this server." : "Make lists, share with family, keep surprises secret."}</p>
       </div>
