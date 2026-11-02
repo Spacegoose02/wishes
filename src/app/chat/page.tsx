@@ -8,7 +8,7 @@ import type { SP } from "@/components/Flash";
 
 export const metadata = { title: "Gift helper" };
 
-// Chat tab: pick who you're shopping for, then talk it through with Bandit.
+// Chat tab: pick who you're shopping for, then talk it through with Baxter.
 export default async function ChatTab({ searchParams }: { searchParams: SP }) {
   const user = await requireUser();
   const sp = await searchParams;
@@ -24,12 +24,12 @@ export default async function ChatTab({ searchParams }: { searchParams: SP }) {
         <Avatar id={GIFT_RACCOON} size={64} title={AGENT_NAME} />
         <div>
           <h1 className="m0">Chat with {AGENT_NAME}</h1>
-          <p className="muted small m0">Bandit the gift raccoon helps you find the perfect present. Your chats are private to you.</p>
+          <p className="muted small m0">Baxter the gift raccoon helps you find the perfect present. Your chats are private to you.</p>
         </div>
       </div>
 
       {lists.length === 0 ? (
-        <div className="card empty"><div className="big" aria-hidden="true">🦝</div>Make a list or join a family first, then Bandit can help shop for someone.</div>
+        <div className="card empty"><div className="big" aria-hidden="true"><Avatar id={GIFT_RACCOON} size={72} title="" /></div>Make a list or join a family first, then Baxter can help shop for someone.</div>
       ) : (
         <>
           <p className="small fw-700" style={{ margin: "8px 0 6px" }}>Who are we shopping for?</p>
@@ -44,7 +44,7 @@ export default async function ChatTab({ searchParams }: { searchParams: SP }) {
             <div className="mt-12">
               <p className="small muted m0">
                 Talking about <Link href={`/lists/${current.id}`}>{current.title}</Link>
-                {!isRecipient(user.id, current) && <> · Bandit knows which of {current.profile_name}&apos;s wishes are still up for grabs, and your <Link href="/purchases#budgets">budget</Link> for them.</>}
+                {!isRecipient(user.id, current) && <> · Baxter knows which of {current.profile_name}&apos;s wishes are still up for grabs, and your <Link href="/purchases#budgets">budget</Link> for them.</>}
               </p>
               <GiftChatPanel user={user} list={current} />
             </div>

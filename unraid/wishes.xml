@@ -8,7 +8,7 @@
   <Overview>Wishes: self-hosted family wishlists for kids and adults. Families, shared and hidden lists, gift claiming, link autofill from Amazon/Walmart/Target/Kohl's, price-drop alerts, OIDC and 2FA, optional AI gift ideas.</Overview>
   <Category>Productivity: Tools:</Category>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
-  <Icon>https://raw.githubusercontent.com/Spacegoose02/wishes/main/public/icon.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/Spacegoose02/wishes/main/public/icon-512.png</Icon>
   <Config Name="Web UI Port" Target="3000" Default="3000" Mode="tcp" Description="Web interface port" Type="Port" Display="always" Required="true" Mask="false">3000</Config>
   <Config Name="Data" Target="/data" Default="/mnt/user/appdata/wishes" Mode="rw" Description="Database and settings" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/wishes</Config>
   <Config Name="App URL" Target="APP_URL" Default="" Mode="" Description="Public URL, e.g. https://wishes.example.com (needed for OIDC redirects)" Type="Variable" Display="always" Required="false" Mask="false"></Config>

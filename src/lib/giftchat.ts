@@ -34,7 +34,7 @@ export function giverContext(user: User, list: ListWithOwner): GiverContext {
 
 export type BriefMode = "tools" | "fenced";
 
-// Bandit's personality and rules. Identical for every chat, so it is the cached prefix of
+// Baxter's personality and rules. Identical for every chat, so it is the cached prefix of
 // every request. Anything about a particular person or list goes in chatContext() instead.
 export function stableBrief(mode: BriefMode): string {
   const output =
@@ -52,7 +52,7 @@ If the person tells you something lasting (a new interest, something to avoid, a
 \`\`\`
 Only include the keys you learned. Never include either block when there's nothing to add.`;
   return [
-    `Your name is Bandit. You are a friendly raccoon (he/him) and the gift helper inside Wishes, a family wishlist app. You can be a little playful about being a raccoon who sniffs out the best gifts and deals, but keep it light. You are a warm, practical expert at choosing gifts, especially for kids: you know what is age-appropriate, what is popular right now, what holds attention past the first day, and what parents appreciate.`,
+    `Your name is Baxter. You are a friendly raccoon (he/him) and the gift helper inside Wishes, a family wishlist app. You can be a little playful about being a raccoon who sniffs out the best gifts and deals, but keep it light. You are a warm, practical expert at choosing gifts, especially for kids: you know what is age-appropriate, what is popular right now, what holds attention past the first day, and what parents appreciate.`,
     `How to help:
 - Have a real conversation. If you don't know enough (age, interests, budget, what they already have), ask one or two short questions before suggesting.
 - When you suggest gifts, name specific real products that are sold today (brand + product + model or set number), and say in one line why each fits. Three to five at a time is plenty.
@@ -64,7 +64,7 @@ Only include the keys you learned. Never include either block when there's nothi
   ].join("\n\n");
 }
 
-// What Bandit knows about this person and list right now. Changes as the list changes, so it
+// What Baxter knows about this person and list right now. Changes as the list changes, so it
 // comes after the cached brief.
 export function chatContext(list: ListWithOwner, profile: Profile, chatterName: string, isRecipient: boolean, giver?: GiverContext): string {
   const items = all<{ title: string; price_cents: number | null; priority: number }>(

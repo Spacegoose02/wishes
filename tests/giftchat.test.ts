@@ -11,7 +11,7 @@ beforeAll(async () => {
   gc = await import("@/lib/giftchat");
 });
 
-describe("Bandit for givers", () => {
+describe("Baxter for givers", () => {
   it("knows unclaimed wishes and the shopper's budget, but tells the recipient nothing", () => {
     const [kid, aunt, uncle] = ["gkid", "gaunt", "guncle"].map(t.user);
     t.family("GFam", kid, aunt, uncle);
@@ -41,7 +41,7 @@ describe("Bandit for givers", () => {
   });
 });
 
-describe("Bandit reads the About card", () => {
+describe("Baxter reads the About card", () => {
   it("puts a kid's likes, dislikes, sizes and notes in the prompt", () => {
     const mom = t.user("amom");
     const pid = t.profileOf(mom, "Ava");

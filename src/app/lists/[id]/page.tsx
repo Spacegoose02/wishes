@@ -196,7 +196,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
             </Link>
           )}
           {owner && revealOpen(list) && <Link href={`/lists/${list.id}/reveal`} className="btn small">🎁 What {recipient ? "I" : "they"} got</Link>}
-          {aiEnabled() && <Link href={`/chat?list=${list.id}`} className="btn small">🦝 Ask Bandit</Link>}
+          {aiEnabled() && <Link href={`/chat?list=${list.id}`} className="btn small">🦝 Ask Baxter</Link>}
           {owner && aiEnabled() && (
             <Link href={`/lists/${list.id}/ideas`} className="btn small secondary">
               ✨ Ideas{pendingIdeas > 0 && <span className="badge">{pendingIdeas}</span>}

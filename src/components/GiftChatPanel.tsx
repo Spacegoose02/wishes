@@ -8,7 +8,7 @@ import { chatIdeaToReview, clearChat, loadChat, saveChatTip } from "@/app/action
 import { ChatBox } from "./ChatBox";
 import { AboutProfile } from "./AboutProfile";
 
-// Bandit's chat for one list: the person's facts on top, the conversation below.
+// Baxter's chat for one list: the person's facts on top, the conversation below.
 export async function GiftChatPanel({ user, list }: { user: User; list: ListWithOwner }) {
   const profile = listProfile(list.profile_id)!;
   const editable = canEditProfile(user.id, profile);
@@ -33,7 +33,7 @@ export async function GiftChatPanel({ user, list }: { user: User; list: ListWith
         </div>
       ) : (
         <div className="card mt-12">
-          Bandit needs AI turned on. {user.is_admin ? <Link href="/settings?tab=admin">Turn it on in Settings → Server.</Link> : "Ask your admin to turn it on."}
+          Baxter needs AI turned on. {user.is_admin ? <Link href="/settings?tab=admin">Turn it on in Settings → Server.</Link> : "Ask your admin to turn it on."}
         </div>
       )}
     </>

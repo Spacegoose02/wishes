@@ -349,7 +349,7 @@ const MIGRATIONS: string[] = [
   ALTER TABLE purchases ADD COLUMN carrier TEXT NOT NULL DEFAULT '';
   ALTER TABLE purchases ADD COLUMN expected_at TEXT;
   `,
-  // 22: Bandit chat: gift cards and tips stored as data, plus a usage log that outlives
+  // 22: Baxter chat: gift cards and tips stored as data, plus a usage log that outlives
   // "Start over" so the daily limit and cost readout stay honest
   `
   ALTER TABLE chat_messages ADD COLUMN meta TEXT;

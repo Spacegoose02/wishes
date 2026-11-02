@@ -152,7 +152,11 @@ p { margin: 0 0 0.75em; }
 .topbar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 16px; }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.2rem; color: var(--text); }
 .brand:hover { text-decoration: none; }
-.brand .spark { color: var(--accent); }
+.brand .brand-logo { height: 36px; width: auto; display: block; }
+.hero .hero-logo { display: block; margin: 0 auto 8px; width: auto; height: 160px; }
+.avatar-agent { flex-shrink: 0; display: block; object-fit: contain; }
+.nav-baxter { width: 1.25em; height: 1.25em; object-fit: contain; vertical-align: -0.25em; display: inline-block; }
+.bottomnav a .ico .nav-baxter { width: 1.6rem; height: 1.6rem; vertical-align: 0; }
 .nav { display: flex; gap: 4px; margin-left: auto; align-items: center; }
 .nav a { color: var(--text); padding: 8px 12px; border-radius: 999px; font-weight: 600; font-size: 0.95rem; position: relative; }
 .nav a:hover { background: var(--bg-2); text-decoration: none; }
@@ -268,6 +272,7 @@ details.card[open] > summary { margin-bottom: 14px; }
 .table td, .table th { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
 .empty { text-align: center; padding: 28px 12px; color: var(--muted); }
 .empty .big { font-size: 2.5rem; }
+.empty .big .avatar-agent { margin: 0 auto 8px; }
 .notice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .notice:last-child { border-bottom: none; }
 .notice.unread .msg { font-weight: 700; }
