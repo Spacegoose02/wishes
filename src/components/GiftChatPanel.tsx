@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { canEditProfile, isManager, isRecipient, type ListWithOwner } from "@/lib/access";
+import { canEditProfile, isManager, isRecipient, listProfile, type ListWithOwner } from "@/lib/access";
 import { chatStarters, giverContext } from "@/lib/giftchat";
-import { get } from "@/lib/db";
 import { aiEnabled } from "@/lib/ai";
-import type { Profile, User } from "@/lib/types";
+import { hasDetails } from "@/lib/profile";
+import type { User } from "@/lib/types";
 import { chatIdeaToReview, clearChat, loadChat, saveChatTip } from "@/app/actions/chat";
 import { ChatBox } from "./ChatBox";
 import { AboutProfile } from "./AboutProfile";
 
 // Bandit's chat for one list: the person's facts on top, the conversation below.
 export async function GiftChatPanel({ user, list }: { user: User; list: ListWithOwner }) {
-  const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", list.profile_id)!;
+  const profile = listProfile(list.profile_id)!;
   const editable = canEditProfile(user.id, profile);
   const recipient = isRecipient(user.id, list);
   const starters = chatStarters(profile, recipient, recipient ? undefined : giverContext(user, list).budget?.left_cents);
@@ -24,6 +24,7 @@ export async function GiftChatPanel({ user, list }: { user: User; list: ListWith
             listId={list.id}
             initial={await loadChat(list.id)}
             name={profile.name}
+            knowsAbout={hasDetails(profile)}
             starters={starters}
             canManage={isManager(user.id, list)}
             canEditProfile={editable}

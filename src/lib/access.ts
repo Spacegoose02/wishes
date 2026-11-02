@@ -1,5 +1,6 @@
 import "server-only";
 import { all, get } from "./db";
+import { fillDetails } from "./profile";
 import type { Family, Profile, User, WishList } from "./types";
 
 export type ListWithOwner = WishList & {
@@ -143,4 +144,12 @@ export function canEditProfile(userId: number, profile: Profile): boolean {
   if (profile.user_id === userId) return true;
   if (profile.is_primary) return false;
   return familyPeople(userId).some((p) => p.id === profile.user_id);
+}
+
+// The profile a list is for, with its About details. A stand-in profile for someone who has their
+// own login (made for secret lists) borrows whatever it leaves blank from that person's own profile.
+export function listProfile(profileId: number): Profile | undefined {
+  const p = get<Profile>("SELECT * FROM profiles WHERE id = ?", profileId);
+  if (!p?.linked_user_id) return p;
+  return fillDetails(p, get<Profile>("SELECT * FROM profiles WHERE user_id = ? AND is_primary = 1", p.linked_user_id));
 }

@@ -1,11 +1,9 @@
 import { getUser } from "@/lib/auth";
-import { get } from "@/lib/db";
-import { getList, isRecipient, listAccess } from "@/lib/access";
+import { getList, isRecipient, listAccess, listProfile } from "@/lib/access";
 import { aiEnabled, friendlyError, type ChatTurn } from "@/lib/ai";
 import { banditMode, banditReply, historyWindow, replayTurn } from "@/lib/bandit";
 import { addAssistantMessage, addUserMessage, chatView, chatViews, dailyCap, deleteMessage, dropTurn, logTurn, recordUsage, sentToday } from "@/lib/chatstore";
 import { chatContext, giverContext, stableBrief } from "@/lib/giftchat";
-import type { Profile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +25,7 @@ export async function POST(req: Request) {
     return Response.json({ error: `You've reached today's limit of ${cap} messages to Bandit. He'll be back tomorrow!` }, { status: 429 });
   }
 
-  const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", list.profile_id)!;
+  const profile = listProfile(list.profile_id)!;
   const recipient = isRecipient(user.id, list);
   const turnId = logTurn(user.id);
   const userMsgId = addUserMessage(list.id, user.id, text);
