@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>wishes</Name>
-  <Repository>wishes:latest</Repository>
+  <Repository>ghcr.io/spacegoose02/wishes:latest</Repository>
   <Network>bridge</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>

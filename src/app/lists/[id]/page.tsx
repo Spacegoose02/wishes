@@ -2,14 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getUser, requireUser } from "@/lib/auth";
-import { canEditProfile, getList, isRecipient, listAccess, myLists } from "@/lib/access";
+import { canEditProfile, getList, isRecipient, listAccess, listProfile, myLists } from "@/lib/access";
 import { AboutProfile } from "@/components/AboutProfile";
 import { RenameKid } from "@/components/RenameKid";
 import { all, get } from "@/lib/db";
 import { aiEnabled } from "@/lib/ai";
 import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
-import type { Item, Profile, Purchase } from "@/lib/types";
+import type { Item, Purchase } from "@/lib/types";
 import { watchesFor } from "@/lib/watches";
 import { addItem, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { MAX_MUST_HAVES } from "@/lib/wishes";
@@ -100,7 +100,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   if (access === "none") notFound();
   const owner = access === "owner";
   const recipient = isRecipient(user.id, list);
-  const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", list.profile_id);
+  const profile = listProfile(list.profile_id);
   const otherLists = owner ? myLists(user.id).filter((l) => l.id !== list.id) : [];
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().toLowerCase() : "";
@@ -245,7 +245,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
               <option value="bought">Already bought</option>
             </select>
           )}
-          <input name="max" type="number" min={0} defaultValue={maxPrice || ""} placeholder="Max $" aria-label="Max price" />
+          <input name="max" type="number" min={0} step="any" inputMode="decimal" defaultValue={maxPrice || ""} placeholder="Max $" aria-label="Max price" />
           <select name="sort" defaultValue={sort} aria-label="Sort">
             {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
@@ -411,7 +411,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         <form action={recordPurchase} className="form-grid mt-10">
                           <Hidden item={it.id} />
                           {it.quantity > 1 && <label>How many?<input name="quantity" type="number" min={1} max={remaining} defaultValue={remaining} /></label>}
-                          <label>Price paid<input name="price" inputMode="decimal" defaultValue={it.price_cents ? (it.price_cents / 100).toFixed(2) : ""} /></label>
+                          <label>{it.quantity > 1 ? "Price each" : "Price paid"}<input name="price" inputMode="decimal" defaultValue={it.price_cents ? (it.price_cents / 100).toFixed(2) : ""} /></label>
                           <label>Where<input name="store" defaultValue={it.store} /></label>
                           <label className="full">Note (optional)<input name="note" placeholder="Wrapped and in the closet" /></label>
                           <SubmitButton className="btn small">Save purchase</SubmitButton>
@@ -422,7 +422,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
                     {showClaims && it.price_cents && !it.needs_approval && (!it.purchased || pledges.some((x) => x.item_id === it.id)) ? (
                       <GroupGift item={it} pledges={pledges.filter((x) => x.item_id === it.id)} userId={user.id} />
                     ) : null}
-                    {it.url && it.price_cents && !it.purchased && !it.needs_approval ? (
+                    {/* Shown to the list's own person whether or not it was bought, so it can't give a gift away. */}
+                    {it.url && it.price_cents && (recipient || !it.purchased) && !it.needs_approval ? (
                       <details className="full">
                         <summary className="small muted pointer">🎯 {watches.has(it.id) ? `Watching for ${formatMoney(watches.get(it.id))} or less` : "Watch the price"}</summary>
                         <form action={watchPrice} className="row mt-8 items-end">

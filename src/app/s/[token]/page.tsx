@@ -95,7 +95,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
                     <input type="hidden" name="token" value={token} />
                     <input type="hidden" name="item_id" value={it.id} />
                     {it.quantity > 1 && <label>How many?<input name="quantity" type="number" min={1} max={remaining} defaultValue={remaining} /></label>}
-                    <label>Price paid<input name="price" inputMode="decimal" defaultValue={it.price_cents ? (it.price_cents / 100).toFixed(2) : ""} /></label>
+                    <label>{it.quantity > 1 ? "Price each" : "Price paid"}<input name="price" inputMode="decimal" defaultValue={it.price_cents ? (it.price_cents / 100).toFixed(2) : ""} /></label>
                     <label>Where<input name="store" defaultValue={it.store} /></label>
                     <label className="full">Note (optional)<input name="note" /></label>
                     <SubmitButton className="btn small">Save purchase</SubmitButton>

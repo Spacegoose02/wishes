@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { appUrl, discover, oidcConfig, pkcePair } from "@/lib/oidc";
 import { randomToken } from "@/lib/crypto";
+import { safeNext } from "@/lib/next";
 
 export async function GET(req: Request) {
   const cfg = oidcConfig();
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
   const state = randomToken(16);
   const nonce = randomToken(16);
   const redirectUri = `${appUrl(req.url)}/auth/oidc/callback`;
-  (await cookies()).set("wishes_oidc", JSON.stringify({ state, verifier, nonce }), {
+  (await cookies()).set("wishes_oidc", JSON.stringify({ state, verifier, nonce, next: safeNext(new URL(req.url).searchParams.get("next")) }), {
     httpOnly: true, sameSite: "lax", path: "/", maxAge: 600,
     secure: redirectUri.startsWith("https://"),
   });

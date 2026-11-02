@@ -349,6 +349,24 @@ const MIGRATIONS: string[] = [
   ALTER TABLE purchases ADD COLUMN carrier TEXT NOT NULL DEFAULT '';
   ALTER TABLE purchases ADD COLUMN expected_at TEXT;
   `,
+  // 22: Bandit chat: gift cards and tips stored as data, plus a usage log that outlives
+  // "Start over" so the daily limit and cost readout stay honest
+  `
+  ALTER TABLE chat_messages ADD COLUMN meta TEXT;
+  CREATE TABLE chat_usage (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    model TEXT NOT NULL DEFAULT '',
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+    web_searches INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE INDEX idx_chat_usage_user_time ON chat_usage(user_id, created_at);
+  CREATE INDEX idx_chat_usage_time ON chat_usage(created_at);
+  `,
 ];
 
 function open(): DatabaseSync {

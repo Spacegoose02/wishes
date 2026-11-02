@@ -8,7 +8,7 @@ import { fetchProduct, type ProductInfo } from "@/lib/scrape";
 import { compareItem } from "@/lib/compare";
 import { formatMoney, parseMoney } from "@/lib/format";
 import { notify } from "@/lib/prices";
-import { approveItem, archiveWish, restoreWish, setMustHave } from "@/lib/wishes";
+import { approveItem, archiveWish, peopleBuying, restoreWish, setMustHave } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
 import { checkWatches, setWatch } from "@/lib/watches";
 import type { Item, Profile } from "@/lib/types";
@@ -52,8 +52,13 @@ export async function updateItem(form: FormData) {
 export async function deleteItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
-  const { list } = await ownList(item.list_id);
+  const { user, list } = await ownList(item.list_id);
+  // Let anyone getting it know, so a removed wish doesn't just vanish from their shopping.
+  const tell = peopleBuying(item).filter((uid) => uid !== user.id && !isRecipient(uid, list));
   run("DELETE FROM items WHERE id = ?", item.id);
+  for (const uid of tell) {
+    notify(uid, "unwanted", `${item.title} was taken off ${list.profile_name}'s list "${list.title}". If you already got it, check with them.`, `/lists/${list.id}`);
+  }
   revalidatePath(`/lists/${list.id}`);
 }
 

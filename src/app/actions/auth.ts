@@ -5,6 +5,7 @@ import { get, run } from "@/lib/db";
 import { createSession, createUser, destroySession, getPending2faUser, requireUser, signupAllowed } from "@/lib/auth";
 import { hashPassword, newTotpSecret, verifyPassword, verifyTotp } from "@/lib/crypto";
 import type { User } from "@/lib/types";
+import { nextQuery, safeNext } from "@/lib/next";
 
 const s = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -32,17 +33,19 @@ async function clientIp(): Promise<string> {
 
 export async function login(form: FormData) {
   if (process.env.DISABLE_PASSWORD_LOGIN === "true") redirect("/login?error=Password+sign-in+is+disabled");
+  const next = safeNext(s(form, "next"));
+  const keep = nextQuery(next, "&");
   const email = s(form, "email").toLowerCase();
   const ip = await clientIp();
-  if (throttled(email) || throttled(ip, LIMITS.ip)) redirect("/login?error=Too+many+attempts.+Try+again+in+a+few+minutes.");
+  if (throttled(email) || throttled(ip, LIMITS.ip)) redirect(`/login?error=Too+many+attempts.+Try+again+in+a+few+minutes.${keep}`);
   const user = get<User>("SELECT * FROM users WHERE email = ?", email);
   if (!user || !verifyPassword(s(form, "password"), user.password_hash)) {
     fail(email, ip);
-    redirect("/login?error=Wrong+email+or+password");
+    redirect(`/login?error=Wrong+email+or+password${keep}`);
   }
   attempts.delete(email);
   await createSession(user.id, !!user.totp_enabled);
-  redirect(user.totp_enabled ? "/login/2fa" : "/");
+  redirect(user.totp_enabled ? `/login/2fa${nextQuery(next)}` : next);
 }
 
 export async function register(form: FormData) {
@@ -61,14 +64,15 @@ export async function register(form: FormData) {
 export async function verify2fa(form: FormData) {
   const user = await getPending2faUser();
   if (!user || !user.totp_secret) redirect("/login");
+  const next = safeNext(s(form, "next"));
   const key = `totp:${user.id}`;
   if (throttled(key) || !verifyTotp(user.totp_secret, s(form, "code"))) {
     fail(key);
-    redirect("/login/2fa?error=That+code+didn't+work");
+    redirect(`/login/2fa?error=That+code+didn't+work${nextQuery(next, "&")}`);
   }
   await destroySession();
   await createSession(user.id);
-  redirect("/");
+  redirect(next);
 }
 
 export async function logout() {

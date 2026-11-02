@@ -14,6 +14,9 @@ export async function saveAiSettings(form: FormData) {
   setSetting("ai_base_url", s(form, "base_url"));
   if (s(form, "api_key")) setSetting("ai_api_key", s(form, "api_key"));
   if (form.get("clear_key")) setSetting("ai_api_key", "");
+  setSetting("ai_web_search", form.get("web_search") ? "1" : "0");
+  const cap = Number(s(form, "chat_daily_cap"));
+  if (Number.isInteger(cap) && cap >= 0) setSetting("chat_daily_cap", String(Math.min(cap, 10000)));
   redirect("/settings?tab=admin&ok=AI+settings+saved");
 }
 

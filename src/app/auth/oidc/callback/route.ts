@@ -4,6 +4,7 @@ import { appUrl, exchangeCode, oidcConfig } from "@/lib/oidc";
 import { createSession, createUser } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import type { User } from "@/lib/types";
+import { nextQuery, safeNext } from "@/lib/next";
 
 export async function GET(req: Request) {
   const base = appUrl(req.url);
@@ -17,7 +18,8 @@ export async function GET(req: Request) {
   jar.delete("wishes_oidc");
   if (params.get("error")) return back(params.get("error_description") || params.get("error")!);
   if (!raw) return back("Sign-in expired, please try again");
-  const saved = JSON.parse(raw) as { state: string; verifier: string; nonce: string };
+  const saved = JSON.parse(raw) as { state: string; verifier: string; nonce: string; next?: string };
+  const next = safeNext(saved.next);
   if (params.get("state") !== saved.state || !params.get("code")) return back("Sign-in could not be verified");
 
   let claims;
@@ -42,5 +44,5 @@ export async function GET(req: Request) {
   }
   const need2fa = !!user.totp_enabled && process.env.OIDC_SKIP_2FA !== "true";
   await createSession(user.id, need2fa);
-  return NextResponse.redirect(new URL(need2fa ? "/login/2fa" : "/", base));
+  return NextResponse.redirect(new URL(need2fa ? `/login/2fa${nextQuery(next)}` : next, base));
 }

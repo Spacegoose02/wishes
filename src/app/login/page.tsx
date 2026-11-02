@@ -6,11 +6,13 @@ import { oidcConfig } from "@/lib/oidc";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
+import { nextQuery, safeNext } from "@/lib/next";
 
 export const metadata = { title: "Sign in" };
 
 export default async function LoginPage({ searchParams }: { searchParams: SP }) {
-  if (await getUser()) redirect("/");
+  const next = safeNext((await searchParams).next);
+  if (await getUser()) redirect(next);
   if (userCount() === 0) redirect("/register");
   const oidc = oidcConfig();
   const passwordOn = process.env.DISABLE_PASSWORD_LOGIN !== "true";
@@ -24,11 +26,12 @@ export default async function LoginPage({ searchParams }: { searchParams: SP }) 
       <div className="card stack">
         <Flash searchParams={searchParams} />
         {oidc && (
-          <a className="btn block" href="/auth/oidc/start">Sign in with {oidc.name}</a>
+          <a className="btn block" href={`/auth/oidc/start${nextQuery(next)}`}>Sign in with {oidc.name}</a>
         )}
         {oidc && passwordOn && <div className="divider">or</div>}
         {passwordOn && (
           <form action={login} className="stack">
+            <input type="hidden" name="next" value={next} />
             <label>Email<input name="email" type="email" autoComplete="email" required /></label>
             <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
             <SubmitButton className="btn block">Sign in</SubmitButton>

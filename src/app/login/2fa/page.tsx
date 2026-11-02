@@ -3,6 +3,7 @@ import { logout, verify2fa } from "../../actions/auth";
 import { getPending2faUser } from "@/lib/auth";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
+import { safeNext } from "@/lib/next";
 
 export const metadata = { title: "Two-factor sign-in" };
 
@@ -15,6 +16,7 @@ export default async function TwoFactorPage({ searchParams }: { searchParams: SP
       <div className="card stack">
         <Flash searchParams={searchParams} />
         <form action={verify2fa} className="stack">
+          <input type="hidden" name="next" value={safeNext((await searchParams).next)} />
           <label>Code<input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" autoFocus required /></label>
           <SubmitButton className="btn block">Verify</SubmitButton>
         </form>

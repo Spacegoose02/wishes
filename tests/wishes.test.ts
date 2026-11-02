@@ -62,3 +62,24 @@ describe("archive", () => {
     expect(fresh(kite)).toMatchObject({ archived_at: null, archive_reason: "" });
   });
 });
+
+describe("removing a wish", () => {
+  it("finds everyone getting it: the claimer, people who chipped in, and buyers", () => {
+    const kid = t.user("rkid");
+    const [claimer, chipper, buyer, rejected] = ["rclaim", "rchip", "rbuy", "rrej"].map((n) => t.user(n));
+    const l = t.list(t.profileOf(kid));
+    const it = t.item(l.id, "Scooter");
+    t.db.run("UPDATE items SET claimed_by = ? WHERE id = ?", claimer.id, it.id);
+    t.db.run("INSERT INTO pledges (item_id, user_id, amount_cents) VALUES (?, ?, 500)", it.id, chipper.id);
+    t.db.run("INSERT INTO pledges (item_id, user_id, amount_cents) VALUES (?, ?, 300)", it.id, claimer.id);
+    for (const [u, status] of [[buyer, "confirmed"], [rejected, "rejected"]] as const) {
+      t.db.run("INSERT INTO purchases (item_id, list_id, item_title, buyer_user_id, buyer_name, status) VALUES (?, ?, 'Scooter', ?, ?, ?)", it.id, l.id, u.id, u.name, status);
+    }
+    expect(w.peopleBuying(fresh(it)).sort()).toEqual([claimer.id, chipper.id, buyer.id].sort());
+  });
+
+  it("is empty when nobody planned to get it", () => {
+    const l = t.list(t.profileOf(t.user("rnobody")));
+    expect(w.peopleBuying(t.item(l.id))).toEqual([]);
+  });
+});
