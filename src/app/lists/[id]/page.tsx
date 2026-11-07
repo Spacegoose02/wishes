@@ -376,6 +376,9 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       {!it.needs_approval && !isFund(it.kind) && ((showClaims && !it.claimed_by) || (claimedByMe && boughtQty === 0)) && !it.purchased && (
                         <ClaimButton itemId={it.id} claimed={claimedByMe} action={claimItem} />
                       )}
+                      {owner && (
+                        <form action={deleteItem}><Hidden item={it.id} /><SubmitButton className="btn small danger" confirm="Tap again to remove">🗑️ Remove item</SubmitButton></form>
+                      )}
                       <Menu label={`More for ${it.title}`}>
                         {it.url && (
                           <form action={refreshItem}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Checking…">↻ Check price</SubmitButton></form>
@@ -392,9 +395,6 @@ export default async function ListPage({ params, searchParams }: { params: Param
                             <form action={archiveItem}><Hidden item={it.id} /><input type="hidden" name="reason" value="received" /><SubmitButton className="menu-item">🎁 Got it!</SubmitButton></form>
                             <form action={archiveItem}><Hidden item={it.id} /><input type="hidden" name="reason" value="unwanted" /><SubmitButton className="menu-item">🙅 Don&apos;t want it anymore</SubmitButton></form>
                           </>
-                        )}
-                        {owner && (
-                          <form action={deleteItem}><Hidden item={it.id} /><SubmitButton className="menu-item danger" confirm="Tap again to remove">🗑️ Remove</SubmitButton></form>
                         )}
                       </Menu>
                     </div>
