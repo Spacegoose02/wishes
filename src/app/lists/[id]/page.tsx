@@ -18,6 +18,7 @@ import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purcha
 import { revealOpen } from "@/lib/reveal";
 import { pledgeGoal, pledgeProgress, pledgesForList, type Pledge } from "@/lib/pledges";
 import { ItemForm } from "@/components/ItemForm";
+import { clipDefaults } from "@/lib/clip";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { ClaimButton } from "@/components/ClaimButton";
@@ -112,6 +113,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const board = sp.view === "board";
   // A link shared into the app (see /share) opens the add form already filled in.
   const shared = owner && typeof sp.add === "string" ? sp.add : "";
+  // From the "Add to Wishes" bookmark: the page was already read in the person's browser.
+  const clipped = shared ? clipDefaults(sp) : null;
 
   // Kid-mode wishes stay with the list's managers until one of them approves.
   const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NULL ORDER BY purchased, priority DESC, created_at DESC", list.id)
@@ -214,7 +217,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
       {owner && (
         <details className="card mt-12" open={allItems.length === 0 || !!shared}>
           <summary>Add a wish</summary>
-          <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} defaults={shared ? { url: shared } : undefined} autoFetch={!!shared} />
+          <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} defaults={shared ? { url: shared, ...clipped } : undefined} autoFetch={!!shared && !clipped} />
           <details className="mt-12">
             <summary className="small pointer fw-700">📋 Paste many links at once</summary>
             <form action={bulkAddItems} className="stack mt-10">

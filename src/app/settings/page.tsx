@@ -4,6 +4,7 @@ import { familyProfiles, myProfiles } from "@/lib/access";
 import type { Profile } from "@/lib/types";
 import { logout } from "../actions/auth";
 import { deleteProfile, resetCalendarLink, rollAvatar, saveAccount, saveProfile } from "../actions/account";
+import { BookmarkletLink } from "@/components/BookmarkletLink";
 import { CopyButton } from "@/components/CopyButton";
 import { siteOrigin } from "@/lib/origin";
 import { AvatarPicker, parseCollection } from "@/components/AvatarPicker";
@@ -131,6 +132,19 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
               </div>
               <p className="tiny muted m0 mt-6">Each badge earns a golden roll: Rare or better, guaranteed.</p>
             </div>
+          </section>
+          <section id="bookmark" className="card stack">
+            <h2 className="m0">🔖 Add to Wishes button</h2>
+            <p className="small muted m0">
+              Some stores, like Kohl&apos;s, won&apos;t let Wishes look up their links. This button sidesteps that: it sends the
+              product page you already have open straight to Wishes, so the name, price and picture fill in.
+            </p>
+            <div><BookmarkletLink /></div>
+            <ol className="small m0">
+              <li>Drag the button up to your browser&apos;s bookmarks bar. (No bar? Press Ctrl+Shift+B, or ⌘+Shift+B on a Mac.)</li>
+              <li>On any store&apos;s product page, click it. Wishes opens in a new tab with the wish ready to add.</li>
+            </ol>
+            <p className="tiny muted m0">On a phone, use your browser&apos;s Share button and pick Wishes instead.</p>
           </section>
           <section id="calendar" className="card stack">
             <h2 className="m0">📅 Calendar feed</h2>
