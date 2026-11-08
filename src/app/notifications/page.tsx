@@ -8,7 +8,7 @@ export const metadata = { title: "Alerts" };
 
 const ICON: Record<string, string> = {
   deal: "🏷️", family: "🏡", purchase: "🧾", info: "💡", approval: "🧒", badge: "🌟", pledge: "🤝",
-  reminder: "⏰", santa: "🎅", thanks: "💌", unwanted: "🙅",
+  reminder: "⏰", santa: "🎅", thanks: "💌", unwanted: "🙅", question: "❓", answer: "💬", new_wishes: "✨",
 };
 
 export default async function NotificationsPage() {
@@ -22,7 +22,7 @@ export default async function NotificationsPage() {
         <h1 className="m0">Alerts</h1>
         {rows.some((r) => !r.read) && <form action={markAllRead}><SubmitButton className="btn small secondary">Mark all read</SubmitButton></form>}
       </div>
-      <p className="muted">Price drops, purchases and approvals, group gifts, Secret Santa, thank-yous, reminders before the big day, and family news.</p>
+      <p className="muted">Price drops, purchases and approvals, group gifts, Secret Santa, thank-yous, reminders before the big day, and family news. <Link href="/settings?tab=alerts">Get them by email or on your phone</Link>.</p>
       <div className="card">
         {rows.length === 0 && <div className="empty"><div className="big" aria-hidden="true">🔔</div>All quiet.</div>}
         {rows.map((r) => (

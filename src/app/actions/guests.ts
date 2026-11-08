@@ -4,7 +4,7 @@ import { get, run } from "@/lib/db";
 import { getList, isRecipient, listManagers } from "@/lib/access";
 import { randomToken } from "@/lib/crypto";
 import { parseMoney } from "@/lib/format";
-import { notify } from "@/lib/prices";
+import { notify } from "@/lib/notify";
 import type { Item } from "@/lib/types";
 import { peopleBuying } from "@/lib/wishes";
 import { s, n, ownList, doAutofill, itemFields, insertItem, recomputePurchased, guestByToken, withPicture } from "./_shared";

@@ -4,15 +4,13 @@ import { fetchProduct } from "./scrape";
 import { cheaperElsewhere, compareItem } from "./compare";
 import { formatMoney } from "./format";
 import { checkWatches } from "./watches";
+import { notify } from "./notify";
 import type { Item } from "./types";
 
 type Row = Item & { owner_id: number; is_primary: number; list_title: string };
 
 const short = (t: string) => (t.length > 60 ? t.slice(0, 57).trimEnd() + "…" : t);
 
-export function notify(userId: number, kind: string, message: string, link = "") {
-  run("INSERT INTO notifications (user_id, kind, message, link) VALUES (?, ?, ?, ?)", userId, kind, message, link);
-}
 
 // Who hears about deals: whoever claimed the gift, otherwise the list's managers
 // (an unclaimed price drop tells the recipient nothing about who is buying what).

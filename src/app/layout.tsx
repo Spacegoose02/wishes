@@ -7,6 +7,7 @@ import { get } from "@/lib/db";
 import { Avatar } from "@/components/Avatar";
 import { THEMES } from "@/components/ThemePicker";
 import { BottomNav, TopNav } from "@/components/NavLinks";
+import { ServiceWorker } from "@/components/ServiceWorker";
 
 export const metadata: Metadata = {
   title: { default: "Wishes", template: "%s · Wishes" },
@@ -55,6 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </>
         )}
         <main id="main" className="shell" tabIndex={-1}>{children}</main>
+        <ServiceWorker />
       </body>
     </html>
   );

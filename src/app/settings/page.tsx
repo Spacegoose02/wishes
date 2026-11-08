@@ -3,7 +3,10 @@ import { requireUser } from "@/lib/auth";
 import { familyProfiles, myProfiles } from "@/lib/access";
 import type { Profile } from "@/lib/types";
 import { logout } from "../actions/auth";
-import { deleteProfile, resetCalendarLink, rollAvatar, saveAccount, saveProfile } from "../actions/account";
+import { deleteProfile, resetCalendarLink, rollAvatar, saveAccount, saveAlerts, saveProfile, sendTestAlert } from "../actions/account";
+import { mailEnabled } from "@/lib/mail";
+import { pushDeviceCount, vapidPublicKey } from "@/lib/push";
+import { PushToggle } from "@/components/PushToggle";
 import { CopyButton } from "@/components/CopyButton";
 import { siteOrigin } from "@/lib/origin";
 import { AvatarPicker, parseCollection } from "@/components/AvatarPicker";
@@ -21,6 +24,7 @@ export const metadata = { title: "Settings" };
 const TABS = [
   { id: "me", label: "👤 Me & look" },
   { id: "profiles", label: "🧒 Kids & profiles" },
+  { id: "alerts", label: "🔔 Alerts" },
   { id: "security", label: "🔐 Sign-in & 2FA" },
   { id: "admin", label: "🛠️ Server", admin: true },
 ] as const;
@@ -192,6 +196,29 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
               ))}
             </section>
           )}
+        </>
+      )}
+
+      {tab === "alerts" && (
+        <>
+          <form action={saveAlerts} className="card stack">
+            <h2 className="m0">🔔 How you hear about things</h2>
+            <p className="small muted m0">Everything always shows up on the <Link href="/notifications">Alerts</Link> page. You can also get each alert by email or as a notification on your phone or computer.</p>
+            <label className="inline">
+              <input type="checkbox" name="alert_email" defaultChecked={!!user.alert_email} disabled={!mailEnabled()} /> Email me alerts at {user.email}
+            </label>
+            {!mailEnabled() && <p className="tiny muted m0">Email isn&apos;t set up on this server yet{user.is_admin ? <>. Set it up in <Link href="/settings?tab=admin#email">Server</Link>.</> : ", so ask whoever runs Wishes."}</p>}
+            {!mailEnabled() && user.alert_email ? <input type="hidden" name="alert_email" value="1" /> : null}
+            <label className="inline"><input type="checkbox" name="alert_push" defaultChecked={!!user.alert_push} /> Send alerts to devices I turned on below</label>
+            <label className="inline"><input type="checkbox" name="alert_new_wishes" defaultChecked={!!user.alert_new_wishes} /> Tell me when family members add new wishes</label>
+            <SubmitButton className="btn">Save</SubmitButton>
+          </form>
+          <section className="card stack">
+            <h2 className="m0">📱 This device</h2>
+            <p className="small muted m0">Turn alerts on separately on each phone, tablet or computer. {pushDeviceCount(user.id) > 0 && `On for ${pushDeviceCount(user.id)} device${pushDeviceCount(user.id) === 1 ? "" : "s"} so far.`}</p>
+            <PushToggle publicKey={await vapidPublicKey()} />
+            <form action={sendTestAlert}><SubmitButton className="btn small secondary">Send me a test alert</SubmitButton></form>
+          </section>
         </>
       )}
 

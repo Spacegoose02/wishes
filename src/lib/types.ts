@@ -13,6 +13,9 @@ export type User = {
   badges: string;
   bonus_rolls: number;
   calendar_token: string | null;
+  alert_email: number;
+  alert_push: number;
+  alert_new_wishes: number;
   created_at: number;
 };
 

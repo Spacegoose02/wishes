@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { get, run } from "@/lib/db";
 import { isManager, isRecipient, listManagers } from "@/lib/access";
 import { formatMoney, parseMoney } from "@/lib/format";
-import { notify } from "@/lib/prices";
+import { notify } from "@/lib/notify";
 import { pledgers, setPledge } from "@/lib/pledges";
 import { revealOpen, sendThanks } from "@/lib/reveal";
 import { award } from "@/lib/rewards";

@@ -4,7 +4,8 @@ import { webSearchEnabled } from "@/lib/bandit";
 import { dailyCap, monthUsage } from "@/lib/chatstore";
 import { oidcConfig } from "@/lib/oidc";
 import type { User } from "@/lib/types";
-import { adminUser, saveAiSettings, saveScrapeSettings } from "@/app/actions/admin";
+import { adminUser, saveAiSettings, saveMailSettings, saveScrapeSettings, sendTestEmail } from "@/app/actions/admin";
+import { describeSmtp, mailEnabled, mailFrom, siteUrl, smtpUrl } from "@/lib/mail";
 import { getSetting } from "@/lib/db";
 import { Avatar } from "@/components/Avatar";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -62,6 +63,27 @@ export function AdminPanel({ me }: { me: User }) {
         <label>Scraping service URL (use {"{url}"} for the page)<input name="scraper_api_url" defaultValue={getSetting("scraper_api_url") ?? process.env.SCRAPER_API_URL ?? ""} placeholder="https://api.example.com/?key=KEY&url={url}" /></label>
         <SubmitButton className="btn">Save</SubmitButton>
       </form>
+
+      <section id="email" className="card stack">
+        <h2>✉️ Email</h2>
+        <p className="small muted m0">
+          Lets Wishes email alerts (price drops, reminders, thank-yous, Secret Santa) and password reset links. Any SMTP server works: your email provider, Mailgun, Postmark, or your own.
+        </p>
+        <p className="small m0">Status: {mailEnabled() ? <strong>on, sending through {describeSmtp(smtpUrl())}</strong> : <span className="muted">off</span>}</p>
+        <form action={saveMailSettings} className="stack">
+          <label>SMTP address
+            <input name="smtp_url" type="password" autoComplete="off" placeholder={smtpUrl() ? "•••••••• saved (leave blank to keep)" : "smtps://user%40example.com:app-password@smtp.example.com:465"} />
+          </label>
+          <p className="tiny muted m0">Put the username and password in the address. Write @ in the username as %40. Use port 465 with smtps:// or 587 with smtp://.</p>
+          <label className="inline"><input type="checkbox" name="clear_smtp" /> Clear saved SMTP address</label>
+          <div className="form-grid">
+            <label>From<input name="smtp_from" defaultValue={mailFrom()} placeholder="Wishes <wishes@example.com>" /></label>
+            <label>Site address (for links in emails)<input name="site_url" defaultValue={getSetting("site_url") || process.env.APP_URL || ""} placeholder={siteUrl()} /></label>
+          </div>
+          <SubmitButton className="btn">Save email settings</SubmitButton>
+        </form>
+        {mailEnabled() && <form action={sendTestEmail}><SubmitButton className="btn small secondary" pendingLabel="Sending…">Send me a test email</SubmitButton></form>}
+      </section>
 
       <section className="card stack">
         <h2>Sign-in</h2>

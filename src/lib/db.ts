@@ -367,6 +367,22 @@ const MIGRATIONS: string[] = [
   CREATE INDEX idx_chat_usage_user_time ON chat_usage(user_id, created_at);
   CREATE INDEX idx_chat_usage_time ON chat_usage(created_at);
   `,
+  // 23: alerts by email and phone push, and who wants which
+  `
+  ALTER TABLE users ADD COLUMN alert_email INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE users ADD COLUMN alert_push INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE notifications ADD COLUMN count INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE users ADD COLUMN alert_new_wishes INTEGER NOT NULL DEFAULT 1;
+  CREATE TABLE push_subscriptions (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE INDEX idx_push_user ON push_subscriptions(user_id);
+  `,
 ];
 
 function open(): DatabaseSync {

@@ -7,7 +7,7 @@ import { canEditProfile, getList, isManager, isRecipient, listManagers } from "@
 import { fetchProduct, type ProductInfo } from "@/lib/scrape";
 import { compareItem } from "@/lib/compare";
 import { formatMoney, parseMoney } from "@/lib/format";
-import { notify } from "@/lib/prices";
+import { notify } from "@/lib/notify";
 import { approveItem, archiveWish, peopleBuying, restoreWish, setMustHave } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
 import { checkWatches, setWatch } from "@/lib/watches";
