@@ -13,7 +13,7 @@ import type { Item, Profile, Purchase } from "@/lib/types";
 import { watchesFor } from "@/lib/watches";
 import { seeList } from "@/lib/fresh";
 import { questionsForList, openQuestions, MAX_QUESTION, type Question } from "@/lib/questions";
-import { addItem, answerAboutItem, askAboutItem, removeQuestion, addSurprise, removeSurprise, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
+import { addItem, importWishes, answerAboutItem, askAboutItem, removeQuestion, addSurprise, removeSurprise, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { MAX_MUST_HAVES } from "@/lib/wishes";
 import { isFund, kindInfo } from "@/lib/kinds";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
@@ -282,6 +282,19 @@ export default async function ListPage({ params, searchParams }: { params: Param
                 <textarea name="links" rows={5} required placeholder={"https://www.amazon.com/...\nhttps://www.target.com/..."} />
               </label>
               <SubmitButton className="btn secondary" pendingLabel="Looking them up…">Add them all</SubmitButton>
+            </form>
+          </details>
+          <details className="mt-12">
+            <summary className="small pointer fw-700">📥 Import an Amazon wish list or a spreadsheet</summary>
+            <form action={importWishes} className="stack mt-10">
+              <input type="hidden" name="list_id" value={list.id} />
+              <label>Amazon wish list link (the list must be Public or Shared)
+                <input name="amazon" type="url" placeholder="https://www.amazon.com/hz/wishlist/ls/..." />
+              </label>
+              <label>Or a spreadsheet saved as CSV, with columns like Name, Link, Price and Notes
+                <input name="csv" type="file" accept=".csv,text/csv" />
+              </label>
+              <SubmitButton className="btn secondary" pendingLabel="Importing…">Import</SubmitButton>
             </form>
           </details>
         </details>

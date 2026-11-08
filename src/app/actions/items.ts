@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { get, run, tx } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canEditProfile, getList, isManager, isRecipient, listManagers } from "@/lib/access";
-import { fetchProduct, type ProductInfo } from "@/lib/scrape";
+import { fetchHtml, fetchProduct, type ProductInfo } from "@/lib/scrape";
 import { compareItem } from "@/lib/compare";
 import { formatMoney, parseMoney } from "@/lib/format";
 import { notify } from "@/lib/notify";
@@ -12,6 +12,7 @@ import { approveItem, archiveWish, peopleBuying, restoreWish, setMustHave } from
 import { award } from "@/lib/rewards";
 import { checkWatches, setWatch } from "@/lib/watches";
 import { announceWishes } from "@/lib/fresh";
+import { amazonListUrl, MAX_IMPORT, parseAmazonList, wishesFromCsv, type ImportedWish } from "@/lib/importer";
 import { answerQuestion, askQuestion, deleteQuestion, questionOnList } from "@/lib/questions";
 import type { Item, Profile } from "@/lib/types";
 import { noSpoil, s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
@@ -293,4 +294,52 @@ export async function removeQuestion(form: FormData) {
   const q = questionOnList(n(form, "question_id"), list.id);
   if (q && (q.asker_id === user.id || isManager(user.id, list))) deleteQuestion(q.id);
   revalidatePath(`/lists/${list.id}`);
+}
+
+// Import a public Amazon wish list, or a spreadsheet (CSV), into this list.
+export async function importWishes(form: FormData) {
+  const { user, list } = await ownList(n(form, "list_id"));
+  const back = (key: "ok" | "error", msg: string) => redirect(`/lists/${list.id}?${key}=${encodeURIComponent(msg)}`);
+  const link = s(form, "amazon");
+  const file = form.get("csv");
+  let wishes: ImportedWish[] = [];
+  if (link) {
+    const start = amazonListUrl(link);
+    if (!start) return back("error", "That isn't an Amazon wish list link. Open the list on Amazon, tap Share, and copy the link.");
+    let next: URL | undefined = start;
+    try {
+      for (let page = 0; next && page < 10 && wishes.length < MAX_IMPORT; page++) {
+        const { html, status }: { html: string; status: number } = await fetchHtml(next);
+        if (status >= 400) break;
+        const r = parseAmazonList(html, next);
+        wishes.push(...r.wishes);
+        next = r.next;
+      }
+    } catch {
+      return back("error", "Couldn't reach Amazon right now. Try again in a bit.");
+    }
+    if (!wishes.length) return back("error", "Couldn't read any wishes from that list. Make sure it's set to Public or Shared on Amazon, or download it as a spreadsheet and import that.");
+  } else if (file instanceof File && file.size > 0) {
+    if (file.size > 2_000_000) return back("error", "That file is too big. Keep it under 2 MB.");
+    wishes = wishesFromCsv(await file.text());
+    if (!wishes.length) return back("error", "Couldn't find any wishes in that file. The first row should have column names like Name, Link and Price.");
+  } else {
+    return back("error", "Paste an Amazon wish list link or pick a spreadsheet file.");
+  }
+  wishes = wishes.slice(0, MAX_IMPORT);
+  tx(() => {
+    for (const w of wishes) {
+      let url = "";
+      try { url = w.url ? new URL(w.url).toString() : ""; } catch { /* leave it off */ }
+      const store = url ? storeFromHost(new URL(url).hostname).name : "";
+      insertItem(list.id, {
+        title: w.title, url, store, price: w.price_cents, image_url: w.image_url, notes: w.notes,
+        priority: w.priority, quantity: w.quantity, category: w.category || guessCategory(w.title, store),
+        variant: w.variant, color: w.color, size: w.size,
+      }, null, false, { addedBy: user.id });
+    }
+  });
+  announceWishes(list, wishes.length, user.id);
+  award(user.id, "first_wish");
+  back("ok", `Imported ${wishes.length} ${wishes.length === 1 ? "wish" : "wishes"}`);
 }

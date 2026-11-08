@@ -160,6 +160,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
             <div><Bookmarklet origin={await siteOrigin()} /></div>
             <p className="tiny muted m0">Can&apos;t see a bookmarks bar? Press Ctrl+Shift+B (Cmd+Shift+B on a Mac).</p>
           </section>
+          <section id="export" className="card stack">
+            <h2 className="m0">📦 Download your lists</h2>
+            <p className="small muted m0">Every list you manage, with all its wishes. Open the spreadsheet in Excel, Numbers or Google Sheets, or import it into another list here.</p>
+            <div className="row gap-6">
+              <a className="btn small secondary" href="/export?format=csv" download>Spreadsheet (CSV)</a>
+              <a className="btn small ghost" href="/export?format=json" download>JSON</a>
+            </div>
+          </section>
           <form action={saveAccount} className="card stack">
             <h2>You</h2>
             <div className="form-grid">
