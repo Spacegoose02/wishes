@@ -7,6 +7,7 @@ import { deleteProfile, resetCalendarLink, rollAvatar, saveAccount, saveAlerts, 
 import { mailEnabled } from "@/lib/mail";
 import { pushDeviceCount, vapidPublicKey } from "@/lib/push";
 import { PushToggle } from "@/components/PushToggle";
+import { Bookmarklet } from "@/components/Bookmarklet";
 import { CopyButton } from "@/components/CopyButton";
 import { siteOrigin } from "@/lib/origin";
 import { AvatarPicker, parseCollection } from "@/components/AvatarPicker";
@@ -150,6 +151,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
             ) : (
               <form action={resetCalendarLink}><SubmitButton className="btn small secondary">Turn on calendar feed</SubmitButton></form>
             )}
+          </section>
+          <section id="bookmark" className="card stack">
+            <h2 className="m0">🔖 Add from any site</h2>
+            <p className="small muted m0">
+              On a computer, drag this button up to your bookmarks bar. Then, on any store page, click it to add that product to one of your lists. (On a phone, use your browser&apos;s Share button and pick Wishes.)
+            </p>
+            <div><Bookmarklet origin={await siteOrigin()} /></div>
+            <p className="tiny muted m0">Can&apos;t see a bookmarks bar? Press Ctrl+Shift+B (Cmd+Shift+B on a Mac).</p>
           </section>
           <form action={saveAccount} className="card stack">
             <h2>You</h2>
