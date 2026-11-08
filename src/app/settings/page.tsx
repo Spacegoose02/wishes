@@ -7,7 +7,7 @@ import { deleteProfile, resetCalendarLink, rollAvatar, saveAccount, saveAlerts, 
 import { mailEnabled } from "@/lib/mail";
 import { pushDeviceCount, vapidPublicKey } from "@/lib/push";
 import { PushToggle } from "@/components/PushToggle";
-import { Bookmarklet } from "@/components/Bookmarklet";
+import { BookmarkletLink } from "@/components/BookmarkletLink";
 import { CopyButton } from "@/components/CopyButton";
 import { siteOrigin } from "@/lib/origin";
 import { AvatarPicker, parseCollection } from "@/components/AvatarPicker";
@@ -137,6 +137,19 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
               <p className="tiny muted m0 mt-6">Each badge earns a golden roll: Rare or better, guaranteed.</p>
             </div>
           </section>
+          <section id="bookmark" className="card stack">
+            <h2 className="m0">🔖 Add to Wishes button</h2>
+            <p className="small muted m0">
+              Some stores, like Kohl&apos;s, won&apos;t let Wishes look up their links. This button sidesteps that: it sends the
+              product page you already have open straight to Wishes, so the name, price and picture fill in.
+            </p>
+            <div><BookmarkletLink /></div>
+            <ol className="small m0">
+              <li>Drag the button up to your browser&apos;s bookmarks bar. (No bar? Press Ctrl+Shift+B, or ⌘+Shift+B on a Mac.)</li>
+              <li>On any store&apos;s product page, click it. Wishes opens in a new tab with the wish ready to add.</li>
+            </ol>
+            <p className="tiny muted m0">On a phone, use your browser&apos;s Share button and pick Wishes instead.</p>
+          </section>
           <section id="calendar" className="card stack">
             <h2 className="m0">📅 Calendar feed</h2>
             <p className="small muted m0">Birthdays and list dates you can see, in your phone&apos;s calendar. Keep the link to yourself.</p>
@@ -151,14 +164,6 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
             ) : (
               <form action={resetCalendarLink}><SubmitButton className="btn small secondary">Turn on calendar feed</SubmitButton></form>
             )}
-          </section>
-          <section id="bookmark" className="card stack">
-            <h2 className="m0">🔖 Add from any site</h2>
-            <p className="small muted m0">
-              On a computer, drag this button up to your bookmarks bar. Then, on any store page, click it to add that product to one of your lists. (On a phone, use your browser&apos;s Share button and pick Wishes.)
-            </p>
-            <div><Bookmarklet origin={await siteOrigin()} /></div>
-            <p className="tiny muted m0">Can&apos;t see a bookmarks bar? Press Ctrl+Shift+B (Cmd+Shift+B on a Mac).</p>
           </section>
           <section id="export" className="card stack">
             <h2 className="m0">📦 Download your lists</h2>

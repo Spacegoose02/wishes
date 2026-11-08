@@ -1,6 +1,6 @@
 import { all } from "@/lib/db";
 import { aiConfig, CLAUDE_MODELS, PROVIDERS } from "@/lib/ai";
-import { webSearchEnabled } from "@/lib/bandit";
+import { webSearchEnabled } from "@/lib/baxter";
 import { dailyCap, monthUsage } from "@/lib/chatstore";
 import { oidcConfig } from "@/lib/oidc";
 import type { User } from "@/lib/types";
@@ -42,9 +42,9 @@ export function AdminPanel({ me, reset }: { me: User; reset?: { userId: number; 
         </div>
         <label className="inline"><input type="checkbox" name="clear_key" /> Clear saved key</label>
         <p className="tiny muted m0">Defaults: Claude {PROVIDERS[1].defaultModel}, OpenAI {PROVIDERS[2].defaultModel}, Gemini {PROVIDERS[3].defaultModel}. Local works with Ollama or LM Studio&apos;s OpenAI-compatible endpoint.</p>
-        <h3 className="m0 mt-12">🦝 Bandit chat</h3>
+        <h3 className="m0 mt-12">🦝 Baxter chat</h3>
         <label className="inline">
-          <input type="checkbox" name="web_search" defaultChecked={webSearchEnabled()} /> Let Bandit search the web for current products and prices (Claude only, about 1¢ per search)
+          <input type="checkbox" name="web_search" defaultChecked={webSearchEnabled()} /> Let Baxter search the web for current products and prices (Claude only, about 1¢ per search)
         </label>
         <label>Messages per person per day (0 for no limit)
           <input name="chat_daily_cap" type="number" min={0} max={10000} defaultValue={dailyCap()} />

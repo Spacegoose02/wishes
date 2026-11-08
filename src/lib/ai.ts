@@ -145,7 +145,7 @@ export class AiError extends Error {}
 export function friendlyError(e: unknown): string {
   if (e instanceof AiError) return e.message;
   if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return "The Claude API key isn't working. An admin can check it in Settings → Server.";
-  if (e instanceof Anthropic.RateLimitError) return "Bandit is answering a lot of questions right now. Try again in a minute.";
+  if (e instanceof Anthropic.RateLimitError) return "Baxter is answering a lot of questions right now. Try again in a minute.";
   if (e instanceof Anthropic.NotFoundError) return "That AI model isn't available. An admin can pick another in Settings → Server.";
   if (e instanceof Anthropic.APIConnectionError) return "Couldn't reach Claude. Check the server's internet connection.";
   if (e instanceof Anthropic.APIError && (e.status === 529 || (e.status ?? 0) >= 500)) return "Claude is busy right now. Try again in a moment.";
@@ -173,7 +173,7 @@ async function claude(c: AiConfig, system: string, turns: ChatTurn[], schema?: R
 
 // One entry point for every provider. Claude gets a strict JSON schema when one is given;
 // the others are asked for JSON in the prompt.
-// A signal lets the caller stop the request (e.g. Bandit's Stop button).
+// A signal lets the caller stop the request (e.g. Baxter's Stop button).
 export async function converse(system: string, turns: ChatTurn[], opts: { json?: boolean; schema?: Record<string, unknown>; signal?: AbortSignal } = {}): Promise<string> {
   const c = aiConfig();
   switch (c.provider) {

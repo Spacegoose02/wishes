@@ -7,12 +7,12 @@ import { bestMatches, searchStores } from "@/lib/scrape/search";
 import { guessCategory, validCategory } from "@/lib/categories";
 import { describeProfile, profileAge } from "@/lib/profile";
 import { generateIdeas } from "@/lib/ai";
-import type { Profile } from "@/lib/types";
+import { listProfile } from "@/lib/access";
 import { s, n, ownList, isSearchLink } from "./_shared";
 
 export async function requestSuggestions(form: FormData) {
   const { list } = await ownList(n(form, "list_id"));
-  const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", list.profile_id)!;
+  const profile = listProfile(list.profile_id)!;
   const existing = all<{ title: string }>("SELECT title FROM items WHERE list_id = ?", list.id).map((r) => r.title);
   try {
     const { ideas, source } = await generateIdeas({

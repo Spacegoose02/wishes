@@ -1,19 +1,19 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { testDb } from "./helpers";
-import type * as Bandit from "@/lib/bandit";
+import type * as Baxter from "@/lib/baxter";
 import type * as Store from "@/lib/chatstore";
 import type * as GiftChat from "@/lib/giftchat";
 import type * as Ai from "@/lib/ai";
 
 let t: Awaited<ReturnType<typeof testDb>>;
-let b: typeof Bandit;
+let b: typeof Baxter;
 let cs: typeof Store;
 let gc: typeof GiftChat;
 let estimateCost: typeof Ai.estimateCost;
 
 beforeAll(async () => {
   t = await testDb();
-  b = await import("@/lib/bandit");
+  b = await import("@/lib/baxter");
   cs = await import("@/lib/chatstore");
   gc = await import("@/lib/giftchat");
   ({ estimateCost } = await import("@/lib/ai"));
@@ -21,7 +21,7 @@ beforeAll(async () => {
 
 const usage = { input: 1_000_000, output: 100_000, cacheRead: 0, cacheWrite: 0, webSearches: 0 };
 
-describe("Bandit's tools", () => {
+describe("Baxter's tools", () => {
   it("turns suggest_gifts input into cards, dropping junk and capping at 8", () => {
     const gifts = [{ title: "LEGO Bonsai 10281", why: "Calm build", price: 49.99, store: "Amazon", search: "lego bonsai", category: "toys" }, { title: "  " }, null];
     const ideas = b.ideasFromTool({ gifts: [...gifts, ...Array(10).fill(gifts[0])] });
@@ -36,7 +36,7 @@ describe("Bandit's tools", () => {
     expect(b.tipFromTool({ likes: " birds ", dislikes: "", note: "" })).toEqual({ likes: "birds", dislikes: undefined, note: undefined });
   });
 
-  it("replays earlier cards as a note so Bandit remembers them", () => {
+  it("replays earlier cards as a note so Baxter remembers them", () => {
     expect(b.replayTurn("Try these!", [{ title: "Kite", why: "" }, { title: "Yo-yo", why: "" }])).toBe("Try these!\n\n[Shown to the shopper as gift cards: Kite; Yo-yo]");
     expect(b.replayTurn("Hi", [])).toBe("Hi");
   });

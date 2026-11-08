@@ -1,5 +1,5 @@
 import "server-only";
-import { adapters, storeFromHost } from "./stores";
+import { adapters, storeFromHost, type StoreKey } from "./stores";
 import { decodeEntities, parseGeneric } from "./generic";
 import { getSetting } from "../db";
 import { assertPublicUrl, PrivateAddressError, readText, safeFetch } from "./net";
@@ -163,16 +163,31 @@ export async function fetchProduct(rawUrl: string): Promise<ProductInfo> {
     return { ...base(), title: titleFromPath(url), problem: "blocked", blocked: true };
   }
 
-  if (isBotWall(html) || status === 403 || status === 429 || status === 503) {
-    return { ...base(), title: titleFromPath(url), problem: "blocked", blocked: true };
+  return readProduct(html, status, url, store.key, base());
+}
+
+// A product page the person's own browser already loaded (the "Add to Wishes" bookmark).
+// Nothing is fetched, so a store's bot wall never gets a say.
+export function parseProduct(rawUrl: string, html: string): ProductInfo {
+  const parsed = normalizeUrl(rawUrl);
+  if (!parsed) throw new Error("That doesn't look like a link.");
+  const url = canonical(parsed);
+  const store = storeFromHost(url.hostname);
+  // Seen by a person, so no bot-wall check: script names like px-captcha sit on normal pages too.
+  return readProduct(html.slice(0, 4_000_000), 200, url, store.key, { store: store.name, url: parsed.toString() }, false);
+}
+
+function readProduct(html: string, status: number, url: URL, storeKey: StoreKey, base: ProductInfo, checkWall = true): ProductInfo {
+  if ((checkWall && isBotWall(html)) || status === 403 || status === 429 || status === 503) {
+    return { ...base, title: titleFromPath(url), problem: "blocked", blocked: true };
   }
   if (status === 404 || status === 410 || MISSING.test(pageTitle(html))) {
-    return { ...base(), title: titleFromPath(url), problem: "missing" };
+    return { ...base, title: titleFromPath(url), problem: "missing" };
   }
   const generic = parseGeneric(html);
-  const specific = adapters[store.key]?.(html) ?? {};
-  const merged: ProductInfo = { ...base(), ...stripEmpty(generic), ...stripEmpty(specific) };
-  if (store.key === "amazon" && !merged.price_cents && /primary-availability-message[^>]*>\s*(Currently unavailable|Temporarily out of stock)|>\s*Currently unavailable\.\s*</i.test(html)) {
+  const specific = adapters[storeKey]?.(html) ?? {};
+  const merged: ProductInfo = { ...base, ...stripEmpty(generic), ...stripEmpty(specific) };
+  if (storeKey === "amazon" && !merged.price_cents && /primary-availability-message[^>]*>\s*(Currently unavailable|Temporarily out of stock)|>\s*Currently unavailable\.\s*</i.test(html)) {
     merged.problem = "unavailable";
   }
   if (!merged.title) merged.title = titleFromPath(url);

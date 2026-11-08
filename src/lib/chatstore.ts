@@ -37,7 +37,7 @@ export function addAssistantMessage(listId: number, userId: number, r: { text: s
   return Number(run("INSERT INTO chat_messages (list_id, user_id, role, content, meta) VALUES (?, ?, 'assistant', ?, ?)", listId, userId, r.text, JSON.stringify(meta)).lastInsertRowid);
 }
 
-// One row per message sent to Bandit, kept when a chat is erased. Counts toward the daily
+// One row per message sent to Baxter, kept when a chat is erased. Counts toward the daily
 // limit from the moment it's sent; usage is filled in once the reply is done.
 export function logTurn(userId: number): number {
   return Number(run("INSERT INTO chat_usage (user_id) VALUES (?)", userId).lastInsertRowid);
@@ -56,21 +56,21 @@ export function dropTurn(turnId: number) {
 }
 
 export const DEFAULT_DAILY_CAP = 100;
-// Messages a person can send Bandit per 24 hours. 0 means no limit.
+// Messages a person can send Baxter per 24 hours. 0 means no limit.
 export function dailyCap(): number {
   const raw = getSetting("chat_daily_cap");
   const v = Number(raw);
   return raw && Number.isInteger(v) && v >= 0 ? v : DEFAULT_DAILY_CAP;
 }
 
-// Messages this person sent Bandit in the last 24 hours, across all lists.
+// Messages this person sent Baxter in the last 24 hours, across all lists.
 export function sentToday(userId: number): number {
   return get<{ n: number }>("SELECT COUNT(*) AS n FROM chat_usage WHERE user_id = ? AND created_at > unixepoch() - 86400", userId)!.n;
 }
 
 export type MonthUsage = { replies: number; cost: number; cacheShare: number; byModel: { model: string; replies: number; cost: number }[] };
 
-// Bandit's estimated spend since the first of this month, for the Admin readout.
+// Baxter's estimated spend since the first of this month, for the Admin readout.
 export function monthUsage(now = new Date()): MonthUsage {
   const since = Math.floor(new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000);
   const rows = all<{ model: string; replies: number; input: number; output: number; cacheRead: number; cacheWrite: number; webSearches: number }>(

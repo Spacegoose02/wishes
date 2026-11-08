@@ -6,12 +6,12 @@ import { CATEGORIES } from "./categories";
 import { SEARCH_STORES } from "./scrape/stores";
 import { parseReply, type ChatIdea, type ProfileTip } from "./giftchat";
 
-// Bandit's chat engine: streams a reply, collects gift cards and profile tips, reports usage.
+// Baxter's chat engine: streams a reply, collects gift cards and profile tips, reports usage.
 // Claude gets tools, prompt caching, optional web search and a refusal fallback; other
 // providers get the whole reply at once with the older fenced-block format.
 
-export type BanditReply = { text: string; ideas: ChatIdea[]; tip?: ProfileTip; usage: Usage; model: string; stopped?: boolean };
-export type BanditRequest = { stable: string; context: string; turns: ChatTurn[]; onText: (delta: string) => void; signal?: AbortSignal };
+export type BaxterReply = { text: string; ideas: ChatIdea[]; tip?: ProfileTip; usage: Usage; model: string; stopped?: boolean };
+export type BaxterRequest = { stable: string; context: string; turns: ChatTurn[]; onText: (delta: string) => void; signal?: AbortSignal };
 
 const str = { type: "string" } as const;
 
@@ -85,7 +85,7 @@ export function tipFromTool(input: unknown): ProfileTip | undefined {
 }
 
 // How an earlier assistant turn is replayed: its text, plus a note of the cards it showed, so
-// Bandit remembers what it already suggested without replaying tool calls.
+// Baxter remembers what it already suggested without replaying tool calls.
 export function replayTurn(text: string, ideas: ChatIdea[]): string {
   return ideas.length ? `${text}\n\n[Shown to the shopper as gift cards: ${ideas.map((i) => i.title).join("; ")}]` : text;
 }
@@ -101,7 +101,7 @@ export function historyWindow<T extends { role: string }>(turns: T[], max = 200,
 
 const MAX_ROUNDS = 4;
 
-async function claudeReply(req: BanditRequest): Promise<BanditReply> {
+async function claudeReply(req: BaxterRequest): Promise<BaxterReply> {
   const c = aiConfig();
   const client = claudeClient(c.apiKey);
   const web = webSearchEnabled();
@@ -121,7 +121,7 @@ async function claudeReply(req: BanditRequest): Promise<BanditReply> {
         fallbacks: "default",
         thinking: { type: "adaptive" },
         output_config: { effort: "medium" },
-        // Caches the conversation so far; the system block below caches Bandit's fixed brief.
+        // Caches the conversation so far; the system block below caches Baxter's fixed brief.
         cache_control: { type: "ephemeral" },
         system: [
           { type: "text", text: req.stable, cache_control: { type: "ephemeral" } },
@@ -158,7 +158,7 @@ async function claudeReply(req: BanditRequest): Promise<BanditReply> {
       if (t.name === "remember_about_person") tip = tipFromTool(t.input) ?? tip;
     }
 
-    if (msg.stop_reason === "refusal") throw new AiError("Bandit can't help with that one. Try asking another way.");
+    if (msg.stop_reason === "refusal") throw new AiError("Baxter can't help with that one. Try asking another way.");
     // Web search paused a long turn: send it back as-is to let Claude carry on.
     if (msg.stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: msg.content });
@@ -178,17 +178,17 @@ async function claudeReply(req: BanditRequest): Promise<BanditReply> {
   return { text, ideas, tip, usage, model };
 }
 
-async function otherReply(req: BanditRequest): Promise<BanditReply> {
+async function otherReply(req: BaxterRequest): Promise<BaxterReply> {
   const raw = await converse(`${req.stable}\n\n${req.context}`, req.turns, { signal: req.signal });
   const { body, ideas, tip } = parseReply(raw);
   req.onText(body);
   return { text: body, ideas, tip, usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, webSearches: 0 }, model: aiConfig().model };
 }
 
-export function banditMode(): "tools" | "fenced" {
+export function baxterMode(): "tools" | "fenced" {
   return aiConfig().provider === "anthropic" ? "tools" : "fenced";
 }
 
-export async function banditReply(req: BanditRequest): Promise<BanditReply> {
-  return banditMode() === "tools" ? claudeReply(req) : otherReply(req);
+export async function baxterReply(req: BaxterRequest): Promise<BaxterReply> {
+  return baxterMode() === "tools" ? claudeReply(req) : otherReply(req);
 }

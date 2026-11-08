@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { get, run, tx } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canEditProfile, getList, isManager, isRecipient, listManagers } from "@/lib/access";
-import { fetchHtml, fetchProduct, type ProductInfo } from "@/lib/scrape";
+import { fetchHtml, fetchProduct, parseProduct, type ProductInfo } from "@/lib/scrape";
+import { clipParams } from "@/lib/clip";
 import { compareItem } from "@/lib/compare";
 import { formatMoney, parseMoney } from "@/lib/format";
 import { notify } from "@/lib/notify";
@@ -25,6 +26,19 @@ const MAX_BULK_LINKS = 15;
 export async function autofill(url: string): Promise<{ ok: true; info: ProductInfo & { category: string } } | { ok: false; error: string }> {
   await requireUser();
   return doAutofill(url);
+}
+
+// The "Add to Wishes" bookmark sends the product page the person has open; this reads it and
+// says where the add form lives, already filled in.
+export async function clipPage(url: string, html: string): Promise<{ ok: true; next: string } | { ok: false; error: string }> {
+  await requireUser();
+  if (typeof url !== "string" || typeof html !== "string") return { ok: false, error: "Nothing came through from that page." };
+  try {
+    const info = parseProduct(url, html);
+    return { ok: true, next: `/share?${clipParams({ ...info, category: guessCategory(info.title ?? "", info.store) })}` };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
 }
 
 export async function addItem(form: FormData) {

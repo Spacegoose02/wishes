@@ -83,8 +83,8 @@ async function* events(res: Response): AsyncGenerator<StreamEvent> {
   }
 }
 
-export function ChatBox({ listId, initial, name, starters, canManage, canEditProfile, actions }: {
-  listId: number; initial: ChatView[]; name: string; starters: string[]; canManage: boolean; canEditProfile: boolean; actions: Actions;
+export function ChatBox({ listId, initial, name, knowsAbout = false, starters, canManage, canEditProfile, actions }: {
+  listId: number; initial: ChatView[]; name: string; knowsAbout?: boolean; starters: string[]; canManage: boolean; canEditProfile: boolean; actions: Actions;
 }) {
   const [messages, setMessages] = useState(initial);
   const [draft, setDraft] = useState("");
@@ -152,7 +152,7 @@ export function ChatBox({ listId, initial, name, starters, canManage, canEditPro
       });
       if (!res.ok || !res.body) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        return fail(body?.error ?? "Bandit couldn't answer just now. Try again in a moment.");
+        return fail(body?.error ?? "Baxter couldn't answer just now. Try again in a moment.");
       }
       let finished = false;
       for await (const ev of events(res)) {
@@ -167,13 +167,13 @@ export function ChatBox({ listId, initial, name, starters, canManage, canEditPro
           fail(ev.error);
         }
       }
-      if (!finished) fail("The connection dropped before Bandit finished. Try again?");
+      if (!finished) fail("The connection dropped before Baxter finished. Try again?");
     } catch {
       if (ctrl.signal.aborted) {
-        // The server keeps what Bandit had written so far; show the same here.
+        // The server keeps what Baxter had written so far; show the same here.
         if (streamed.trim()) setMessages((m) => [...m, { id: --tempIds.current, role: "assistant", body: streamed, ideas: [], stopped: true }]);
         else setMessages((m) => m.filter((x) => x.id !== tempId));
-      } else fail("Couldn't reach Bandit. Check your connection and try again.");
+      } else fail("Couldn't reach Baxter. Check your connection and try again.");
     } finally {
       abort.current = null;
       setLive(null);
@@ -204,7 +204,7 @@ export function ChatBox({ listId, initial, name, starters, canManage, canEditPro
       <div className="chat-log" ref={log} role="log" aria-label={`Chat with ${AGENT_NAME}`}>
         {messages.length === 0 && (
           <Helper><div className="chat-msg assistant">
-            <p>Hi, I&apos;m {AGENT_NAME}! <span aria-hidden="true">🦝🎁</span> I&apos;m a raccoon with a nose for great gifts. Tell me a bit about what {name} is into, or ask me anything, and we&apos;ll find something perfect together.</p>
+            <p>Hi, I&apos;m {AGENT_NAME}! <span aria-hidden="true">🦝🎁</span> I&apos;m a raccoon with a nose for great gifts. {knowsAbout ? <>I&apos;ve read what the family shared about {name}, so ask me for ideas or tell me anything new.</> : <>Tell me a bit about what {name} is into, or ask me anything, and we&apos;ll find something perfect together.</>}</p>
           </div></Helper>
         )}
         {messages.map((m) => {
