@@ -35,6 +35,7 @@ export default async function LoginPage({ searchParams }: { searchParams: SP }) 
             <label>Email<input name="email" type="email" autoComplete="email" required /></label>
             <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
             <SubmitButton className="btn block">Sign in</SubmitButton>
+            <p className="small text-center m0"><Link href="/forgot">Forgot your password?</Link></p>
           </form>
         )}
         {signupAllowed() && passwordOn && (

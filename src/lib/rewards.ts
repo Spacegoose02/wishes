@@ -1,6 +1,6 @@
 import "server-only";
 import { get, run } from "./db";
-import { notify } from "./prices";
+import { notify } from "./notify";
 
 // Badges for nice things people do. Each one earns a golden critter roll, once.
 

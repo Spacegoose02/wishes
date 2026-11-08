@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
-import { daysUntil, formatMoney } from "@/lib/format";
+import { daysUntil, formatMoney, formatDate } from "@/lib/format";
 import { budgetPeople, budgetsFor, spendByPerson, toBuy } from "@/lib/shopping";
 import { saveBudget } from "../actions/purchases";
 import { Flash, type SP } from "@/components/Flash";
@@ -123,7 +123,7 @@ export default async function MyShoppingPage({ searchParams }: { searchParams: S
                   {r.quantity > 1 ? `${r.quantity} × ` : ""}{r.item_title} <span className="muted">for {r.for_name}</span>
                 </div>
                 <div className="tiny muted">
-                  <Link href={`/lists/${r.list_id}`}>{r.list_title}</Link> · {new Date(r.created_at * 1000).toLocaleDateString()}
+                  <Link href={`/lists/${r.list_id}`}>{r.list_title}</Link> · {formatDate(r.created_at)}
                   {r.store ? ` · ${r.store}` : ""}{r.status === "pending" ? " · waiting for review" : r.status === "rejected" ? " · not confirmed" : ""}
                 </div>
                 {r.status !== "rejected" && <Tracking p={r} back="/purchases" />}

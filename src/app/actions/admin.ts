@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import { run, setSetting } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { PROVIDERS, type AiProvider } from "@/lib/ai";
+import { mailFrom, sendMail } from "@/lib/mail";
+import { ADMIN_RESET_HOURS, createReset } from "@/lib/resets";
+import { setRegion } from "@/lib/format";
+import { CURRENCIES, LOCALES } from "@/lib/regions";
 import { s, n } from "./_shared";
 
 export async function saveAiSettings(form: FormData) {
@@ -39,5 +43,43 @@ export async function adminUser(form: FormData) {
   if (action === "delete") run("DELETE FROM users WHERE id = ?", uid);
   if (action === "toggle-admin") run("UPDATE users SET is_admin = 1 - is_admin WHERE id = ?", uid);
   if (action === "reset-2fa") run("UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?", uid);
+  if (action === "reset-link") {
+    const token = createReset(uid, ADMIN_RESET_HOURS);
+    redirect(`/settings?tab=admin&reset_user=${uid}&reset_token=${encodeURIComponent(token)}#people`);
+  }
   redirect("/settings?tab=admin&ok=Done");
+}
+
+export async function saveMailSettings(form: FormData) {
+  await requireAdmin();
+  const url = s(form, "smtp_url");
+  const from = s(form, "smtp_from");
+  const site = s(form, "site_url").replace(/\/$/, "");
+  if (url && !/^smtps?:\/\//.test(url)) redirect("/settings?tab=admin&error=" + encodeURIComponent("The SMTP address should start with smtp:// or smtps://") + "#email");
+  if (site && !/^https?:\/\//.test(site)) redirect("/settings?tab=admin&error=" + encodeURIComponent("The site address should start with http:// or https://") + "#email");
+  if (url || form.get("clear_smtp")) setSetting("smtp_url", form.get("clear_smtp") ? "" : url);
+  setSetting("smtp_from", from);
+  setSetting("site_url", site);
+  redirect("/settings?tab=admin&ok=Email+settings+saved#email");
+}
+
+export async function sendTestEmail() {
+  const admin = await requireAdmin();
+  try {
+    await sendMail(admin.email, "Wishes: test email", { text: `It works! Wishes can send email from ${mailFrom()}.` });
+  } catch (e) {
+    redirect("/settings?tab=admin&error=" + encodeURIComponent(`Couldn't send: ${(e as Error).message}`) + "#email");
+  }
+  redirect("/settings?tab=admin&ok=" + encodeURIComponent(`Sent a test email to ${admin.email}`) + "#email");
+}
+
+export async function saveRegion(form: FormData) {
+  await requireAdmin();
+  const currency = s(form, "currency").toUpperCase();
+  const locale = s(form, "locale");
+  if (!CURRENCIES.some((c) => c.id === currency) || !LOCALES.some((l) => l.id === locale)) redirect("/settings?tab=admin&error=Pick+from+the+lists#region");
+  setSetting("currency", currency);
+  setSetting("locale", locale);
+  setRegion({ currency, locale });
+  redirect("/settings?tab=admin&ok=" + encodeURIComponent("Money and dates updated") + "#region");
 }

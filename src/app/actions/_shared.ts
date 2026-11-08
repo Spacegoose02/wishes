@@ -2,7 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { get, run } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { getList, isManager, listAccess, familyPeople } from "@/lib/access";
+import { getList, isManager, isRecipient, listAccess, familyPeople, type ListWithOwner } from "@/lib/access";
 import { randomToken } from "@/lib/crypto";
 import { fetchProduct, normalizeUrl, type ProductInfo } from "@/lib/scrape";
 import { storeFromHost } from "@/lib/scrape/stores";
@@ -39,6 +39,11 @@ export async function viewList(listId: number) {
   const list = getList(listId);
   if (!list || listAccess(user, list) === "none") redirect("/?error=List+not+found");
   return { user, list };
+}
+
+// A surprise gift doesn't exist as far as the person it's for can tell, even if they guess its id.
+export function noSpoil(item: Pick<Item, "surprise">, user: User, list: ListWithOwner) {
+  if (item.surprise && isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
 }
 
 export function inviteCode(): string {
@@ -94,12 +99,15 @@ export async function withPicture<F extends { image_url: string }>(form: FormDat
   return pic ? { ...f, image_url: pic.url } : f;
 }
 
-export function insertItem(listId: number, f: Omit<ReturnType<typeof itemFields>, "kind"> & { kind?: string }, guest: string | null = null, needsApproval = false): number {
+export function insertItem(
+  listId: number, f: Omit<ReturnType<typeof itemFields>, "kind"> & { kind?: string }, guest: string | null = null, needsApproval = false,
+  opts: { addedBy?: number; surprise?: boolean } = {},
+): number {
   const r = run(
-    `INSERT INTO items (list_id, title, url, store, price_cents, image_url, notes, priority, quantity, created_by_guest, price_checked_at, category, variant, color, size, needs_approval, kind)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO items (list_id, title, url, store, price_cents, image_url, notes, priority, quantity, created_by_guest, price_checked_at, category, variant, color, size, needs_approval, kind, added_by, surprise)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     listId, f.title, f.url, f.store, f.price, f.image_url, f.notes, f.priority, f.quantity, guest,
-    null, f.category, f.variant, f.color, f.size, needsApproval ? 1 : 0, f.kind ?? "product",
+    null, f.category, f.variant, f.color, f.size, needsApproval ? 1 : 0, f.kind ?? "product", opts.addedBy ?? null, opts.surprise ? 1 : 0,
   );
   const id = Number(r.lastInsertRowid);
   if (f.price) run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", id, f.price, f.store);

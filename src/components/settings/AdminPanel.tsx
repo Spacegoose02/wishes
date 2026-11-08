@@ -4,12 +4,17 @@ import { webSearchEnabled } from "@/lib/bandit";
 import { dailyCap, monthUsage } from "@/lib/chatstore";
 import { oidcConfig } from "@/lib/oidc";
 import type { User } from "@/lib/types";
-import { adminUser, saveAiSettings, saveScrapeSettings } from "@/app/actions/admin";
+import { adminUser, saveAiSettings, saveMailSettings, saveRegion, saveScrapeSettings, sendTestEmail } from "@/app/actions/admin";
+import { describeSmtp, mailEnabled, mailFrom, siteUrl, smtpUrl } from "@/lib/mail";
 import { getSetting } from "@/lib/db";
 import { Avatar } from "@/components/Avatar";
 import { SubmitButton } from "@/components/SubmitButton";
+import { CopyButton } from "@/components/CopyButton";
+import { ADMIN_RESET_HOURS } from "@/lib/resets";
+import { CURRENCIES, LOCALES } from "@/lib/regions";
+import { formatDate, formatMoney, region } from "@/lib/format";
 
-export function AdminPanel({ me }: { me: User }) {
+export function AdminPanel({ me, reset }: { me: User; reset?: { userId: number; link: string } }) {
   const ai = aiConfig();
   const oidc = oidcConfig();
   const usage = monthUsage();
@@ -63,6 +68,46 @@ export function AdminPanel({ me }: { me: User }) {
         <SubmitButton className="btn">Save</SubmitButton>
       </form>
 
+      <form id="region" action={saveRegion} className="card stack">
+        <h2>🌍 Money and dates</h2>
+        <p className="small muted m0">How prices and dates look for everyone on this server. Right now: {formatMoney(123450)} · {formatDate("2026-12-25")}.</p>
+        <div className="form-grid">
+          <label>Currency
+            <select name="currency" defaultValue={region().currency}>
+              {CURRENCIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </label>
+          <label>Region
+            <select name="locale" defaultValue={region().locale}>
+              {LOCALES.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+            </select>
+          </label>
+        </div>
+        <p className="tiny muted m0">Prices already saved keep their numbers; only the symbol and style change. The app&apos;s words stay in English for now.</p>
+        <SubmitButton className="btn">Save</SubmitButton>
+      </form>
+
+      <section id="email" className="card stack">
+        <h2>✉️ Email</h2>
+        <p className="small muted m0">
+          Lets Wishes email alerts (price drops, reminders, thank-yous, Secret Santa) and password reset links. Any SMTP server works: your email provider, Mailgun, Postmark, or your own.
+        </p>
+        <p className="small m0">Status: {mailEnabled() ? <strong>on, sending through {describeSmtp(smtpUrl())}</strong> : <span className="muted">off</span>}</p>
+        <form action={saveMailSettings} className="stack">
+          <label>SMTP address
+            <input name="smtp_url" type="password" autoComplete="off" placeholder={smtpUrl() ? "•••••••• saved (leave blank to keep)" : "smtps://user%40example.com:app-password@smtp.example.com:465"} />
+          </label>
+          <p className="tiny muted m0">Put the username and password in the address. Write @ in the username as %40. Use port 465 with smtps:// or 587 with smtp://.</p>
+          <label className="inline"><input type="checkbox" name="clear_smtp" /> Clear saved SMTP address</label>
+          <div className="form-grid">
+            <label>From<input name="smtp_from" defaultValue={mailFrom()} placeholder="Wishes <wishes@example.com>" /></label>
+            <label>Site address (for links in emails)<input name="site_url" defaultValue={getSetting("site_url") || process.env.APP_URL || ""} placeholder={siteUrl()} /></label>
+          </div>
+          <SubmitButton className="btn">Save email settings</SubmitButton>
+        </form>
+        {mailEnabled() && <form action={sendTestEmail}><SubmitButton className="btn small secondary" pendingLabel="Sending…">Send me a test email</SubmitButton></form>}
+      </section>
+
       <section className="card stack">
         <h2>Sign-in</h2>
         <p className="small m0">
@@ -72,8 +117,16 @@ export function AdminPanel({ me }: { me: User }) {
         <p className="small m0">Proxy header sign-in: <strong>{process.env.TRUSTED_EMAIL_HEADER ? `on (${process.env.TRUSTED_EMAIL_HEADER})` : "off"}</strong> (TRUSTED_EMAIL_HEADER)</p>
       </section>
 
-      <section className="card">
+      <section id="people" className="card">
         <h2>People ({users.length})</h2>
+        {reset && (
+          <div className="card stack mb-6" role="status">
+            <p className="small m0">
+              <strong>Reset link for {users.find((u) => u.id === reset.userId)?.name ?? "them"}</strong>. Send it to them privately. It works once, for {ADMIN_RESET_HOURS} hours, and won&apos;t be shown again.
+            </p>
+            <div className="row nowrap"><input readOnly value={reset.link} aria-label="Reset link" /><CopyButton text={reset.link} /></div>
+          </div>
+        )}
         <div className="table-wrap">
           <table className="table">
             <tbody>
@@ -91,12 +144,12 @@ export function AdminPanel({ me }: { me: User }) {
                   <td className="text-right">
                     {u.id !== me.id && (
                       <div className="row justify-end gap-6">
-                        {(["toggle-admin", "reset-2fa", "delete"] as const).map((a) => (
+                        {(["toggle-admin", "reset-link", "reset-2fa", "delete"] as const).map((a) => (
                           <form key={a} action={adminUser}>
                             <input type="hidden" name="user_id" value={u.id} />
                             <input type="hidden" name="action" value={a} />
                             <SubmitButton className={`btn small ${a === "delete" ? "danger" : "ghost"}`} confirm={a === "delete" ? `Delete ${u.name}?` : a === "reset-2fa" ? "Reset their 2FA?" : undefined}>
-                              {a === "toggle-admin" ? (u.is_admin ? "Remove admin" : "Make admin") : a === "reset-2fa" ? "Reset 2FA" : "Delete"}
+                              {a === "toggle-admin" ? (u.is_admin ? "Remove admin" : "Make admin") : a === "reset-link" ? "Password link" : a === "reset-2fa" ? "Reset 2FA" : "Delete"}
                             </SubmitButton>
                           </form>
                         ))}

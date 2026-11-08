@@ -1,7 +1,7 @@
 import "server-only";
 import { all, get, run } from "./db";
 import { daysUntil } from "./format";
-import { notify } from "./prices";
+import { notify } from "./notify";
 import type { ListWithOwner } from "./access";
 
 // After the big day, the list's people get to see what they got and say thanks.

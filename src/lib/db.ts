@@ -2,6 +2,7 @@ import "server-only";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import { setRegion } from "./format";
 
 // Single SQLite file under DATA_DIR (mount /data in Docker / Unraid appdata).
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
@@ -367,6 +368,62 @@ const MIGRATIONS: string[] = [
   CREATE INDEX idx_chat_usage_user_time ON chat_usage(user_id, created_at);
   CREATE INDEX idx_chat_usage_time ON chat_usage(created_at);
   `,
+  // 23: alerts by email and phone push, and who wants which
+  `
+  ALTER TABLE users ADD COLUMN alert_email INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE users ADD COLUMN alert_push INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE notifications ADD COLUMN count INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE users ADD COLUMN alert_new_wishes INTEGER NOT NULL DEFAULT 1;
+  CREATE TABLE push_subscriptions (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE INDEX idx_push_user ON push_subscriptions(user_id);
+  `,
+  // 24: one-time password reset links (by email, or made by an admin)
+  `
+  CREATE TABLE password_resets (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at INTEGER NOT NULL,
+    used_at INTEGER
+  );
+  `,
+  // 25: surprise gifts, added by shoppers and hidden from the person the list is for
+  `
+  ALTER TABLE items ADD COLUMN surprise INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE items ADD COLUMN added_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+  `,
+  // 26: anonymous questions about a wish ("which color?"), answered by the list's people
+  `
+  CREATE TABLE item_questions (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    asker_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL DEFAULT '',
+    answered_at INTEGER,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE INDEX idx_item_questions_item ON item_questions(item_id);
+  `,
+  // 27: when each person last looked at each list, for "new since your last visit"
+  `
+  CREATE TABLE list_seen (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    seen_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, list_id)
+  );
+  `,
+  // 28: the list owner's own order for their wishes (drag to rank)
+  `
+  ALTER TABLE items ADD COLUMN rank INTEGER;
+  `,
 ];
 
 function open(): DatabaseSync {
@@ -388,6 +445,9 @@ function open(): DatabaseSync {
       throw e;
     }
   }
+  // The household's currency and date style (Settings → Server).
+  const reg = db.prepare("SELECT key, value FROM settings WHERE key IN ('currency', 'locale')").all() as { key: string; value: string }[];
+  setRegion(Object.fromEntries(reg.map((r) => [r.key, r.value])));
   return db;
 }
 

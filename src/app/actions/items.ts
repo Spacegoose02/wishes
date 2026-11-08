@@ -4,15 +4,18 @@ import { revalidatePath } from "next/cache";
 import { get, run, tx } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canEditProfile, getList, isManager, isRecipient, listManagers } from "@/lib/access";
-import { fetchProduct, type ProductInfo } from "@/lib/scrape";
+import { fetchHtml, fetchProduct, type ProductInfo } from "@/lib/scrape";
 import { compareItem } from "@/lib/compare";
 import { formatMoney, parseMoney } from "@/lib/format";
-import { notify } from "@/lib/prices";
-import { approveItem, archiveWish, peopleBuying, restoreWish, setMustHave } from "@/lib/wishes";
+import { notify } from "@/lib/notify";
+import { approveItem, archiveWish, clearRanks, peopleBuying, restoreWish, setMustHave, setRanks } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
 import { checkWatches, setWatch } from "@/lib/watches";
+import { announceWishes } from "@/lib/fresh";
+import { amazonListUrl, MAX_IMPORT, parseAmazonList, wishesFromCsv, type ImportedWish } from "@/lib/importer";
+import { answerQuestion, askQuestion, deleteQuestion, questionOnList } from "@/lib/questions";
 import type { Item, Profile } from "@/lib/types";
-import { s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
+import { noSpoil, s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
 import { guessCategory, validCategory } from "@/lib/categories";
 import { extractUrls, mapLimit } from "@/lib/links";
 import { storeFromHost } from "@/lib/scrape/stores";
@@ -28,7 +31,8 @@ export async function addItem(form: FormData) {
   const { user, list } = await ownList(n(form, "list_id"));
   const f = await withPicture(form, itemFields(form), `/lists/${list.id}`);
   if (!f.title) redirect(`/lists/${list.id}?error=Every+wish+needs+a+name`);
-  insertItem(list.id, f);
+  insertItem(list.id, f, null, false, { addedBy: user.id });
+  announceWishes(list, 1, user.id);
   award(user.id, "first_wish");
   redirect(`/lists/${list.id}?ok=Added`);
 }
@@ -36,7 +40,8 @@ export async function addItem(form: FormData) {
 export async function updateItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
-  const { list } = await ownList(item.list_id);
+  const { user, list } = await ownList(item.list_id);
+  noSpoil(item, user, list);
   const f = await withPicture(form, itemFields(form), `/lists/${list.id}`);
   if (f.price && f.price !== item.price_cents) {
     run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", item.id, f.price, `${f.store} (edited)`);
@@ -53,6 +58,7 @@ export async function deleteItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
   const { user, list } = await ownList(item.list_id);
+  noSpoil(item, user, list);
   // Let anyone getting it know, so a removed wish doesn't just vanish from their shopping.
   const tell = peopleBuying(item).filter((uid) => uid !== user.id && !isRecipient(uid, list));
   run("DELETE FROM items WHERE id = ?", item.id);
@@ -66,6 +72,7 @@ export async function claimItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
   const { user, list } = await viewList(item.list_id);
+  noSpoil(item, user, list);
   if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
   const action = s(form, "action");
   if (action === "claim" && !item.claimed_by && !item.needs_approval) {
@@ -79,7 +86,8 @@ export async function claimItem(form: FormData) {
 export async function refreshItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item || !item.url) redirect("/");
-  const { list } = await viewList(item.list_id);
+  const { user, list } = await viewList(item.list_id);
+  noSpoil(item, user, list);
   const back = (key: "ok" | "error", msg: string) => redirect(`/lists/${list.id}?${key}=${encodeURIComponent(msg)}#item-${item.id}`);
   let info: ProductInfo;
   try {
@@ -113,6 +121,7 @@ export async function moveItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
   const { user, list: from } = await ownList(item.list_id);
+  noSpoil(item, user, from);
   const to = getList(n(form, "to_list_id"));
   if (!to || !isManager(user.id, to)) redirect(`/lists/${from.id}?error=Pick+a+list+you+manage#item-${item.id}`);
   tx(() => {
@@ -125,7 +134,8 @@ export async function moveItem(form: FormData) {
 export async function compareStores(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
-  const { list } = await viewList(item.list_id);
+  const { user, list } = await viewList(item.list_id);
+  noSpoil(item, user, list);
   let count = 0;
   try {
     count = (await compareItem(item)).length;
@@ -139,7 +149,8 @@ export async function compareStores(form: FormData) {
 export async function toggleMustHave(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
-  const { list } = await ownList(item.list_id);
+  const { user, list } = await ownList(item.list_id);
+  noSpoil(item, user, list);
   const r = setMustHave(item, s(form, "action") === "star");
   if (!r.ok) redirect(`/lists/${list.id}?error=${encodeURIComponent(r.error)}#item-${item.id}`);
   revalidatePath(`/lists/${list.id}`);
@@ -155,7 +166,7 @@ export async function kidAddItem(form: FormData) {
   const title = s(form, "title").slice(0, 200);
   if (!title) redirect(`${back}&error=${encodeURIComponent("Tell us what you wish for!")}`);
   const f = await withPicture(form, { ...itemFields(form), title, category: validCategory(s(form, "category")) || "other" }, back);
-  const id = insertItem(list.id, f, null, true);
+  const id = insertItem(list.id, f, null, true, { addedBy: user.id });
   for (const uid of listManagers(list)) {
     notify(uid, "approval", `${profile.name} wished for ${title}. Approve it so shoppers can see it.`, `/lists/${list.id}#item-${id}`);
   }
@@ -165,7 +176,9 @@ export async function kidAddItem(form: FormData) {
 export async function approveWish(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
-  const { list } = await ownList(item.list_id);
+  const { user, list } = await ownList(item.list_id);
+  noSpoil(item, user, list);
+  if (item.needs_approval) announceWishes(list, 1, user.id);
   approveItem(item.id);
   redirect(`/lists/${list.id}?ok=Approved#item-${item.id}`);
 }
@@ -190,8 +203,9 @@ export async function bulkAddItems(form: FormData) {
       notes: "", priority: 2, quantity: 1,
       category: info?.category || guessCategory(info?.title ?? "", store),
       variant: "", color: "", size: "",
-    });
+    }, null, false, { addedBy: user.id });
   });
+  announceWishes(list, urls.length, user.id);
   award(user.id, "first_wish");
   const msg = `Added ${urls.length} ${urls.length === 1 ? "wish" : "wishes"}${thin ? `; ${thin} need a name or price filled in` : ""}`;
   redirect(`/lists/${list.id}?ok=${encodeURIComponent(msg)}`);
@@ -201,7 +215,8 @@ export async function bulkAddItems(form: FormData) {
 export async function archiveItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
-  const { list } = await ownList(item.list_id);
+  const { user, list } = await ownList(item.list_id);
+  noSpoil(item, user, list);
   const reason = s(form, "reason") === "unwanted" ? "unwanted" : "received";
   for (const uid of archiveWish(item, reason)) {
     notify(uid, "unwanted", `${list.profile_name} doesn't want ${item.title} anymore, so no need to get it.`, "/purchases");
@@ -212,7 +227,8 @@ export async function archiveItem(form: FormData) {
 export async function restoreItem(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
-  const { list } = await ownList(item.list_id);
+  const { user, list } = await ownList(item.list_id);
+  noSpoil(item, user, list);
   restoreWish(item.id);
   redirect(`/lists/${list.id}?ok=Back+on+the+list#item-${item.id}`);
 }
@@ -222,9 +238,119 @@ export async function watchPrice(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
   if (!item) redirect("/");
   const { user, list } = await viewList(item.list_id);
+  noSpoil(item, user, list);
   if (item.needs_approval && !isManager(user.id, list)) redirect(`/lists/${list.id}`);
   const target = form.get("stop") ? null : parseMoney(form.get("target"));
   setWatch(user.id, item.id, target);
   if (target && item.price_cents && item.price_cents <= target) checkWatches(item.id, item.price_cents);
   redirect(`/lists/${list.id}?ok=${encodeURIComponent(target ? `We'll tell you when it's ${formatMoney(target)} or less` : "Stopped watching")}#item-${item.id}`);
+}
+
+// A surprise gift: a shopper adds something that isn't on the list (so others don't buy the
+// same thing). Everyone who can see the list sees it, except the person it's for.
+export async function addSurprise(form: FormData) {
+  const { user, list } = await viewList(n(form, "list_id"));
+  if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
+  const f = await withPicture(form, itemFields(form), `/lists/${list.id}`);
+  if (!f.title) redirect(`/lists/${list.id}?error=${encodeURIComponent("Give the surprise a name")}`);
+  const id = insertItem(list.id, f, null, false, { addedBy: user.id, surprise: true });
+  if (form.get("claim")) run("UPDATE items SET claimed_by = ?, claimed_name = ? WHERE id = ?", user.id, user.name, id);
+  redirect(`/lists/${list.id}?ok=${encodeURIComponent(`Surprise added. ${list.profile_name} won't see it.`)}#item-${id}`);
+}
+
+// Whoever added a surprise can take it back off (managers can too, through Remove).
+export async function removeSurprise(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item || !item.surprise) redirect("/");
+  const { user, list } = await viewList(item.list_id);
+  noSpoil(item, user, list);
+  if (item.added_by !== user.id && !isManager(user.id, list)) redirect(`/lists/${list.id}`);
+  const tell = peopleBuying(item).filter((uid) => uid !== user.id && !isRecipient(uid, list));
+  run("DELETE FROM items WHERE id = ?", item.id);
+  for (const uid of tell) notify(uid, "unwanted", `${user.name} took the surprise "${item.title}" off ${list.profile_name}'s list.`, `/lists/${list.id}`);
+  redirect(`/lists/${list.id}?ok=Surprise+removed`);
+}
+
+// Ask about a wish without saying who's asking.
+export async function askAboutItem(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { user, list } = await viewList(item.list_id);
+  noSpoil(item, user, list);
+  if (item.needs_approval && !isManager(user.id, list)) redirect(`/lists/${list.id}`);
+  const id = askQuestion(item, list, user.id, s(form, "question"));
+  redirect(`/lists/${list.id}?${id ? `ok=${encodeURIComponent("Asked! You'll get an alert when they answer.")}` : `error=${encodeURIComponent("Type a question first.")}`}#item-${item.id}`);
+}
+
+export async function answerAboutItem(form: FormData) {
+  const { list } = await ownList(n(form, "list_id"));
+  const ok = answerQuestion(n(form, "question_id"), list, s(form, "answer"));
+  redirect(`/lists/${list.id}?${ok ? "ok=Answered" : "error=Type+an+answer+first"}#item-${n(form, "item_id")}`);
+}
+
+// The asker can take a question back; the list's people can clear one away.
+export async function removeQuestion(form: FormData) {
+  const { user, list } = await viewList(n(form, "list_id"));
+  const q = questionOnList(n(form, "question_id"), list.id);
+  if (q && (q.asker_id === user.id || isManager(user.id, list))) deleteQuestion(q.id);
+  revalidatePath(`/lists/${list.id}`);
+}
+
+// Import a public Amazon wish list, or a spreadsheet (CSV), into this list.
+export async function importWishes(form: FormData) {
+  const { user, list } = await ownList(n(form, "list_id"));
+  const back = (key: "ok" | "error", msg: string) => redirect(`/lists/${list.id}?${key}=${encodeURIComponent(msg)}`);
+  const link = s(form, "amazon");
+  const file = form.get("csv");
+  let wishes: ImportedWish[] = [];
+  if (link) {
+    const start = amazonListUrl(link);
+    if (!start) return back("error", "That isn't an Amazon wish list link. Open the list on Amazon, tap Share, and copy the link.");
+    let next: URL | undefined = start;
+    try {
+      for (let page = 0; next && page < 10 && wishes.length < MAX_IMPORT; page++) {
+        const { html, status }: { html: string; status: number } = await fetchHtml(next);
+        if (status >= 400) break;
+        const r = parseAmazonList(html, next);
+        wishes.push(...r.wishes);
+        next = r.next;
+      }
+    } catch {
+      return back("error", "Couldn't reach Amazon right now. Try again in a bit.");
+    }
+    if (!wishes.length) return back("error", "Couldn't read any wishes from that list. Make sure it's set to Public or Shared on Amazon, or download it as a spreadsheet and import that.");
+  } else if (file instanceof File && file.size > 0) {
+    if (file.size > 2_000_000) return back("error", "That file is too big. Keep it under 2 MB.");
+    wishes = wishesFromCsv(await file.text());
+    if (!wishes.length) return back("error", "Couldn't find any wishes in that file. The first row should have column names like Name, Link and Price.");
+  } else {
+    return back("error", "Paste an Amazon wish list link or pick a spreadsheet file.");
+  }
+  wishes = wishes.slice(0, MAX_IMPORT);
+  tx(() => {
+    for (const w of wishes) {
+      let url = "";
+      try { url = w.url ? new URL(w.url).toString() : ""; } catch { /* leave it off */ }
+      const store = url ? storeFromHost(new URL(url).hostname).name : "";
+      insertItem(list.id, {
+        title: w.title, url, store, price: w.price_cents, image_url: w.image_url, notes: w.notes,
+        priority: w.priority, quantity: w.quantity, category: w.category || guessCategory(w.title, store),
+        variant: w.variant, color: w.color, size: w.size,
+      }, null, false, { addedBy: user.id });
+    }
+  });
+  announceWishes(list, wishes.length, user.id);
+  award(user.id, "first_wish");
+  back("ok", `Imported ${wishes.length} ${wishes.length === 1 ? "wish" : "wishes"}`);
+}
+
+export async function saveRanks(form: FormData) {
+  const { list } = await ownList(n(form, "list_id"));
+  if (form.get("clear")) {
+    clearRanks(list.id);
+    redirect(`/lists/${list.id}?ok=${encodeURIComponent("Back to sorting by stars")}`);
+  }
+  const ids = s(form, "order").split(",").map(Number).filter((x) => Number.isInteger(x) && x > 0);
+  setRanks(list.id, ids);
+  redirect(`/lists/${list.id}?ok=${encodeURIComponent("Order saved")}`);
 }

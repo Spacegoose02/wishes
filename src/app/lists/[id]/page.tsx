@@ -7,12 +7,14 @@ import { AboutProfile } from "@/components/AboutProfile";
 import { RenameKid } from "@/components/RenameKid";
 import { all, get } from "@/lib/db";
 import { aiEnabled } from "@/lib/ai";
-import { daysUntil, formatMoney } from "@/lib/format";
+import { currencySymbol, daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
 import { watchesFor } from "@/lib/watches";
-import { addItem, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
-import { MAX_MUST_HAVES } from "@/lib/wishes";
+import { seeList } from "@/lib/fresh";
+import { questionsForList, openQuestions, MAX_QUESTION, type Question } from "@/lib/questions";
+import { addItem, importWishes, answerAboutItem, askAboutItem, removeQuestion, addSurprise, removeSurprise, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
+import { compareRank, MAX_MUST_HAVES } from "@/lib/wishes";
 import { isFund, kindInfo } from "@/lib/kinds";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
 import { revealOpen } from "@/lib/reveal";
@@ -83,6 +85,53 @@ function GroupGift({ item, pledges, userId }: { item: Item; pledges: Pledge[]; u
   );
 }
 
+// Anonymous Q&A on one wish. Shoppers ask; the list's people answer.
+function Questions({ item, qs, listId, canAnswer, canAsk }: { item: Item; qs: Question[]; listId: number; canAnswer: boolean; canAsk: boolean }) {
+  if (!qs.length && !canAsk) return null;
+  const open = qs.some((q) => !q.answered_at);
+  return (
+    <details className="full" open={canAnswer && open}>
+      <summary className="small muted pointer">❓ {qs.length ? `Questions (${qs.length})${canAnswer && open ? " · needs an answer" : ""}` : "Ask about this"}</summary>
+      <div className="stack mt-8">
+        {qs.map((q) => (
+          <div key={q.id} className="qa">
+            <p className="small m0"><strong>Q:</strong> {q.question}</p>
+            {q.answered_at ? (
+              <p className="small m0 mt-4"><strong>A:</strong> {q.answer}</p>
+            ) : canAnswer ? (
+              <form action={answerAboutItem} className="row mt-6 items-end">
+                <input type="hidden" name="list_id" value={listId} />
+                <input type="hidden" name="item_id" value={item.id} />
+                <input type="hidden" name="question_id" value={q.id} />
+                <label className="grow min-180">Your answer<input name="answer" maxLength={MAX_QUESTION} required /></label>
+                <SubmitButton className="btn small">Answer</SubmitButton>
+              </form>
+            ) : (
+              <p className="tiny muted m0 mt-4">Waiting for an answer.</p>
+            )}
+            {(q.mine || canAnswer) ? (
+              <form action={removeQuestion} className="inline-form">
+                <input type="hidden" name="list_id" value={listId} />
+                <input type="hidden" name="question_id" value={q.id} />
+                <SubmitButton className="linkish tiny">{q.mine ? "take back" : "remove"}</SubmitButton>
+              </form>
+            ) : null}
+          </div>
+        ))}
+        {canAsk && (
+          <form action={askAboutItem} className="row items-end">
+            <input type="hidden" name="item_id" value={item.id} />
+            <label className="grow min-180">Ask a question (they won&apos;t see who asked)
+              <input name="question" maxLength={MAX_QUESTION} placeholder="Which color? What size? Still want it?" required />
+            </label>
+            <SubmitButton className="btn small secondary">Ask</SubmitButton>
+          </form>
+        )}
+      </div>
+    </details>
+  );
+}
+
 function ago(ts: number | null): string {
   if (!ts) return "";
   const mins = Math.round((Date.now() / 1000 - ts) / 60);
@@ -115,7 +164,11 @@ export default async function ListPage({ params, searchParams }: { params: Param
 
   // Kid-mode wishes stay with the list's managers until one of them approves.
   const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NULL ORDER BY purchased, priority DESC, created_at DESC", list.id)
-    .filter((i) => owner || !i.needs_approval);
+    .filter((i) => (owner || !i.needs_approval) && !(recipient && i.surprise));
+  // Who added each surprise gift, for the other shoppers.
+  const adders = new Map(all<{ id: number; name: string }>(
+    "SELECT id, name FROM users WHERE id IN (SELECT added_by FROM items WHERE list_id = ? AND surprise = 1)", list.id,
+  ).map((u) => [u.id, u.name]));
   // The list's own person only sees what they marked themselves.
   const purchases = recipient
     ? all<Purchase>("SELECT * FROM purchases WHERE list_id = ? AND buyer_user_id = ? ORDER BY created_at", list.id, user.id)
@@ -128,6 +181,11 @@ export default async function ListPage({ params, searchParams }: { params: Param
   // Pledges are for shoppers; the list's own person never sees them.
   const pledges = recipient ? [] : pledgesForList(list.id);
   const watches = watchesFor(user.id, list.id);
+  const questions = questionsForList(list.id, user.id);
+  // Shoppers get a "new" mark on wishes added since their last visit.
+  const seenAt = owner ? undefined : seeList(user.id, list.id);
+  const isNew = (it: Item) => seenAt !== undefined && it.created_at > seenAt && it.added_by !== user.id;
+  const unanswered = owner ? openQuestions(list.id) : 0;
   const byItem = new Map<number, Purchase[]>();
   for (const p of purchases) if (p.item_id) byItem.set(p.item_id, [...(byItem.get(p.item_id) ?? []), p]);
 
@@ -142,7 +200,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
     return true;
   });
   const cmp: Record<keyof typeof SORTS, (a: Item, b: Item) => number> = {
-    priority: (a, b) => b.must_have - a.must_have || b.priority - a.priority || b.created_at - a.created_at,
+    priority: compareRank,
     newest: (a, b) => b.created_at - a.created_at,
     "price-asc": (a, b) => (a.price_cents ?? 1e12) - (b.price_cents ?? 1e12),
     "price-desc": (a, b) => (b.price_cents ?? -1) - (a.price_cents ?? -1),
@@ -154,7 +212,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   if (!recipient) items.sort((a, b) => a.purchased - b.purchased);
 
   const usedCats = CATEGORIES.filter((c) => allItems.some((i) => i.category === c.id));
-  const pastCount = get<{ n: number }>("SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND archived_at IS NOT NULL AND needs_approval = 0", list.id)!.n;
+  const pastCount = get<{ n: number }>(`SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND archived_at IS NOT NULL AND needs_approval = 0${recipient ? " AND surprise = 0" : ""}`, list.id)!.n;
   const pendingIdeas = owner ? get<{ n: number }>("SELECT COUNT(*) AS n FROM suggestions WHERE list_id = ? AND status = 'pending'", list.id)!.n : 0;
   const pendingReviews = owner && !recipient ? purchases.filter((p) => p.status === "pending").length : 0;
   const days = daysUntil(list.event_date);
@@ -186,6 +244,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
               {days !== undefined && days >= 0 && <span className="pill good">{days === 0 ? "Today!" : `${days} days to go`}</span>}
               {owner && list.visibility === "private" && <span className="pill">🔒 Hidden</span>}
               {owner && list.review_purchases ? <span className="pill">🧾 Purchases reviewed</span> : null}
+              {unanswered > 0 && <span className="pill accent">❓ {unanswered} {unanswered === 1 ? "question" : "questions"} to answer</span>}
             </div>
           </div>
         </div>
@@ -204,6 +263,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
           )}
           <Link href={`/lists/${list.id}/print`} className="btn small ghost">🖨️ Print</Link>
           {pastCount > 0 && <Link href={`/lists/${list.id}/archive`} className="btn small ghost">🗃️ Past gifts ({pastCount})</Link>}
+          {owner && allItems.length > 1 && <Link href={`/lists/${list.id}/rank`} className="btn small ghost">↕️ Rank</Link>}
           {owner && <Link href={`/lists/${list.id}/share`} className="btn small secondary">Share &amp; hide</Link>}
           {owner && <Link href={`/lists/${list.id}/edit`} className="btn small ghost">Edit</Link>}
         </div>
@@ -225,6 +285,29 @@ export default async function ListPage({ params, searchParams }: { params: Param
               <SubmitButton className="btn secondary" pendingLabel="Looking them up…">Add them all</SubmitButton>
             </form>
           </details>
+          <details className="mt-12">
+            <summary className="small pointer fw-700">📥 Import an Amazon wish list or a spreadsheet</summary>
+            <form action={importWishes} className="stack mt-10">
+              <input type="hidden" name="list_id" value={list.id} />
+              <label>Amazon wish list link (the list must be Public or Shared)
+                <input name="amazon" type="url" placeholder="https://www.amazon.com/hz/wishlist/ls/..." />
+              </label>
+              <label>Or a spreadsheet saved as CSV, with columns like Name, Link, Price and Notes
+                <input name="csv" type="file" accept=".csv,text/csv" />
+              </label>
+              <SubmitButton className="btn secondary" pendingLabel="Importing…">Import</SubmitButton>
+            </form>
+          </details>
+        </details>
+      )}
+
+      {!recipient && (
+        <details className="card mt-12" id="surprise">
+          <summary>🤫 Add a surprise gift</summary>
+          <p className="small muted m0 mb-6">
+            Getting {list.profile_name} something that isn&apos;t on the list? Add it here so nobody else buys the same thing. Everyone shopping for {list.profile_name} sees it, but {list.profile_name} never will.
+          </p>
+          <ItemForm action={addSurprise} autofill={autofill} hidden={{ list_id: list.id, claim: 1 }} submitLabel="Add surprise" />
         </details>
       )}
 
@@ -245,7 +328,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
               <option value="bought">Already bought</option>
             </select>
           )}
-          <input name="max" type="number" min={0} step="any" inputMode="decimal" defaultValue={maxPrice || ""} placeholder="Max $" aria-label="Max price" />
+          <input name="max" type="number" min={0} step="any" inputMode="decimal" defaultValue={maxPrice || ""} placeholder={`Max ${currencySymbol()}`} aria-label="Max price" />
           <select name="sort" defaultValue={sort} aria-label="Sort">
             {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
@@ -295,7 +378,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
             {items.map((it) => (
               <a key={it.id} href={`/lists/${list.id}?sort=${sort}#item-${it.id}`} className={`board-tile${!recipient && it.purchased ? " claimed" : ""}`}>
                 {it.image_url ? <img src={it.image_url} alt="" referrerPolicy="no-referrer" loading="lazy" /> : <span className="board-icon" aria-hidden="true">{categoryIcon(it.category)}</span>}
-                <span className="board-cap">{it.must_have ? "⭐ " : ""}{it.title}{it.price_cents ? ` · ${formatMoney(it.price_cents, it.currency)}` : ""}</span>
+                <span className="board-cap">{it.must_have ? "⭐ " : ""}{it.title}{it.price_cents ? ` · ${formatMoney(it.price_cents)}` : ""}</span>
               </a>
             ))}
           </div>
@@ -325,10 +408,12 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         <span className="item-title">{it.title}</span>
                       )}
                       <div className="row gap-8" style={{ marginTop: 2 }}>
+                        {isNew(it) ? <span className="pill good">✨ New</span> : null}
                         {it.needs_approval ? <span className="pill accent">🧒 Waiting for approval</span> : null}
+                        {it.surprise ? <span className="pill accent" title={`${list.profile_name} can't see this`}>🤫 Surprise{it.added_by && adders.has(it.added_by) ? ` from ${it.added_by === user.id ? "you" : adders.get(it.added_by)}` : ""}</span> : null}
                         {it.must_have ? <span className="pill must">⭐ Must-have</span> : null}
                         {it.kind !== "product" && <span className="pill accent">{kindInfo(it.kind).icon} {kindInfo(it.kind).label}</span>}
-                        {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents, it.currency)}</span> : null}
+                        {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents)}</span> : null}
                         {it.store && <span className="pill">{it.store}</span>}
                         {it.category && <span className="pill">{categoryIcon(it.category)} {categoryLabel(it.category)}</span>}
                         <span className="stars" title="How much they want it" role="img" aria-label={`Wanted ${it.priority} of 3`}>{"★".repeat(it.priority)}</span>
@@ -381,7 +466,10 @@ export default async function ListPage({ params, searchParams }: { params: Param
                           <form action={refreshItem}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Checking…">↻ Check price</SubmitButton></form>
                         )}
                         <form action={compareStores}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Comparing…">⚖️ Compare stores</SubmitButton></form>
-                        {owner && (it.must_have || mustCount < MAX_MUST_HAVES) ? (
+                        {it.surprise && it.added_by === user.id && !owner ? (
+                          <form action={removeSurprise}><Hidden item={it.id} /><SubmitButton className="menu-item danger" confirm="Tap again to remove">🗑️ Remove surprise</SubmitButton></form>
+                        ) : null}
+                        {owner && !it.surprise && (it.must_have || mustCount < MAX_MUST_HAVES) ? (
                           <form action={toggleMustHave}>
                             <Hidden item={it.id} action={it.must_have ? "unstar" : "star"} />
                             <SubmitButton className="menu-item">{it.must_have ? "☆ Not a must-have" : "⭐ Make a must-have"}</SubmitButton>
@@ -435,6 +523,9 @@ export default async function ListPage({ params, searchParams }: { params: Param
                           {watches.has(it.id) && <SubmitButton className="btn small ghost" name="stop" value="1">Stop</SubmitButton>}
                         </form>
                       </details>
+                    ) : null}
+                    {!it.surprise && !it.needs_approval ? (
+                      <Questions item={it} qs={questions.get(it.id) ?? []} listId={list.id} canAnswer={owner} canAsk={!recipient && !owner} />
                     ) : null}
                     {owner && (
                       <details className="full">

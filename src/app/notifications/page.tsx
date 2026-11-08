@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { markAllRead } from "../actions/account";
@@ -8,7 +9,7 @@ export const metadata = { title: "Alerts" };
 
 const ICON: Record<string, string> = {
   deal: "🏷️", family: "🏡", purchase: "🧾", info: "💡", approval: "🧒", badge: "🌟", pledge: "🤝",
-  reminder: "⏰", santa: "🎅", thanks: "💌", unwanted: "🙅",
+  reminder: "⏰", santa: "🎅", thanks: "💌", unwanted: "🙅", question: "❓", answer: "💬", new_wishes: "✨",
 };
 
 export default async function NotificationsPage() {
@@ -22,7 +23,7 @@ export default async function NotificationsPage() {
         <h1 className="m0">Alerts</h1>
         {rows.some((r) => !r.read) && <form action={markAllRead}><SubmitButton className="btn small secondary">Mark all read</SubmitButton></form>}
       </div>
-      <p className="muted">Price drops, purchases and approvals, group gifts, Secret Santa, thank-yous, reminders before the big day, and family news.</p>
+      <p className="muted">Price drops, purchases and approvals, group gifts, Secret Santa, thank-yous, reminders before the big day, and family news. <Link href="/settings?tab=alerts">Get them by email or on your phone</Link>.</p>
       <div className="card">
         {rows.length === 0 && <div className="empty"><div className="big" aria-hidden="true">🔔</div>All quiet.</div>}
         {rows.map((r) => (
@@ -30,7 +31,7 @@ export default async function NotificationsPage() {
             <span style={{ fontSize: "1.3rem" }}>{ICON[r.kind] ?? "💡"}</span>
             <div className="grow">
               <div className="msg">{r.link ? <Link href={r.link}>{r.message}</Link> : r.message}</div>
-              <div className="tiny muted">{new Date(r.created_at * 1000).toLocaleString()}</div>
+              <div className="tiny muted">{formatDate(r.created_at, true)}</div>
             </div>
           </div>
         ))}

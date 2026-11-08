@@ -1,3 +1,4 @@
+import { RANK_ORDER } from "@/lib/wishes";
 import { notFound } from "next/navigation";
 import { all, get } from "@/lib/db";
 import { getList } from "@/lib/access";
@@ -22,7 +23,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
   if (!guest) notFound();
   const list = getList(guest.list_id);
   if (!list) notFound();
-  const items = all<Item>("SELECT * FROM items WHERE list_id = ? AND needs_approval = 0 AND archived_at IS NULL ORDER BY purchased, must_have DESC, priority DESC, created_at DESC", list.id);
+  const items = all<Item>(`SELECT * FROM items WHERE list_id = ? AND needs_approval = 0 AND archived_at IS NULL AND surprise = 0 ORDER BY purchased, ${RANK_ORDER}`, list.id);
   const purchases = all<Purchase>("SELECT * FROM purchases WHERE list_id = ? AND status != 'rejected'", list.id);
   const mine = (p: Purchase) => p.buyer_user_id === null && p.buyer_name.toLowerCase() === guest.email.toLowerCase();
   return (

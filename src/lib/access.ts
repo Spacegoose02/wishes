@@ -13,7 +13,7 @@ export type ListWithOwner = WishList & {
 const LIST_SELECT = `
   SELECT l.*, p.user_id AS owner_user_id, p.name AS profile_name, p.avatar AS profile_avatar,
          p.is_primary AS profile_is_primary,
-         (SELECT COUNT(*) FROM items i WHERE i.list_id = l.id AND i.needs_approval = 0 AND i.archived_at IS NULL) AS item_count
+         (SELECT COUNT(*) FROM items i WHERE i.list_id = l.id AND i.needs_approval = 0 AND i.archived_at IS NULL AND i.surprise = 0) AS item_count
   FROM lists l JOIN profiles p ON p.id = l.profile_id`;
 
 // Visibility rule for a viewer who does not manage the list.
@@ -76,6 +76,16 @@ export function listAccess(user: User, list: ListWithOwner): ListAccess {
     ...Array(VIS_N).fill(user.id),
   );
   return ok ? "viewer" : "none";
+}
+
+// Everyone who shops from a list (sees it without managing it).
+export function listShoppers(listId: number): number[] {
+  return all<{ id: number }>(
+    `SELECT u.id FROM users u WHERE EXISTS (
+       SELECT 1 FROM lists l JOIN profiles p ON p.id = l.profile_id WHERE l.id = ? AND ${VISIBLE_TO.replaceAll(":uid", "u.id")})
+     ORDER BY u.id`,
+    listId,
+  ).map((r) => r.id);
 }
 
 // Only the person a list is for is kept in the dark about claims and purchases.

@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
-import { getList, listAccess } from "@/lib/access";
+import { getList, isRecipient, listAccess } from "@/lib/access";
 import { categoryIcon } from "@/lib/categories";
 import type { Item } from "@/lib/types";
 import { restoreItem } from "../../../actions/items";
@@ -17,7 +18,8 @@ export default async function ArchivePage({ params }: { params: Promise<{ id: st
   if (!list) notFound();
   const access = listAccess(user, list);
   if (access === "none") notFound();
-  const items = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NOT NULL AND needs_approval = 0 ORDER BY archived_at DESC", list.id);
+  const items = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NOT NULL AND needs_approval = 0 ORDER BY archived_at DESC", list.id)
+    .filter((i) => !i.surprise || !isRecipient(user.id, list));
   const groups = [
     { reason: "received", title: "🎁 Got it", items: items.filter((i) => i.archive_reason !== "unwanted") },
     { reason: "unwanted", title: "🙅 Not wanted anymore", items: items.filter((i) => i.archive_reason === "unwanted") },
@@ -36,7 +38,7 @@ export default async function ArchivePage({ params }: { params: Promise<{ id: st
                 <div className="item-img">{it.image_url ? <img src={it.image_url} alt="" referrerPolicy="no-referrer" loading="lazy" /> : categoryIcon(it.category)}</div>
                 <div className="min-0">
                   {it.url ? <a className="item-title" href={it.url} target="_blank" rel="noopener noreferrer nofollow">{it.title}</a> : <span className="item-title">{it.title}</span>}
-                  <p className="tiny muted m0 mt-4">{new Date(it.archived_at! * 1000).toLocaleDateString()}</p>
+                  <p className="tiny muted m0 mt-4">{formatDate(it.archived_at!)}</p>
                 </div>
                 <div className="item-actions">
                   {access === "owner" && (
