@@ -7,7 +7,7 @@ import { AboutProfile } from "@/components/AboutProfile";
 import { RenameKid } from "@/components/RenameKid";
 import { all, get } from "@/lib/db";
 import { aiEnabled } from "@/lib/ai";
-import { daysUntil, formatMoney } from "@/lib/format";
+import { currencySymbol, daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
 import { watchesFor } from "@/lib/watches";
@@ -328,7 +328,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
               <option value="bought">Already bought</option>
             </select>
           )}
-          <input name="max" type="number" min={0} step="any" inputMode="decimal" defaultValue={maxPrice || ""} placeholder="Max $" aria-label="Max price" />
+          <input name="max" type="number" min={0} step="any" inputMode="decimal" defaultValue={maxPrice || ""} placeholder={`Max ${currencySymbol()}`} aria-label="Max price" />
           <select name="sort" defaultValue={sort} aria-label="Sort">
             {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
@@ -378,7 +378,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
             {items.map((it) => (
               <a key={it.id} href={`/lists/${list.id}?sort=${sort}#item-${it.id}`} className={`board-tile${!recipient && it.purchased ? " claimed" : ""}`}>
                 {it.image_url ? <img src={it.image_url} alt="" referrerPolicy="no-referrer" loading="lazy" /> : <span className="board-icon" aria-hidden="true">{categoryIcon(it.category)}</span>}
-                <span className="board-cap">{it.must_have ? "⭐ " : ""}{it.title}{it.price_cents ? ` · ${formatMoney(it.price_cents, it.currency)}` : ""}</span>
+                <span className="board-cap">{it.must_have ? "⭐ " : ""}{it.title}{it.price_cents ? ` · ${formatMoney(it.price_cents)}` : ""}</span>
               </a>
             ))}
           </div>
@@ -413,7 +413,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         {it.surprise ? <span className="pill accent" title={`${list.profile_name} can't see this`}>🤫 Surprise{it.added_by && adders.has(it.added_by) ? ` from ${it.added_by === user.id ? "you" : adders.get(it.added_by)}` : ""}</span> : null}
                         {it.must_have ? <span className="pill must">⭐ Must-have</span> : null}
                         {it.kind !== "product" && <span className="pill accent">{kindInfo(it.kind).icon} {kindInfo(it.kind).label}</span>}
-                        {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents, it.currency)}</span> : null}
+                        {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents)}</span> : null}
                         {it.store && <span className="pill">{it.store}</span>}
                         {it.category && <span className="pill">{categoryIcon(it.category)} {categoryLabel(it.category)}</span>}
                         <span className="stars" title="How much they want it" role="img" aria-label={`Wanted ${it.priority} of 3`}>{"★".repeat(it.priority)}</span>

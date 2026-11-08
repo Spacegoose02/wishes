@@ -5,6 +5,8 @@ import { requireAdmin } from "@/lib/auth";
 import { PROVIDERS, type AiProvider } from "@/lib/ai";
 import { mailFrom, sendMail } from "@/lib/mail";
 import { ADMIN_RESET_HOURS, createReset } from "@/lib/resets";
+import { setRegion } from "@/lib/format";
+import { CURRENCIES, LOCALES } from "@/lib/regions";
 import { s, n } from "./_shared";
 
 export async function saveAiSettings(form: FormData) {
@@ -69,4 +71,15 @@ export async function sendTestEmail() {
     redirect("/settings?tab=admin&error=" + encodeURIComponent(`Couldn't send: ${(e as Error).message}`) + "#email");
   }
   redirect("/settings?tab=admin&ok=" + encodeURIComponent(`Sent a test email to ${admin.email}`) + "#email");
+}
+
+export async function saveRegion(form: FormData) {
+  await requireAdmin();
+  const currency = s(form, "currency").toUpperCase();
+  const locale = s(form, "locale");
+  if (!CURRENCIES.some((c) => c.id === currency) || !LOCALES.some((l) => l.id === locale)) redirect("/settings?tab=admin&error=Pick+from+the+lists#region");
+  setSetting("currency", currency);
+  setSetting("locale", locale);
+  setRegion({ currency, locale });
+  redirect("/settings?tab=admin&ok=" + encodeURIComponent("Money and dates updated") + "#region");
 }

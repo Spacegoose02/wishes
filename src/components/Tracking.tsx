@@ -1,4 +1,5 @@
 import { detectCarrier, trackingUrl } from "@/lib/tracking";
+import { formatDate } from "@/lib/format";
 import { saveTracking } from "@/app/actions/purchases";
 import { SubmitButton } from "./SubmitButton";
 
@@ -13,7 +14,7 @@ export function Tracking({ p, back, editable = true }: { p: P; back: string; edi
       {(p.tracking || p.expected_at) && (
         <span className="pill">
           📦 {p.tracking ? (url ? <a href={url} target="_blank" rel="noopener noreferrer">{carrier} {p.tracking}</a> : `${carrier ? carrier + " " : ""}${p.tracking}`) : "Shipping"}
-          {p.expected_at && ` · arrives ${new Date(p.expected_at + "T00:00:00").toLocaleDateString()}`}
+          {p.expected_at && ` · arrives ${formatDate(p.expected_at)}`}
         </span>
       )}
       {editable && (

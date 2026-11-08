@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { requireUser } from "@/lib/auth";
@@ -47,7 +48,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
         <div className="row items-start">
           <div className="grow">
             <h1 className="m0">{list.emoji} {list.title}</h1>
-            <p className="m0">For {list.profile_name}{list.occasion ? ` · ${list.occasion}` : ""}{list.event_date ? ` · ${new Date(list.event_date + "T00:00:00").toLocaleDateString()}` : ""}</p>
+            <p className="m0">For {list.profile_name}{list.occasion ? ` · ${list.occasion}` : ""}{list.event_date ? ` · ${formatDate(list.event_date)}` : ""}</p>
           </div>
           {qr && (
             <div className="print-qr">

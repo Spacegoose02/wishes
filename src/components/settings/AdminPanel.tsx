@@ -4,13 +4,15 @@ import { webSearchEnabled } from "@/lib/bandit";
 import { dailyCap, monthUsage } from "@/lib/chatstore";
 import { oidcConfig } from "@/lib/oidc";
 import type { User } from "@/lib/types";
-import { adminUser, saveAiSettings, saveMailSettings, saveScrapeSettings, sendTestEmail } from "@/app/actions/admin";
+import { adminUser, saveAiSettings, saveMailSettings, saveRegion, saveScrapeSettings, sendTestEmail } from "@/app/actions/admin";
 import { describeSmtp, mailEnabled, mailFrom, siteUrl, smtpUrl } from "@/lib/mail";
 import { getSetting } from "@/lib/db";
 import { Avatar } from "@/components/Avatar";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CopyButton } from "@/components/CopyButton";
 import { ADMIN_RESET_HOURS } from "@/lib/resets";
+import { CURRENCIES, LOCALES } from "@/lib/regions";
+import { formatDate, formatMoney, region } from "@/lib/format";
 
 export function AdminPanel({ me, reset }: { me: User; reset?: { userId: number; link: string } }) {
   const ai = aiConfig();
@@ -63,6 +65,25 @@ export function AdminPanel({ me, reset }: { me: User; reset?: { userId: number; 
         </p>
         <label>FlareSolverr URL<input name="flaresolverr_url" defaultValue={getSetting("flaresolverr_url") ?? process.env.FLARESOLVERR_URL ?? ""} placeholder="http://192.168.1.10:8191" /></label>
         <label>Scraping service URL (use {"{url}"} for the page)<input name="scraper_api_url" defaultValue={getSetting("scraper_api_url") ?? process.env.SCRAPER_API_URL ?? ""} placeholder="https://api.example.com/?key=KEY&url={url}" /></label>
+        <SubmitButton className="btn">Save</SubmitButton>
+      </form>
+
+      <form id="region" action={saveRegion} className="card stack">
+        <h2>🌍 Money and dates</h2>
+        <p className="small muted m0">How prices and dates look for everyone on this server. Right now: {formatMoney(123450)} · {formatDate("2026-12-25")}.</p>
+        <div className="form-grid">
+          <label>Currency
+            <select name="currency" defaultValue={region().currency}>
+              {CURRENCIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </label>
+          <label>Region
+            <select name="locale" defaultValue={region().locale}>
+              {LOCALES.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+            </select>
+          </label>
+        </div>
+        <p className="tiny muted m0">Prices already saved keep their numbers; only the symbol and style change. The app&apos;s words stay in English for now.</p>
         <SubmitButton className="btn">Save</SubmitButton>
       </form>
 

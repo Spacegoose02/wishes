@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
@@ -37,7 +38,7 @@ export default async function ArchivePage({ params }: { params: Promise<{ id: st
                 <div className="item-img">{it.image_url ? <img src={it.image_url} alt="" referrerPolicy="no-referrer" loading="lazy" /> : categoryIcon(it.category)}</div>
                 <div className="min-0">
                   {it.url ? <a className="item-title" href={it.url} target="_blank" rel="noopener noreferrer nofollow">{it.title}</a> : <span className="item-title">{it.title}</span>}
-                  <p className="tiny muted m0 mt-4">{new Date(it.archived_at! * 1000).toLocaleDateString()}</p>
+                  <p className="tiny muted m0 mt-4">{formatDate(it.archived_at!)}</p>
                 </div>
                 <div className="item-actions">
                   {access === "owner" && (

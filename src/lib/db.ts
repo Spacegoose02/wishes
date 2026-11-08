@@ -2,6 +2,7 @@ import "server-only";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import { setRegion } from "./format";
 
 // Single SQLite file under DATA_DIR (mount /data in Docker / Unraid appdata).
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
@@ -444,6 +445,9 @@ function open(): DatabaseSync {
       throw e;
     }
   }
+  // The household's currency and date style (Settings → Server).
+  const reg = db.prepare("SELECT key, value FROM settings WHERE key IN ('currency', 'locale')").all() as { key: string; value: string }[];
+  setRegion(Object.fromEntries(reg.map((r) => [r.key, r.value])));
   return db;
 }
 

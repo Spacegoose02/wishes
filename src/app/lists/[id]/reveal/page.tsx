@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { getList, isManager } from "@/lib/access";
@@ -20,7 +21,7 @@ export default async function RevealPage({ params, searchParams }: { params: Pro
     return (
       <div className="narrow-640 card empty mt-24">
         <div className="big" aria-hidden="true">🤫</div>
-        No peeking! Come back {list.event_date ? `on ${new Date(list.event_date + "T00:00:00").toLocaleDateString()}` : "after the big day"}.
+        No peeking! Come back {list.event_date ? `on ${formatDate(list.event_date)}` : "after the big day"}.
         <p><Link href={`/lists/${list.id}`}>Back to the list</Link></p>
       </div>
     );

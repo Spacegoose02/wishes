@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { markAllRead } from "../actions/account";
@@ -30,7 +31,7 @@ export default async function NotificationsPage() {
             <span style={{ fontSize: "1.3rem" }}>{ICON[r.kind] ?? "💡"}</span>
             <div className="grow">
               <div className="msg">{r.link ? <Link href={r.link}>{r.message}</Link> : r.message}</div>
-              <div className="tiny muted">{new Date(r.created_at * 1000).toLocaleString()}</div>
+              <div className="tiny muted">{formatDate(r.created_at, true)}</div>
             </div>
           </div>
         ))}

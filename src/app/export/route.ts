@@ -2,6 +2,7 @@ import { getUser } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { isRecipient, myLists, myProfiles } from "@/lib/access";
 import { toCsv } from "@/lib/importer";
+import { region } from "@/lib/format";
 import type { Item } from "@/lib/types";
 
 // Download every list you manage, as a spreadsheet (CSV) or as JSON. Only wishes and list
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
       lists: lists.map(({ list: l, items }) => ({
         title: l.title, for: l.profile_name, emoji: l.emoji, occasion: l.occasion, date: l.event_date, description: l.description,
         wishes: items.map((i) => ({
-          title: i.title, url: i.url, store: i.store, price: i.price_cents === null ? null : i.price_cents / 100, currency: i.currency,
+          title: i.title, url: i.url, store: i.store, price: i.price_cents === null ? null : i.price_cents / 100, currency: region().currency,
           image: i.image_url.startsWith("/uploads/") ? "" : i.image_url, notes: i.notes, priority: i.priority, quantity: i.quantity,
           category: i.category, color: i.color, size: i.size, variant: i.variant, kind: i.kind, must_have: !!i.must_have,
           status: i.archived_at ? (i.archive_reason === "unwanted" ? "not wanted" : "got it") : "wanted",
