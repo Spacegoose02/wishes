@@ -5,6 +5,7 @@ import { getUser, signupAllowed, userCount } from "@/lib/auth";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Logo } from "@/components/Logo";
 
 export const metadata = { title: "Create account" };
 
@@ -15,6 +16,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: SP 
   return (
     <div className="auth-wrap">
       <div className="hero">
+        <Logo height={160} className="hero-logo" title="Wishes raccoon holding a wish list" />
         <h1>{first ? "Set up Wishes" : "Join Wishes"}</h1>
         <p className="muted">{first ? "You'll be the admin of this server." : "Make lists, share with family, keep surprises secret."}</p>
       </div>

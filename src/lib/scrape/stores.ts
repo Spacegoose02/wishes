@@ -87,8 +87,18 @@ export const adapters: Partial<Record<StoreKey, (html: string) => Parsed>> = {
     };
   },
   kohls(html) {
+    // Newer pages embed the product as entity-encoded island props: "salePrice":[0,{"minPrice":[0,5.99],...}].
+    const h = html.replace(/&quot;/g, '"');
     return {
-      price_cents: toCents(first(html, /"salePrice"\s*:\s*\{[^}]*"minPrice"\s*:\s*([\d.]+)/, /class="pdpprice-row2-main-text[^"]*"[^>]*>\s*\$([\d.,]+)/)),
+      price_cents: toCents(
+        first(
+          h,
+          /"salePrice"\s*:\s*\{[^}]*"minPrice"\s*:\s*([\d.]+)/,
+          /"salePrice":\[0,\{"minPrice":\[0,([\d.]+)\]/,
+          /"regularPrice":\[0,\{"minPrice":\[0,([\d.]+)\]/,
+          /class="pdpprice-row2-main-text[^"]*"[^>]*>\s*\$([\d.,]+)/,
+        ),
+      ),
     };
   },
 };

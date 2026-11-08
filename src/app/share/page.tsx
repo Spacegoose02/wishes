@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { myLists } from "@/lib/access";
 import { extractUrls } from "@/lib/links";
+import { forwardClip } from "@/lib/clip";
 import { Avatar } from "@/components/Avatar";
 import type { SP } from "@/components/Flash";
 
@@ -15,7 +16,9 @@ export default async function SharePage({ searchParams }: { searchParams: SP }) 
   const str = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
   const url = extractUrls(`${str("url")} ${str("text")} ${str("title")}`)[0];
   const lists = myLists(user.id);
-  if (url && lists.length === 1) redirect(`/lists/${lists[0].id}?add=${encodeURIComponent(url)}`);
+  // Details the "Add to Wishes" bookmark already read from the page ride along to the form.
+  const clip = forwardClip(sp);
+  if (url && lists.length === 1) redirect(`/lists/${lists[0].id}?add=${encodeURIComponent(url)}${clip}`);
   return (
     <div className="narrow-640">
       <h1>✨ Add to Wishes</h1>
@@ -25,11 +28,11 @@ export default async function SharePage({ searchParams }: { searchParams: SP }) 
         <div className="card empty">You don&apos;t have a list yet. <Link href="/lists/new">Make one first</Link>.</div>
       ) : (
         <>
-          <p className="muted small" style={{ wordBreak: "break-all" }}>{url}</p>
+          <p className="muted small" style={{ wordBreak: "break-all" }}>{typeof sp.name === "string" && clip ? sp.name : url}</p>
           <p className="fw-700">Which list?</p>
           <div className="stack">
             {lists.map((l) => (
-              <Link key={l.id} href={`/lists/${l.id}?add=${encodeURIComponent(url)}`} className="card list-card row gap-8">
+              <Link key={l.id} href={`/lists/${l.id}?add=${encodeURIComponent(url)}${clip}`} className="card list-card row gap-8">
                 <span aria-hidden="true">{l.emoji}</span>
                 <strong className="grow">{l.title}</strong>
                 <Avatar id={l.profile_avatar} size={24} /><span className="small muted">{l.profile_name}</span>

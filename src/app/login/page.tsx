@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { login } from "../actions/auth";
 import { getUser, signupAllowed, userCount } from "@/lib/auth";
 import { oidcConfig } from "@/lib/oidc";
-import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Logo } from "@/components/Logo";
 import { nextQuery, safeNext } from "@/lib/next";
 
 export const metadata = { title: "Sign in" };
@@ -19,7 +19,7 @@ export default async function LoginPage({ searchParams }: { searchParams: SP }) 
   return (
     <div className="auth-wrap">
       <div className="hero">
-        <div className="mascots"><Avatar id="raccoon" size={64} /><Avatar id="goose" size={64} /></div>
+        <Logo height={160} className="hero-logo" title="Wishes raccoon holding a wish list" />
         <h1>Welcome back to Wishes</h1>
         <p className="muted">Wishlists for the whole family.</p>
       </div>

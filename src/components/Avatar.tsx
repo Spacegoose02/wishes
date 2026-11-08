@@ -1,5 +1,12 @@
+import { useId } from "react";
+import {
+  INK, BearBust, BunnyBust, Backdrop, FoxBust, GooseBust, OwlBust, PartyHat, RaccoonBust, SharedDefs,
+  GOOSE_PALETTES, RACCOON_PALETTES, type Fur,
+} from "./CritterArt";
+
 // Hand-drawn SVG avatars. Raccoon and goose are the house mascots, and can be rolled
 // as random critters ("r:<species>:<bg>:<accessory>:<fur>"). Space Goose is the legendary roll.
+// The drawings themselves live in CritterArt.tsx.
 
 export const AVATARS = [
   { id: "raccoon", label: "Raccoon" },
@@ -13,13 +20,11 @@ export const AVATARS = [
 ] as const;
 
 export const SPACE_GOOSE = "space-goose";
-// Bandit, the gift helper's own face in chat.
+// Baxter, the gift helper's own face in chat.
 export const GIFT_RACCOON = "gift-raccoon";
-export const AGENT_NAME = "Bandit";
+export const AGENT_NAME = "Baxter";
 
 const BGS = ["#cfe8ff", "#d8f5d0", "#ffe3e3", "#fff1d6", "#e7e0ff", "#ffe8f3", "#d6f5f2", "#f3f0e6"];
-const RACCOON_FUR = ["#8a8f9c", "#a0785a", "#9aa7c7", "#b79ac8"];
-const GOOSE_BODY = ["#ffffff", "#f6ecd6", "#dcdcdc", "#ffe0ec"];
 
 export const ACCESSORIES = [
   { id: "none", label: "", tier: "common" },
@@ -54,7 +59,7 @@ export function avatarTier(id: string): Tier {
 
 export function avatarLabel(id: string): string {
   if (id === SPACE_GOOSE) return "Space Goose";
-  if (id === GIFT_RACCOON) return "Bandit the gift raccoon";
+  if (id === GIFT_RACCOON) return "Baxter the gift raccoon";
   const p = parseRandom(id);
   if (p) {
     const acc = ACCESSORIES.find((a) => a.id === p.acc)?.label;
@@ -79,129 +84,106 @@ export function rollAvatar(rand: () => number = Math.random, golden = false): st
   return `r:${species}:${Math.floor(rand() * BGS.length)}:${acc}:${Math.floor(rand() * 4)}`;
 }
 
-function RaccoonBody({ fur = RACCOON_FUR[0] }: { fur?: string }) {
-  return (
-    <>
-      <path d="M18 30 L28 8 L42 26 Z" fill={fur} />
-      <path d="M82 30 L72 8 L58 26 Z" fill={fur} />
-      <path d="M22 26 L28 14 L36 24 Z" fill="#2d2f36" />
-      <path d="M78 26 L72 14 L64 24 Z" fill="#2d2f36" />
-      <ellipse cx="50" cy="56" rx="36" ry="32" fill={fur} />
-      <ellipse cx="50" cy="70" rx="22" ry="16" fill="#f1f1f4" />
-      <path d="M14 50 Q30 36 46 50 Q30 62 14 50 Z" fill="#2d2f36" />
-      <path d="M86 50 Q70 36 54 50 Q70 62 86 50 Z" fill="#2d2f36" />
-      <circle cx="32" cy="50" r="6" fill="#fff" />
-      <circle cx="68" cy="50" r="6" fill="#fff" />
-      <circle cx="33" cy="51" r="3.4" fill="#111" />
-      <circle cx="67" cy="51" r="3.4" fill="#111" />
-      <path d="M44 33 Q50 28 56 33 L50 44 Z" fill="#f1f1f4" />
-      <ellipse cx="50" cy="64" rx="6" ry="4.5" fill="#1b1c20" />
-      <path d="M43 74 Q50 80 57 74" stroke="#1b1c20" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-    </>
-  );
-}
+// Where hats sit (head-top centre) for each species.
+const ANCHOR = { raccoon: { x: 50, top: 22 }, goose: { x: 57, top: 20 } };
 
-function GooseBody({ body = GOOSE_BODY[0], scarf = true }: { body?: string; scarf?: boolean }) {
-  return (
-    <>
-      <ellipse cx="50" cy="92" rx="34" ry="22" fill={body} />
-      <path d="M38 92 Q34 60 40 40 Q44 22 54 22 Q66 22 66 36 Q66 48 58 58 Q54 70 58 92 Z" fill={body} stroke="#e3e3e3" strokeWidth="1.5" />
-      <path d="M62 34 Q80 34 86 40 Q80 46 62 44 Z" fill="#ff9f1c" />
-      <path d="M63 39 L84 40" stroke="#d97706" strokeWidth="1.5" />
-      <circle cx="56" cy="32" r="3.6" fill="#111" />
-      <circle cx="57.2" cy="31" r="1.1" fill="#fff" />
-      <path d="M50 26 Q53 23 58 25" stroke="#111" strokeWidth="2" fill="none" strokeLinecap="round" />
-      <ellipse cx="46" cy="40" rx="4" ry="2.4" fill="#ffc6d9" opacity="0.8" />
-      {scarf && <path d="M40 66 Q50 72 60 66 L58 74 Q50 78 42 74 Z" fill="#4f9dff" />}
-    </>
-  );
-}
-
-// Accessory positions per species: head-top anchor and eye line.
-const ANCHOR = { raccoon: { x: 50, top: 26, eyeY: 50 }, goose: { x: 55, top: 23, eyeY: 32 } };
-
-function Accessory({ id, species }: { id: string; species: Species }) {
+function Accessory({ u, id, species }: { u: string; id: string; species: Species }) {
   const a = ANCHOR[species];
+  const r = species === "raccoon";
   switch (id) {
     case "party":
-      return (
-        <g>
-          <path d={`M${a.x - 12} ${a.top} L${a.x} ${a.top - 26} L${a.x + 12} ${a.top} Z`} fill="#ff5fa2" />
-          <circle cx={a.x} cy={a.top - 26} r="4" fill="#ffd23f" />
-          <circle cx={a.x - 4} cy={a.top - 8} r="2" fill="#ffd23f" />
-          <circle cx={a.x + 4} cy={a.top - 14} r="2" fill="#5ad1ff" />
-        </g>
-      );
+      return <PartyHat u={u} x={a.x + (r ? 2 : 0)} top={a.top + 3} tilt={r ? -12 : 8} scale={r ? 1 : 0.85} />;
     case "crown":
       return (
-        <path
-          d={`M${a.x - 13} ${a.top} L${a.x - 11} ${a.top - 14} L${a.x - 5} ${a.top - 6} L${a.x} ${a.top - 16} L${a.x + 5} ${a.top - 6} L${a.x + 11} ${a.top - 14} L${a.x + 13} ${a.top} Z`}
-          fill="#ffd23f" stroke="#e0a800" strokeWidth="1.5"
-        />
+        <g transform={`translate(${a.x} ${a.top + 3}) rotate(${r ? -6 : 6}) scale(${r ? 1 : 0.85})`} strokeLinejoin="round">
+          <path d="M-16 0 L-18 -18 L-9 -9 L0 -22 L9 -9 L18 -18 L16 0 Q0 4 -16 0 Z" fill={`url(#${u}gold)`} stroke={INK} strokeWidth="2" />
+          <path d="M-16 -4 Q0 0 16 -4" fill="none" stroke="#e89a00" strokeWidth="1.4" />
+          <circle cy="-22" r="2.6" fill="#ff5470" stroke={INK} strokeWidth="1" />
+          <circle cx="-18" cy="-18" r="2" fill="#4f9dff" stroke={INK} strokeWidth="1" />
+          <circle cx="18" cy="-18" r="2" fill="#4f9dff" stroke={INK} strokeWidth="1" />
+          <ellipse cy="-6.5" rx="2.6" ry="3.2" fill="#3ccf6e" stroke={INK} strokeWidth="1" />
+          <path d="M-12 -12 L-11 -4" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" opacity="0.7" />
+        </g>
       );
     case "wizard":
       return (
-        <g>
-          <ellipse cx={a.x} cy={a.top} rx="20" ry="5" fill="#5b3fd1" />
-          <path d={`M${a.x - 12} ${a.top} Q${a.x - 2} ${a.top - 18} ${a.x + 8} ${a.top - 32} Q${a.x + 6} ${a.top - 14} ${a.x + 12} ${a.top} Z`} fill="#6d4cf0" />
-          <path d={`M${a.x} ${a.top - 12} l2 4 4 .5 -3 3 1 4 -4 -2 -4 2 1 -4 -3 -3 4 -.5 z`} fill="#ffd23f" />
+        <g transform={`translate(${a.x} ${a.top + 4}) rotate(${r ? -8 : 8}) scale(${r ? 1 : 0.85})`} strokeLinejoin="round" strokeLinecap="round">
+          <ellipse rx="24" ry="5.5" fill="#4b32b8" stroke={INK} strokeWidth="2" />
+          <path d="M-13 -1 C-10 -14 -2 -24 6 -30 C10 -32 16 -30 18 -26 C12 -27 8 -24 8 -18 C9 -10 11 -5 13 -1 Q0 2 -13 -1 Z" fill="#6d4cf0" stroke={INK} strokeWidth="2" />
+          <path d="M-12.5 -3 Q0 0 12.5 -3" fill="none" stroke="#ffd23f" strokeWidth="2.6" />
+          <path d="M-2 -15 l1.6 3.4 3.7 .5 -2.7 2.6 .7 3.7 -3.3 -1.8 -3.3 1.8 .7 -3.7 -2.7 -2.6 3.7 -.5 z" fill="#ffd23f" />
+          <circle cx="5" cy="-22" r="1.3" fill="#fff" />
+          <circle cx="-7" cy="-7" r="1" fill="#fff" />
+          <circle cx="18" cy="-26" r="2.4" fill="#ffd23f" stroke={INK} strokeWidth="1" />
         </g>
       );
     case "beanie":
-      return species === "raccoon" ? (
-        <g>
-          <path d="M22 30 Q50 -2 78 30 Z" fill="#e8505b" />
-          <rect x="20" y="26" width="60" height="8" rx="4" fill="#c73a45" />
-          <circle cx="50" cy="8" r="5" fill="#fff" />
-        </g>
-      ) : (
-        <g>
-          <path d="M41 28 Q55 6 69 28 Z" fill="#e8505b" />
-          <rect x="40" y="25" width="30" height="6" rx="3" fill="#c73a45" />
-          <circle cx="55" cy="12" r="4" fill="#fff" />
+      return (
+        <g transform={`translate(${a.x} ${a.top + 6}) rotate(${r ? 0 : 8}) scale(${r ? 1 : 0.72})`} strokeLinejoin="round">
+          <path d="M-27 0 C-27 -20 -14 -28 0 -28 C14 -28 27 -20 27 0 Z" fill="#ef5a64" stroke={INK} strokeWidth="2" />
+          <path d="M-14 -4 C-13 -14 -9 -22 -4 -26 M0 -3 L0 -27 M14 -4 C13 -14 9 -22 4 -26" fill="none" stroke="#c63c48" strokeWidth="1.6" />
+          <rect x="-29" y="-4" width="58" height="10" rx="5" fill="#d8434f" stroke={INK} strokeWidth="2" />
+          {[-22, -14, -6, 2, 10, 18].map((x) => <path key={x} d={`M${x + 2} -2 L${x + 2} 4`} stroke="#b8323e" strokeWidth="1.4" />)}
+          <circle cy="-30" r="6" fill="#fff" stroke={INK} strokeWidth="1.6" />
+          <circle cx="-2" cy="-32" r="2" fill="#f0eef4" />
         </g>
       );
     case "glasses":
-      return species === "raccoon" ? (
-        <g>
-          <rect x="20" y="43" width="25" height="14" rx="6" fill="#111" />
-          <rect x="55" y="43" width="25" height="14" rx="6" fill="#111" />
-          <path d="M45 48 L55 48" stroke="#111" strokeWidth="3" />
-          <path d="M24 46 L30 46" stroke="#fff" strokeWidth="2" opacity="0.6" />
+      return r ? (
+        <g strokeLinejoin="round">
+          <path d="M45 50 Q50 47 55 50" fill="none" stroke={INK} strokeWidth="2.6" />
+          <path d="M22 45 L45 45 L44 54 C43 60 38 62 33 62 C27 62 23 59 22.5 54 Z" fill="#1e1a26" stroke={INK} strokeWidth="2" />
+          <path d="M78 45 L55 45 L56 54 C57 60 62 62 67 62 C73 62 77 59 77.5 54 Z" fill="#1e1a26" stroke={INK} strokeWidth="2" />
+          <path d="M14 47 L22 46 M86 47 L78 46" stroke={INK} strokeWidth="2.4" />
+          <path d="M26 48 L31 48 L27 55 Z M59 48 L64 48 L60 55 Z" fill="#fff" opacity="0.55" />
+          <path d="M23 45 L44 45" stroke="#6d6680" strokeWidth="1" />
         </g>
       ) : (
-        <g>
-          <rect x="49" y="27" width="15" height="10" rx="4" fill="#111" />
-          <path d="M44 30 L49 31" stroke="#111" strokeWidth="2.5" />
+        <g strokeLinejoin="round">
+          <path d="M54 28 L71 28 L70 35 C69 39 66 40.5 62.5 40.5 C58 40.5 55 38.5 54.5 35 Z" fill="#1e1a26" stroke={INK} strokeWidth="1.8" />
+          <path d="M54 30 L37 33" stroke={INK} strokeWidth="2.2" />
+          <path d="M57 30.5 L61 30.5 L58 36 Z" fill="#fff" opacity="0.55" />
         </g>
       );
     case "headphones":
-      return species === "raccoon" ? (
-        <g>
-          <path d="M16 50 Q16 14 50 14 Q84 14 84 50" stroke="#333" strokeWidth="5" fill="none" />
-          <rect x="9" y="42" width="12" height="20" rx="5" fill="#ff5fa2" />
-          <rect x="79" y="42" width="12" height="20" rx="5" fill="#ff5fa2" />
+      return r ? (
+        <g strokeLinejoin="round">
+          <path d="M14 50 C12 22 30 12 50 12 C70 12 88 22 86 50" fill="none" stroke={INK} strokeWidth="7" strokeLinecap="round" />
+          <path d="M14 50 C12 22 30 12 50 12 C70 12 88 22 86 50" fill="none" stroke="#5b5566" strokeWidth="4" strokeLinecap="round" />
+          <rect x="5" y="40" width="15" height="24" rx="7" fill="#ff5fa2" stroke={INK} strokeWidth="2" />
+          <rect x="80" y="40" width="15" height="24" rx="7" fill="#ff5fa2" stroke={INK} strokeWidth="2" />
+          <rect x="8" y="44" width="4" height="12" rx="2" fill="#fff" opacity="0.5" />
+          <rect x="83" y="44" width="4" height="12" rx="2" fill="#fff" opacity="0.5" />
         </g>
       ) : (
-        <g>
-          <path d="M42 36 Q42 16 56 16 Q68 16 68 34" stroke="#333" strokeWidth="4" fill="none" />
-          <rect x="37" y="30" width="9" height="14" rx="4" fill="#ff5fa2" />
+        <g strokeLinejoin="round">
+          <path d="M40 36 C38 18 52 11 62 14 C70 17 74 23 73 29" fill="none" stroke={INK} strokeWidth="6.5" strokeLinecap="round" />
+          <path d="M40 36 C38 18 52 11 62 14 C70 17 74 23 73 29" fill="none" stroke="#5b5566" strokeWidth="3.6" strokeLinecap="round" />
+          <rect x="33" y="28" width="13" height="20" rx="6" fill="#ff5fa2" stroke={INK} strokeWidth="2" />
+          <rect x="36" y="31.5" width="3.4" height="10" rx="1.7" fill="#fff" opacity="0.5" />
         </g>
       );
-    case "bowtie":
-      return species === "raccoon" ? (
-        <path d="M38 84 L50 90 L62 84 L62 96 L50 90 L38 96 Z" fill="#e8505b" />
-      ) : (
-        <path d="M40 66 L50 71 L60 66 L60 76 L50 71 L40 76 Z" fill="#e8505b" />
-      );
-    case "flower": {
-      const [x, y] = species === "raccoon" ? [76, 24] : [45, 25];
+    case "bowtie": {
+      const y = r ? 87 : 68;
       return (
-        <g>
-          {[0, 72, 144, 216, 288].map((r) => (
-            <ellipse key={r} cx={x} cy={y - 5} rx="3.5" ry="5" fill="#ff8fc7" transform={`rotate(${r} ${x} ${y})`} />
+        <g transform={`translate(50 ${y})`} strokeLinejoin="round">
+          <path d="M-3 -2 L-14 -8 C-17 -4 -17 4 -14 8 L-3 2 Z" fill="#ef5a64" stroke={INK} strokeWidth="1.8" />
+          <path d="M3 -2 L14 -8 C17 -4 17 4 14 8 L3 2 Z" fill="#ef5a64" stroke={INK} strokeWidth="1.8" />
+          <circle cx="-9" cy="-2" r="1.3" fill="#fff" opacity="0.8" />
+          <circle cx="10" cy="2" r="1.3" fill="#fff" opacity="0.8" />
+          <rect x="-3.6" y="-3.6" width="7.2" height="7.2" rx="2" fill="#d8434f" stroke={INK} strokeWidth="1.8" />
+        </g>
+      );
+    }
+    case "flower": {
+      const [x, y] = r ? [80, 26] : [44, 24];
+      return (
+        <g transform={`translate(${x} ${y})`}>
+          {[0, 72, 144, 216, 288].map((d) => (
+            <ellipse key={d} cy="-5.2" rx="3.8" ry="5.2" fill="#ff8fc7" stroke={INK} strokeWidth="1.2" transform={`rotate(${d})`} />
           ))}
-          <circle cx={x} cy={y} r="3" fill="#ffd23f" />
+          <circle r="3.4" fill="#ffd23f" stroke={INK} strokeWidth="1.2" />
+          <circle cx="-1" cy="-1" r="1" fill="#fff" opacity="0.8" />
         </g>
       );
     }
@@ -210,131 +192,47 @@ function Accessory({ id, species }: { id: string; species: Species }) {
   }
 }
 
-function SpaceGoose() {
-  const stars = [[14, 18], [84, 14], [22, 60], [88, 52], [70, 8], [10, 40], [92, 78], [30, 8]];
+function SpaceGoose({ u }: { u: string }) {
+  const stars: [number, number, number][] = [[14, 18, 1.6], [84, 14, 1.2], [22, 62, 1.1], [90, 50, 1.5], [70, 6, 1], [9, 40, 1.2], [30, 6, 1]];
   return (
     <>
-      <circle cx="50" cy="50" r="50" fill="#141a3d" />
-      <circle cx="50" cy="50" r="50" fill="url(#space-glow)" />
-      {stars.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i % 3 === 0 ? 2.4 : 1.5} fill={i % 2 ? "#fff" : "#ffd23f"} />)}
-      <circle cx="80" cy="82" r="10" fill="#ff9f1c" />
-      <ellipse cx="80" cy="82" rx="16" ry="4" fill="none" stroke="#ffd23f" strokeWidth="2" transform="rotate(-20 80 82)" />
-      <ellipse cx="50" cy="94" rx="32" ry="20" fill="#e9eef8" />
-      <rect x="38" y="78" width="24" height="10" rx="3" fill="#cfd8ea" />
-      <circle cx="44" cy="83" r="2" fill="#ff5470" />
-      <circle cx="50" cy="83" r="2" fill="#3dffb8" />
-      <GooseBody scarf={false} />
+      <circle cx="50" cy="50" r="50" fill={`url(#${u}space)`} />
+      <ellipse cx="30" cy="30" rx="40" ry="18" fill="#d946ef" opacity="0.14" transform="rotate(-25 30 30)" />
+      {stars.map(([x, y, s], i) => (
+        <path key={i} d={`M${x} ${y - s * 2.4} Q${x} ${y} ${x + s * 2.4} ${y} Q${x} ${y} ${x} ${y + s * 2.4} Q${x} ${y} ${x - s * 2.4} ${y} Q${x} ${y} ${x} ${y - s * 2.4} Z`} fill={i % 2 ? "#fff" : "#ffe680"} />
+      ))}
+      <circle cx="84" cy="82" r="9" fill={`url(#${u}planet)`} stroke={INK} strokeWidth="1.4" />
+      <ellipse cx="84" cy="82" rx="16" ry="4" fill="none" stroke="#ffd23f" strokeWidth="2" transform="rotate(-20 84 82)" />
+      <GooseBust u={u} scarf={false} />
+      <rect x="35" y="82" width="30" height="12" rx="4" fill="#cfd8ea" stroke={INK} strokeWidth="1.8" />
+      <circle cx="42" cy="88" r="2.2" fill="#ff5470" />
+      <circle cx="50" cy="88" r="2.2" fill="#3dffb8" />
+      <circle cx="58" cy="88" r="2.2" fill="#ffd23f" />
     </>
-  );
-}
-
-// Raccoon hugging a wrapped present, with a bow on its head.
-function GiftRaccoon() {
-  return (
-    <>
-      <circle cx="50" cy="50" r="50" fill="#ffe8d6" />
-      <circle cx="18" cy="16" r="2" fill="#ffb547" />
-      <circle cx="84" cy="22" r="2.5" fill="#ff7a59" />
-      <circle cx="12" cy="62" r="1.8" fill="#d946ef" />
-      <RaccoonBody />
-      <rect x="30" y="78" width="40" height="26" rx="4" fill="#ff5470" />
-      <rect x="46" y="78" width="8" height="26" fill="#ffd23f" />
-      <rect x="30" y="86" width="40" height="6" fill="#ffd23f" />
-      <ellipse cx="24" cy="86" rx="7" ry="6" fill="#8a8f9c" />
-      <ellipse cx="76" cy="86" rx="7" ry="6" fill="#8a8f9c" />
-    </>
-  );
-}
-
-function GiftBow() {
-  return (
-    <g>
-      <path d="M50 22 L37 13 Q33 22 37 29 Z" fill="#ff5470" />
-      <path d="M50 22 L63 13 Q67 22 63 29 Z" fill="#ff5470" />
-      <circle cx="50" cy="22" r="4.5" fill="#e8364f" />
-      <path d="M50 79 L42 72 Q41 78 44 80 Z M50 79 L58 72 Q59 78 56 80 Z" fill="#ffd23f" />
-    </g>
   );
 }
 
 function Helmet() {
   return (
     <g>
-      <circle cx="57" cy="35" r="25" fill="#9fd8ff" fillOpacity="0.28" stroke="#ffffff" strokeWidth="4" />
-      <circle cx="57" cy="35" r="25" fill="none" stroke="#5ad1ff" strokeWidth="1.5" />
-      <path d="M44 22 Q50 16 58 16" stroke="#fff" strokeWidth="3" fill="none" opacity="0.8" strokeLinecap="round" />
-      <path d="M58 12 L58 4" stroke="#cfd8ea" strokeWidth="2" />
-      <circle cx="58" cy="3" r="2.5" fill="#ff5470" />
+      <circle cx="59" cy="35" r="28" fill="#bfe6ff" fillOpacity="0.22" stroke="#ffffff" strokeWidth="4.5" />
+      <circle cx="59" cy="35" r="28" fill="none" stroke={INK} strokeWidth="1.4" />
+      <circle cx="59" cy="35" r="25.6" fill="none" stroke="#5ad1ff" strokeWidth="1.2" opacity="0.8" />
+      <path d="M44 22 Q52 13 62 13" stroke="#fff" strokeWidth="3.2" fill="none" opacity="0.85" strokeLinecap="round" />
+      <path d="M78 22 Q80 26 81 30" stroke="#fff" strokeWidth="2" fill="none" opacity="0.6" strokeLinecap="round" />
+      <path d="M59 7 L59 0" stroke="#cfd8ea" strokeWidth="2.4" />
+      <circle cx="59" cy="-1" r="3" fill="#ff5470" stroke={INK} strokeWidth="1.2" />
     </g>
   );
 }
 
-function Simple({ id }: { id: string }) {
-  switch (id) {
-    case "fox":
-      return (
-        <>
-          <circle cx="50" cy="50" r="50" fill="#fff1d6" />
-          <path d="M16 20 L34 34 L22 50 Z" fill="#f47c20" />
-          <path d="M84 20 L66 34 L78 50 Z" fill="#f47c20" />
-          <path d="M14 34 Q50 20 86 34 Q86 66 50 88 Q14 66 14 34 Z" fill="#f47c20" />
-          <path d="M22 50 Q36 52 50 88 Q64 52 78 50 Q72 72 50 88 Q28 72 22 50 Z" fill="#fff" />
-          <circle cx="36" cy="48" r="4" fill="#111" />
-          <circle cx="64" cy="48" r="4" fill="#111" />
-          <ellipse cx="50" cy="76" rx="5" ry="4" fill="#111" />
-        </>
-      );
-    case "bear":
-      return (
-        <>
-          <circle cx="50" cy="50" r="50" fill="#ffe3e3" />
-          <circle cx="24" cy="26" r="12" fill="#a0673a" />
-          <circle cx="76" cy="26" r="12" fill="#a0673a" />
-          <circle cx="24" cy="26" r="6" fill="#e2b48a" />
-          <circle cx="76" cy="26" r="6" fill="#e2b48a" />
-          <circle cx="50" cy="54" r="34" fill="#a0673a" />
-          <ellipse cx="50" cy="66" rx="16" ry="12" fill="#e2b48a" />
-          <circle cx="38" cy="48" r="4" fill="#111" />
-          <circle cx="62" cy="48" r="4" fill="#111" />
-          <ellipse cx="50" cy="61" rx="6" ry="4" fill="#3a2414" />
-          <path d="M44 70 Q50 75 56 70" stroke="#3a2414" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        </>
-      );
-    case "owl":
-      return (
-        <>
-          <circle cx="50" cy="50" r="50" fill="#e7e0ff" />
-          <path d="M20 22 L34 34 L22 40 Z" fill="#7a5c3e" />
-          <path d="M80 22 L66 34 L78 40 Z" fill="#7a5c3e" />
-          <ellipse cx="50" cy="58" rx="32" ry="34" fill="#9b7653" />
-          <ellipse cx="50" cy="70" rx="18" ry="18" fill="#d9c3a5" />
-          <circle cx="36" cy="46" r="12" fill="#fff" />
-          <circle cx="64" cy="46" r="12" fill="#fff" />
-          <circle cx="36" cy="46" r="6" fill="#111" />
-          <circle cx="64" cy="46" r="6" fill="#111" />
-          <path d="M46 56 L54 56 L50 64 Z" fill="#ff9f1c" />
-        </>
-      );
-    case "bunny":
-      return (
-        <>
-          <circle cx="50" cy="50" r="50" fill="#ffe8f3" />
-          <ellipse cx="36" cy="22" rx="8" ry="20" fill="#f4f4f6" />
-          <ellipse cx="64" cy="22" rx="8" ry="20" fill="#f4f4f6" />
-          <ellipse cx="36" cy="22" rx="4" ry="14" fill="#ffc0d6" />
-          <ellipse cx="64" cy="22" rx="4" ry="14" fill="#ffc0d6" />
-          <circle cx="50" cy="60" r="30" fill="#f4f4f6" />
-          <circle cx="39" cy="56" r="4" fill="#111" />
-          <circle cx="61" cy="56" r="4" fill="#111" />
-          <path d="M46 66 L54 66 L50 70 Z" fill="#ff7aa8" />
-          <circle cx="32" cy="66" r="4" fill="#ffc0d6" opacity="0.8" />
-          <circle cx="68" cy="66" r="4" fill="#ffc0d6" opacity="0.8" />
-        </>
-      );
-    default:
-      return null;
-  }
-}
+// Fur and backdrop for the fixed (non-rolled) critters.
+const SIMPLE: Record<string, { fur: Fur; bg: string; Art: (p: { u: string }) => React.ReactNode }> = {
+  fox: { fur: { base: "#f4892f", light: "#ffc27a", dark: "#c55a12" }, bg: "#fff1d6", Art: FoxBust },
+  bear: { fur: { base: "#a8703f", light: "#d8a473", dark: "#6c4220" }, bg: "#ffe3e3", Art: BearBust },
+  owl: { fur: { base: "#a27c57", light: "#d3b28a", dark: "#6a4c32" }, bg: "#e7e0ff", Art: OwlBust },
+  bunny: { fur: { base: "#f4f1f8", light: "#ffffff", dark: "#d4cde0" }, bg: "#ffe8f3", Art: BunnyBust },
+};
 
 function resolve(id: string): Parsed | null {
   if (id === "goose") return { species: "goose", bg: 1, acc: "none", fur: 0 };
@@ -344,44 +242,78 @@ function resolve(id: string): Parsed | null {
   return parseRandom(id);
 }
 
-export function Avatar({ id, size = 40, title }: { id: string; size?: number; title?: string }) {
-  const p = resolve(id);
+/** Baxter himself: the classic grey raccoon in his polka-dot party hat, no backdrop. */
+export function BaxterArt({ u }: { u: string }) {
+  return (
+    <>
+      <defs><SharedDefs u={u} fur={RACCOON_PALETTES[0]} /></defs>
+      <RaccoonBust u={u} body={false} />
+      <PartyHat u={u} x={56} top={22} tilt={14} />
+    </>
+  );
+}
+
+export function Avatar({ id, size = 40, title, className }: { id: string; size?: number; title?: string; className?: string }) {
+  // Each avatar needs its own gradient ids when several share a page.
+  const u = `av${useId().replace(/[^a-z0-9]/gi, "")}`;
   const label = title ?? avatarLabel(id);
+  if (id === GIFT_RACCOON) {
+    return (
+      <svg className={className ?? "avatar-agent"} width={size} height={size} viewBox="4 -10 92 98" role={label ? "img" : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : true}>
+        <BaxterArt u={u} />
+      </svg>
+    );
+  }
+  const p = resolve(id);
+  let fur: Fur | undefined;
+  let bg: string;
   let body: React.ReactNode;
   let extra: React.ReactNode = null;
   if (id === SPACE_GOOSE) {
-    body = <SpaceGoose />;
+    fur = GOOSE_PALETTES[0];
+    bg = "#141a3d";
+    body = <SpaceGoose u={u} />;
     extra = <Helmet />;
-  } else if (id === GIFT_RACCOON) {
-    body = <GiftRaccoon />;
-    extra = <GiftBow />;
   } else if (p) {
+    fur = p.species === "goose" ? GOOSE_PALETTES[p.fur] : RACCOON_PALETTES[p.fur];
+    bg = BGS[p.bg];
     body = (
       <>
-        <circle cx="50" cy="50" r="50" fill={BGS[p.bg]} />
-        {p.species === "goose" ? <GooseBody body={GOOSE_BODY[p.fur]} scarf={p.acc !== "bowtie"} /> : <RaccoonBody fur={RACCOON_FUR[p.fur]} />}
+        <Backdrop u={u} />
+        {p.species === "goose" ? <GooseBust u={u} scarf={p.acc !== "bowtie"} /> : <RaccoonBust u={u} />}
       </>
     );
-    extra = <Accessory id={p.acc} species={p.species} />;
+    extra = <Accessory u={u} id={p.acc} species={p.species} />;
   } else {
-    body = <Simple id={id} />;
+    const s = SIMPLE[id] ?? SIMPLE.bear;
+    fur = s.fur;
+    bg = s.bg;
+    body = <><Backdrop u={u} /><s.Art u={u} /></>;
   }
-  // Each instance needs its own clip id when several avatars share a page.
-  const clip = `av-${id.replace(/[^a-z0-9]/gi, "")}`;
   return (
     <svg className={`avatar ${id === SPACE_GOOSE ? "legendary" : ""}`} width={size} height={size} viewBox="0 -10 100 110" role="img" aria-label={label}>
       <defs>
-        <clipPath id={clip}><circle cx="50" cy="50" r="50" /></clipPath>
+        <SharedDefs u={u} fur={fur} bg={bg} />
+        <clipPath id={`${u}clip`}><circle cx="50" cy="50" r="50" /></clipPath>
         {id === SPACE_GOOSE && (
-          <radialGradient id="space-glow" cx="0.3" cy="0.3" r="0.8">
-            <stop offset="0" stopColor="#6d4cf0" stopOpacity="0.6" />
-            <stop offset="1" stopColor="#141a3d" stopOpacity="0" />
-          </radialGradient>
+          <>
+            <radialGradient id={`${u}space`} cx="0.3" cy="0.25" r="0.9">
+              <stop offset="0" stopColor="#5b3fd1" />
+              <stop offset="0.55" stopColor="#1f2058" />
+              <stop offset="1" stopColor="#0c1030" />
+            </radialGradient>
+            <radialGradient id={`${u}planet`} cx="0.35" cy="0.3" r="0.8">
+              <stop offset="0" stopColor="#ffd08a" />
+              <stop offset="1" stopColor="#f2711c" />
+            </radialGradient>
+          </>
         )}
       </defs>
-      <g clipPath={`url(#${clip})`}>{body}</g>
+      <g clipPath={`url(#${u}clip)`}>{body}</g>
+      <circle cx="50" cy="50" r="49.2" fill="none" stroke={INK} strokeOpacity="0.12" strokeWidth="1.6" />
       {extra}
-      {id === SPACE_GOOSE && <circle cx="50" cy="50" r="48" fill="none" stroke="#ffd23f" strokeWidth="4" />}
+      {id === SPACE_GOOSE && <circle cx="50" cy="50" r="48" fill="none" stroke={`url(#${u}gold)`} strokeWidth="4" />}
     </svg>
   );
 }
+

@@ -43,6 +43,28 @@ export function sizeSummary(p: Pick<Profile, "sizes">): string {
   return SIZE_FIELDS.filter((f) => sizes[f.id]).map((f) => `${f.label.split(" /")[0]} ${sizes[f.id]}`).join(" · ");
 }
 
+// True when the About card has anything for shoppers and Baxter to go on.
+export function hasDetails(p: Pick<Profile, "birthday" | "age" | "likes" | "dislikes" | "sizes" | "gift_notes">): boolean {
+  return profileAge(p) !== undefined || !!(p.likes || p.dislikes || p.gift_notes || sizeSummary(p));
+}
+
+// A secret list for someone with their own login sits on a stand-in profile that starts with only
+// their name and avatar. Fill whatever the stand-in leaves blank from their own profile.
+export function fillDetails(standIn: Profile, own: Profile | undefined): Profile {
+  if (!own) return standIn;
+  const sizes = Object.values(parseSizes(standIn.sizes)).some(Boolean) ? standIn.sizes : own.sizes;
+  return {
+    ...standIn,
+    birthday: standIn.birthday ?? own.birthday,
+    age: standIn.age ?? own.age,
+    likes: standIn.likes || own.likes,
+    dislikes: standIn.dislikes || own.dislikes,
+    sizes,
+    sizes_updated_at: sizes === standIn.sizes ? standIn.sizes_updated_at : own.sizes_updated_at,
+    gift_notes: standIn.gift_notes || own.gift_notes,
+  };
+}
+
 // Plain-text profile for AI prompts.
 export function describeProfile(p: Profile): string {
   const age = profileAge(p);

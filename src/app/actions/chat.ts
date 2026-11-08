@@ -1,13 +1,12 @@
 "use server";
-import { get, run } from "@/lib/db";
+import { run } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { canEditProfile, getList, isManager, listAccess } from "@/lib/access";
+import { canEditProfile, getList, isManager, listAccess, listProfile } from "@/lib/access";
 import type { ChatIdea, ProfileTip } from "@/lib/giftchat";
 import { chatViews } from "@/lib/chatstore";
 import { bestMatches, searchStores } from "@/lib/scrape/search";
 import { storeSearch } from "@/lib/scrape/stores";
 import { guessCategory, validCategory } from "@/lib/categories";
-import type { Profile } from "@/lib/types";
 
 export type ChatView = { id: number; role: "user" | "assistant"; body: string; ideas: ChatIdea[]; tip?: ProfileTip; stopped?: boolean };
 
@@ -15,7 +14,7 @@ async function context(listId: number) {
   const user = await requireUser();
   const list = getList(listId);
   if (!list || listAccess(user, list) === "none") throw new Error("List not found");
-  const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", list.profile_id)!;
+  const profile = listProfile(list.profile_id)!;
   return { user, list, profile };
 }
 

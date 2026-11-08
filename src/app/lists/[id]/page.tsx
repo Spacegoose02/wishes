@@ -2,14 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getUser, requireUser } from "@/lib/auth";
-import { canEditProfile, getList, isRecipient, listAccess, myLists } from "@/lib/access";
+import { canEditProfile, getList, isRecipient, listAccess, listProfile, myLists } from "@/lib/access";
 import { AboutProfile } from "@/components/AboutProfile";
 import { RenameKid } from "@/components/RenameKid";
 import { all, get } from "@/lib/db";
 import { aiEnabled } from "@/lib/ai";
 import { currencySymbol, daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
-import type { Item, Profile, Purchase } from "@/lib/types";
+import type { Item, Purchase } from "@/lib/types";
 import { watchesFor } from "@/lib/watches";
 import { seeList } from "@/lib/fresh";
 import { questionsForList, openQuestions, MAX_QUESTION, type Question } from "@/lib/questions";
@@ -20,6 +20,7 @@ import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purcha
 import { revealOpen } from "@/lib/reveal";
 import { pledgeGoal, pledgeProgress, pledgesForList, type Pledge } from "@/lib/pledges";
 import { ItemForm } from "@/components/ItemForm";
+import { clipDefaults } from "@/lib/clip";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { ClaimButton } from "@/components/ClaimButton";
@@ -149,7 +150,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   if (access === "none") notFound();
   const owner = access === "owner";
   const recipient = isRecipient(user.id, list);
-  const profile = get<Profile>("SELECT * FROM profiles WHERE id = ?", list.profile_id);
+  const profile = listProfile(list.profile_id);
   const otherLists = owner ? myLists(user.id).filter((l) => l.id !== list.id) : [];
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().toLowerCase() : "";
@@ -161,6 +162,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const board = sp.view === "board";
   // A link shared into the app (see /share) opens the add form already filled in.
   const shared = owner && typeof sp.add === "string" ? sp.add : "";
+  // From the "Add to Wishes" bookmark: the page was already read in the person's browser.
+  const clipped = shared ? clipDefaults(sp) : null;
 
   // Kid-mode wishes stay with the list's managers until one of them approves.
   const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NULL ORDER BY purchased, priority DESC, created_at DESC", list.id)
@@ -255,7 +258,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
             </Link>
           )}
           {owner && revealOpen(list) && <Link href={`/lists/${list.id}/reveal`} className="btn small">🎁 What {recipient ? "I" : "they"} got</Link>}
-          {aiEnabled() && <Link href={`/chat?list=${list.id}`} className="btn small">🦝 Ask Bandit</Link>}
+          {aiEnabled() && <Link href={`/chat?list=${list.id}`} className="btn small">🦝 Ask Baxter</Link>}
           {owner && aiEnabled() && (
             <Link href={`/lists/${list.id}/ideas`} className="btn small secondary">
               ✨ Ideas{pendingIdeas > 0 && <span className="badge">{pendingIdeas}</span>}
@@ -274,7 +277,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
       {owner && (
         <details className="card mt-12" open={allItems.length === 0 || !!shared}>
           <summary>Add a wish</summary>
-          <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} defaults={shared ? { url: shared } : undefined} autoFetch={!!shared} />
+          <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} defaults={shared ? { url: shared, ...clipped } : undefined} autoFetch={!!shared && !clipped} />
           <details className="mt-12">
             <summary className="small pointer fw-700">📋 Paste many links at once</summary>
             <form action={bulkAddItems} className="stack mt-10">
@@ -461,6 +464,9 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       {!it.needs_approval && !isFund(it.kind) && ((showClaims && !it.claimed_by) || (claimedByMe && boughtQty === 0)) && !it.purchased && (
                         <ClaimButton itemId={it.id} claimed={claimedByMe} action={claimItem} />
                       )}
+                      {owner && (
+                        <form action={deleteItem}><Hidden item={it.id} /><SubmitButton className="btn small danger" confirm="Tap again to remove">🗑️ Remove item</SubmitButton></form>
+                      )}
                       <Menu label={`More for ${it.title}`}>
                         {it.url && (
                           <form action={refreshItem}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Checking…">↻ Check price</SubmitButton></form>
@@ -480,9 +486,6 @@ export default async function ListPage({ params, searchParams }: { params: Param
                             <form action={archiveItem}><Hidden item={it.id} /><input type="hidden" name="reason" value="received" /><SubmitButton className="menu-item">🎁 Got it!</SubmitButton></form>
                             <form action={archiveItem}><Hidden item={it.id} /><input type="hidden" name="reason" value="unwanted" /><SubmitButton className="menu-item">🙅 Don&apos;t want it anymore</SubmitButton></form>
                           </>
-                        )}
-                        {owner && (
-                          <form action={deleteItem}><Hidden item={it.id} /><SubmitButton className="menu-item danger" confirm="Tap again to remove">🗑️ Remove</SubmitButton></form>
                         )}
                       </Menu>
                     </div>
