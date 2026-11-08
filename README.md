@@ -22,6 +22,16 @@ Self-hosted family wishlists for kids and grown-ups. Raccoons and geese welcome.
 - **Move wishes** between any lists you manage.
 - **Bot-wall helper (optional)**: point Wishes at a FlareSolverr container, or a scraping service, and it will use it for store pages that show a "checking your browser" page. Set it in Settings → Server or with `FLARESOLVERR_URL` / `SCRAPER_API_URL`.
 - **Avatars**: raccoons, geese and friends, plus "Roll a random critter" with Common, Rare and Epic accessories. **Space Goose** is the Legendary roll. Rolls build a collection.
+- **Alerts by email and push**: every alert also goes out by email (any SMTP server) and as a phone or desktop notification on devices you turn on in Settings → Alerts. Repeats fold together so a busy day doesn't flood your inbox.
+- **Forgot password**: email reset links, or an admin can make a one-time link from Settings → Server.
+- **Surprise gifts**: shoppers can add a gift that isn't on the list, so nobody doubles up. Everyone shopping sees it; the person it's for never does.
+- **Ask about a wish**: shoppers ask "which color?" and the list's people answer, without learning who asked.
+- **What's new**: a heads-up when family add wishes, and a ✨ New mark on wishes added since your last visit.
+- **Add from any site**: a bookmarks-bar button for computers (Settings → Me), alongside the phone share sheet.
+- **Import and export**: bring in a public Amazon wish list or a spreadsheet, and download all your lists as CSV or JSON.
+- **Rank wishes**: drag them into order; shoppers see that order under Most wanted.
+- **Works offline**: lists you've opened stay readable with no signal.
+- **Currency and region**: pick the household's currency and date style in Settings → Server.
 - **Themes**: Auto (follows OS dark mode), Sunny, Night, Candy, Forest, Ocean, Arcade. Mobile-first layout with a bottom tab bar, installable as a home-screen app.
 
 ## Run it on Unraid
@@ -55,6 +65,7 @@ All settings are environment variables; see [.env.example](.env.example).
 | `SCRAPER_API_URL` | Optional scraping API, with `{url}` where the page address goes. |
 | `COMPARE_STORES` | `false` stops the background sweep from searching Walmart/Amazon for cheaper matches. |
 | `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY`, `AI_BASE_URL` | Fallbacks for the Admin AI settings. |
+| `SMTP_URL`, `SMTP_FROM` | Outgoing email for alerts and password resets, e.g. `smtps://user%40example.com:pass@smtp.example.com:465`. Also settable in Settings → Server. |
 
 ### Tinyauth
 
