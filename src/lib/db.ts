@@ -419,6 +419,10 @@ const MIGRATIONS: string[] = [
     PRIMARY KEY (user_id, list_id)
   );
   `,
+  // 28: the list owner's own order for their wishes (drag to rank)
+  `
+  ALTER TABLE items ADD COLUMN rank INTEGER;
+  `,
 ];
 
 function open(): DatabaseSync {

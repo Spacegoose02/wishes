@@ -14,7 +14,7 @@ import { watchesFor } from "@/lib/watches";
 import { seeList } from "@/lib/fresh";
 import { questionsForList, openQuestions, MAX_QUESTION, type Question } from "@/lib/questions";
 import { addItem, importWishes, answerAboutItem, askAboutItem, removeQuestion, addSurprise, removeSurprise, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
-import { MAX_MUST_HAVES } from "@/lib/wishes";
+import { compareRank, MAX_MUST_HAVES } from "@/lib/wishes";
 import { isFund, kindInfo } from "@/lib/kinds";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
 import { revealOpen } from "@/lib/reveal";
@@ -200,7 +200,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
     return true;
   });
   const cmp: Record<keyof typeof SORTS, (a: Item, b: Item) => number> = {
-    priority: (a, b) => b.must_have - a.must_have || b.priority - a.priority || b.created_at - a.created_at,
+    priority: compareRank,
     newest: (a, b) => b.created_at - a.created_at,
     "price-asc": (a, b) => (a.price_cents ?? 1e12) - (b.price_cents ?? 1e12),
     "price-desc": (a, b) => (b.price_cents ?? -1) - (a.price_cents ?? -1),
@@ -263,6 +263,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
           )}
           <Link href={`/lists/${list.id}/print`} className="btn small ghost">🖨️ Print</Link>
           {pastCount > 0 && <Link href={`/lists/${list.id}/archive`} className="btn small ghost">🗃️ Past gifts ({pastCount})</Link>}
+          {owner && allItems.length > 1 && <Link href={`/lists/${list.id}/rank`} className="btn small ghost">↕️ Rank</Link>}
           {owner && <Link href={`/lists/${list.id}/share`} className="btn small secondary">Share &amp; hide</Link>}
           {owner && <Link href={`/lists/${list.id}/edit`} className="btn small ghost">Edit</Link>}
         </div>

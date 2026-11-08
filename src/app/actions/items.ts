@@ -8,7 +8,7 @@ import { fetchHtml, fetchProduct, type ProductInfo } from "@/lib/scrape";
 import { compareItem } from "@/lib/compare";
 import { formatMoney, parseMoney } from "@/lib/format";
 import { notify } from "@/lib/notify";
-import { approveItem, archiveWish, peopleBuying, restoreWish, setMustHave } from "@/lib/wishes";
+import { approveItem, archiveWish, clearRanks, peopleBuying, restoreWish, setMustHave, setRanks } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
 import { checkWatches, setWatch } from "@/lib/watches";
 import { announceWishes } from "@/lib/fresh";
@@ -342,4 +342,15 @@ export async function importWishes(form: FormData) {
   announceWishes(list, wishes.length, user.id);
   award(user.id, "first_wish");
   back("ok", `Imported ${wishes.length} ${wishes.length === 1 ? "wish" : "wishes"}`);
+}
+
+export async function saveRanks(form: FormData) {
+  const { list } = await ownList(n(form, "list_id"));
+  if (form.get("clear")) {
+    clearRanks(list.id);
+    redirect(`/lists/${list.id}?ok=${encodeURIComponent("Back to sorting by stars")}`);
+  }
+  const ids = s(form, "order").split(",").map(Number).filter((x) => Number.isInteger(x) && x > 0);
+  setRanks(list.id, ids);
+  redirect(`/lists/${list.id}?ok=${encodeURIComponent("Order saved")}`);
 }
