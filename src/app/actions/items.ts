@@ -11,6 +11,7 @@ import { notify } from "@/lib/notify";
 import { approveItem, archiveWish, peopleBuying, restoreWish, setMustHave } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
 import { checkWatches, setWatch } from "@/lib/watches";
+import { answerQuestion, askQuestion, deleteQuestion, questionOnList } from "@/lib/questions";
 import type { Item, Profile } from "@/lib/types";
 import { noSpoil, s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
 import { guessCategory, validCategory } from "@/lib/categories";
@@ -263,4 +264,29 @@ export async function removeSurprise(form: FormData) {
   run("DELETE FROM items WHERE id = ?", item.id);
   for (const uid of tell) notify(uid, "unwanted", `${user.name} took the surprise "${item.title}" off ${list.profile_name}'s list.`, `/lists/${list.id}`);
   redirect(`/lists/${list.id}?ok=Surprise+removed`);
+}
+
+// Ask about a wish without saying who's asking.
+export async function askAboutItem(form: FormData) {
+  const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
+  if (!item) redirect("/");
+  const { user, list } = await viewList(item.list_id);
+  noSpoil(item, user, list);
+  if (item.needs_approval && !isManager(user.id, list)) redirect(`/lists/${list.id}`);
+  const id = askQuestion(item, list, user.id, s(form, "question"));
+  redirect(`/lists/${list.id}?${id ? `ok=${encodeURIComponent("Asked! You'll get an alert when they answer.")}` : `error=${encodeURIComponent("Type a question first.")}`}#item-${item.id}`);
+}
+
+export async function answerAboutItem(form: FormData) {
+  const { list } = await ownList(n(form, "list_id"));
+  const ok = answerQuestion(n(form, "question_id"), list, s(form, "answer"));
+  redirect(`/lists/${list.id}?${ok ? "ok=Answered" : "error=Type+an+answer+first"}#item-${n(form, "item_id")}`);
+}
+
+// The asker can take a question back; the list's people can clear one away.
+export async function removeQuestion(form: FormData) {
+  const { user, list } = await viewList(n(form, "list_id"));
+  const q = questionOnList(n(form, "question_id"), list.id);
+  if (q && (q.asker_id === user.id || isManager(user.id, list))) deleteQuestion(q.id);
+  revalidatePath(`/lists/${list.id}`);
 }

@@ -11,7 +11,8 @@ import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
 import { watchesFor } from "@/lib/watches";
-import { addItem, addSurprise, removeSurprise, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
+import { questionsForList, openQuestions, MAX_QUESTION, type Question } from "@/lib/questions";
+import { addItem, answerAboutItem, askAboutItem, removeQuestion, addSurprise, removeSurprise, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { MAX_MUST_HAVES } from "@/lib/wishes";
 import { isFund, kindInfo } from "@/lib/kinds";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
@@ -83,6 +84,53 @@ function GroupGift({ item, pledges, userId }: { item: Item; pledges: Pledge[]; u
   );
 }
 
+// Anonymous Q&A on one wish. Shoppers ask; the list's people answer.
+function Questions({ item, qs, listId, canAnswer, canAsk }: { item: Item; qs: Question[]; listId: number; canAnswer: boolean; canAsk: boolean }) {
+  if (!qs.length && !canAsk) return null;
+  const open = qs.some((q) => !q.answered_at);
+  return (
+    <details className="full" open={canAnswer && open}>
+      <summary className="small muted pointer">❓ {qs.length ? `Questions (${qs.length})${canAnswer && open ? " · needs an answer" : ""}` : "Ask about this"}</summary>
+      <div className="stack mt-8">
+        {qs.map((q) => (
+          <div key={q.id} className="qa">
+            <p className="small m0"><strong>Q:</strong> {q.question}</p>
+            {q.answered_at ? (
+              <p className="small m0 mt-4"><strong>A:</strong> {q.answer}</p>
+            ) : canAnswer ? (
+              <form action={answerAboutItem} className="row mt-6 items-end">
+                <input type="hidden" name="list_id" value={listId} />
+                <input type="hidden" name="item_id" value={item.id} />
+                <input type="hidden" name="question_id" value={q.id} />
+                <label className="grow min-180">Your answer<input name="answer" maxLength={MAX_QUESTION} required /></label>
+                <SubmitButton className="btn small">Answer</SubmitButton>
+              </form>
+            ) : (
+              <p className="tiny muted m0 mt-4">Waiting for an answer.</p>
+            )}
+            {(q.mine || canAnswer) ? (
+              <form action={removeQuestion} className="inline-form">
+                <input type="hidden" name="list_id" value={listId} />
+                <input type="hidden" name="question_id" value={q.id} />
+                <SubmitButton className="linkish tiny">{q.mine ? "take back" : "remove"}</SubmitButton>
+              </form>
+            ) : null}
+          </div>
+        ))}
+        {canAsk && (
+          <form action={askAboutItem} className="row items-end">
+            <input type="hidden" name="item_id" value={item.id} />
+            <label className="grow min-180">Ask a question (they won&apos;t see who asked)
+              <input name="question" maxLength={MAX_QUESTION} placeholder="Which color? What size? Still want it?" required />
+            </label>
+            <SubmitButton className="btn small secondary">Ask</SubmitButton>
+          </form>
+        )}
+      </div>
+    </details>
+  );
+}
+
 function ago(ts: number | null): string {
   if (!ts) return "";
   const mins = Math.round((Date.now() / 1000 - ts) / 60);
@@ -132,6 +180,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
   // Pledges are for shoppers; the list's own person never sees them.
   const pledges = recipient ? [] : pledgesForList(list.id);
   const watches = watchesFor(user.id, list.id);
+  const questions = questionsForList(list.id, user.id);
+  const unanswered = owner ? openQuestions(list.id) : 0;
   const byItem = new Map<number, Purchase[]>();
   for (const p of purchases) if (p.item_id) byItem.set(p.item_id, [...(byItem.get(p.item_id) ?? []), p]);
 
@@ -190,6 +240,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
               {days !== undefined && days >= 0 && <span className="pill good">{days === 0 ? "Today!" : `${days} days to go`}</span>}
               {owner && list.visibility === "private" && <span className="pill">🔒 Hidden</span>}
               {owner && list.review_purchases ? <span className="pill">🧾 Purchases reviewed</span> : null}
+              {unanswered > 0 && <span className="pill accent">❓ {unanswered} {unanswered === 1 ? "question" : "questions"} to answer</span>}
             </div>
           </div>
         </div>
@@ -453,6 +504,9 @@ export default async function ListPage({ params, searchParams }: { params: Param
                           {watches.has(it.id) && <SubmitButton className="btn small ghost" name="stop" value="1">Stop</SubmitButton>}
                         </form>
                       </details>
+                    ) : null}
+                    {!it.surprise && !it.needs_approval ? (
+                      <Questions item={it} qs={questions.get(it.id) ?? []} listId={list.id} canAnswer={owner} canAsk={!recipient && !owner} />
                     ) : null}
                     {owner && (
                       <details className="full">

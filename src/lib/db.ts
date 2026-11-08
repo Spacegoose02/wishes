@@ -397,6 +397,19 @@ const MIGRATIONS: string[] = [
   ALTER TABLE items ADD COLUMN surprise INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE items ADD COLUMN added_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
   `,
+  // 26: anonymous questions about a wish ("which color?"), answered by the list's people
+  `
+  CREATE TABLE item_questions (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    asker_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL DEFAULT '',
+    answered_at INTEGER,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE INDEX idx_item_questions_item ON item_questions(item_id);
+  `,
 ];
 
 function open(): DatabaseSync {
