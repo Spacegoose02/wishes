@@ -85,6 +85,8 @@ export type Item = {
   archived_at: number | null;
   kind: "product" | "experience" | "gift_card" | "fund";
   archive_reason: "" | "received" | "unwanted";
+  surprise: number;
+  added_by: number | null;
   created_at: number;
 };
 

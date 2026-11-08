@@ -39,7 +39,7 @@ export async function guestDeleteItem(form: FormData) {
   const token = s(form, "token");
   const g = guestByToken(token);
   if (!g || !g.can_edit) redirect("/");
-  const item = get<Item>("SELECT * FROM items WHERE id = ? AND list_id = ?", n(form, "item_id"), g.list_id);
+  const item = get<Item>("SELECT * FROM items WHERE id = ? AND list_id = ? AND surprise = 0", n(form, "item_id"), g.list_id);
   const list = getList(g.list_id);
   if (item && list) {
     const tell = peopleBuying(item).filter((uid) => !isRecipient(uid, list));
@@ -56,7 +56,7 @@ export async function guestRecordPurchase(form: FormData) {
   const token = s(form, "token");
   const g = guestByToken(token);
   if (!g) redirect("/");
-  const item = get<Item>("SELECT * FROM items WHERE id = ? AND list_id = ?", n(form, "item_id"), g.list_id);
+  const item = get<Item>("SELECT * FROM items WHERE id = ? AND list_id = ? AND surprise = 0", n(form, "item_id"), g.list_id);
   const list = getList(g.list_id);
   if (!item || !list) redirect(`/s/${token}`);
   const pending = !!list.review_purchases;

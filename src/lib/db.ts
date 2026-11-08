@@ -392,6 +392,11 @@ const MIGRATIONS: string[] = [
     used_at INTEGER
   );
   `,
+  // 25: surprise gifts, added by shoppers and hidden from the person the list is for
+  `
+  ALTER TABLE items ADD COLUMN surprise INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE items ADD COLUMN added_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+  `,
 ];
 
 function open(): DatabaseSync {

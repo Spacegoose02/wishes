@@ -7,11 +7,12 @@ import type { Item } from "./types";
 export const MAX_MUST_HAVES = 3;
 
 export function mustHaveCount(listId: number): number {
-  return get<{ n: number }>("SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND must_have = 1 AND archived_at IS NULL", listId)!.n;
+  return get<{ n: number }>("SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND must_have = 1 AND archived_at IS NULL AND surprise = 0", listId)!.n;
 }
 
 // Gold-star a wish, or take the star off. A list only gets three.
 export function setMustHave(item: Item, on: boolean): { ok: true } | { ok: false; error: string } {
+  if (on && item.surprise) return { ok: false, error: "Surprises can't be must-haves." };
   if (on && !item.must_have && mustHaveCount(item.list_id) >= MAX_MUST_HAVES) {
     return { ok: false, error: `Only ${MAX_MUST_HAVES} must-haves per list. Unstar one first.` };
   }

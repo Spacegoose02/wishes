@@ -11,7 +11,7 @@ import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
 import { watchesFor } from "@/lib/watches";
-import { addItem, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
+import { addItem, addSurprise, removeSurprise, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { MAX_MUST_HAVES } from "@/lib/wishes";
 import { isFund, kindInfo } from "@/lib/kinds";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
@@ -115,7 +115,11 @@ export default async function ListPage({ params, searchParams }: { params: Param
 
   // Kid-mode wishes stay with the list's managers until one of them approves.
   const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NULL ORDER BY purchased, priority DESC, created_at DESC", list.id)
-    .filter((i) => owner || !i.needs_approval);
+    .filter((i) => (owner || !i.needs_approval) && !(recipient && i.surprise));
+  // Who added each surprise gift, for the other shoppers.
+  const adders = new Map(all<{ id: number; name: string }>(
+    "SELECT id, name FROM users WHERE id IN (SELECT added_by FROM items WHERE list_id = ? AND surprise = 1)", list.id,
+  ).map((u) => [u.id, u.name]));
   // The list's own person only sees what they marked themselves.
   const purchases = recipient
     ? all<Purchase>("SELECT * FROM purchases WHERE list_id = ? AND buyer_user_id = ? ORDER BY created_at", list.id, user.id)
@@ -154,7 +158,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   if (!recipient) items.sort((a, b) => a.purchased - b.purchased);
 
   const usedCats = CATEGORIES.filter((c) => allItems.some((i) => i.category === c.id));
-  const pastCount = get<{ n: number }>("SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND archived_at IS NOT NULL AND needs_approval = 0", list.id)!.n;
+  const pastCount = get<{ n: number }>(`SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND archived_at IS NOT NULL AND needs_approval = 0${recipient ? " AND surprise = 0" : ""}`, list.id)!.n;
   const pendingIdeas = owner ? get<{ n: number }>("SELECT COUNT(*) AS n FROM suggestions WHERE list_id = ? AND status = 'pending'", list.id)!.n : 0;
   const pendingReviews = owner && !recipient ? purchases.filter((p) => p.status === "pending").length : 0;
   const days = daysUntil(list.event_date);
@@ -225,6 +229,16 @@ export default async function ListPage({ params, searchParams }: { params: Param
               <SubmitButton className="btn secondary" pendingLabel="Looking them up…">Add them all</SubmitButton>
             </form>
           </details>
+        </details>
+      )}
+
+      {!recipient && (
+        <details className="card mt-12" id="surprise">
+          <summary>🤫 Add a surprise gift</summary>
+          <p className="small muted m0 mb-6">
+            Getting {list.profile_name} something that isn&apos;t on the list? Add it here so nobody else buys the same thing. Everyone shopping for {list.profile_name} sees it, but {list.profile_name} never will.
+          </p>
+          <ItemForm action={addSurprise} autofill={autofill} hidden={{ list_id: list.id, claim: 1 }} submitLabel="Add surprise" />
         </details>
       )}
 
@@ -326,6 +340,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       )}
                       <div className="row gap-8" style={{ marginTop: 2 }}>
                         {it.needs_approval ? <span className="pill accent">🧒 Waiting for approval</span> : null}
+                        {it.surprise ? <span className="pill accent" title={`${list.profile_name} can't see this`}>🤫 Surprise{it.added_by && adders.has(it.added_by) ? ` from ${it.added_by === user.id ? "you" : adders.get(it.added_by)}` : ""}</span> : null}
                         {it.must_have ? <span className="pill must">⭐ Must-have</span> : null}
                         {it.kind !== "product" && <span className="pill accent">{kindInfo(it.kind).icon} {kindInfo(it.kind).label}</span>}
                         {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents, it.currency)}</span> : null}
@@ -381,7 +396,10 @@ export default async function ListPage({ params, searchParams }: { params: Param
                           <form action={refreshItem}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Checking…">↻ Check price</SubmitButton></form>
                         )}
                         <form action={compareStores}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Comparing…">⚖️ Compare stores</SubmitButton></form>
-                        {owner && (it.must_have || mustCount < MAX_MUST_HAVES) ? (
+                        {it.surprise && it.added_by === user.id && !owner ? (
+                          <form action={removeSurprise}><Hidden item={it.id} /><SubmitButton className="menu-item danger" confirm="Tap again to remove">🗑️ Remove surprise</SubmitButton></form>
+                        ) : null}
+                        {owner && !it.surprise && (it.must_have || mustCount < MAX_MUST_HAVES) ? (
                           <form action={toggleMustHave}>
                             <Hidden item={it.id} action={it.must_have ? "unstar" : "star"} />
                             <SubmitButton className="menu-item">{it.must_have ? "☆ Not a must-have" : "⭐ Make a must-have"}</SubmitButton>

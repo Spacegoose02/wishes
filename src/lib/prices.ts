@@ -14,10 +14,12 @@ const short = (t: string) => (t.length > 60 ? t.slice(0, 57).trimEnd() + "…" :
 
 // Who hears about deals: whoever claimed the gift, otherwise the list's managers
 // (an unclaimed price drop tells the recipient nothing about who is buying what).
+// A surprise gift's own person never hears about it.
 function dealWatchers(r: Row): number[] {
   if (r.claimed_by) return [r.claimed_by];
   const co = all<{ user_id: number }>("SELECT user_id FROM list_owners WHERE list_id = ?", r.list_id).map((x) => x.user_id);
-  return [r.owner_id, ...co.filter((id) => id !== r.owner_id)];
+  const managers = [r.owner_id, ...co.filter((id) => id !== r.owner_id)];
+  return r.surprise && r.is_primary ? managers.filter((id) => id !== r.owner_id) : managers;
 }
 
 // Background sweep: re-check each linked item's own price, and look for the same item

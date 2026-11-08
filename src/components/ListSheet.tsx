@@ -8,7 +8,7 @@ import type { Item } from "@/lib/types";
 // so it's fine on paper, on the fridge or behind a QR code.
 export function ListSheet({ listId }: { listId: number }) {
   const items = all<Item>(
-    "SELECT * FROM items WHERE list_id = ? AND needs_approval = 0 AND archived_at IS NULL ORDER BY must_have DESC, priority DESC, created_at DESC",
+    "SELECT * FROM items WHERE list_id = ? AND needs_approval = 0 AND archived_at IS NULL AND surprise = 0 ORDER BY must_have DESC, priority DESC, created_at DESC",
     listId,
   );
   if (!items.length) return <p className="muted">No wishes yet.</p>;

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { all } from "@/lib/db";
-import { getList, listAccess } from "@/lib/access";
+import { getList, isRecipient, listAccess } from "@/lib/access";
 import { categoryIcon } from "@/lib/categories";
 import type { Item } from "@/lib/types";
 import { restoreItem } from "../../../actions/items";
@@ -17,7 +17,8 @@ export default async function ArchivePage({ params }: { params: Promise<{ id: st
   if (!list) notFound();
   const access = listAccess(user, list);
   if (access === "none") notFound();
-  const items = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NOT NULL AND needs_approval = 0 ORDER BY archived_at DESC", list.id);
+  const items = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NOT NULL AND needs_approval = 0 ORDER BY archived_at DESC", list.id)
+    .filter((i) => !i.surprise || !isRecipient(user.id, list));
   const groups = [
     { reason: "received", title: "🎁 Got it", items: items.filter((i) => i.archive_reason !== "unwanted") },
     { reason: "unwanted", title: "🙅 Not wanted anymore", items: items.filter((i) => i.archive_reason === "unwanted") },
