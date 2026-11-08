@@ -11,6 +11,7 @@ import { daysUntil, formatMoney } from "@/lib/format";
 import { CATEGORIES, categoryIcon, categoryLabel } from "@/lib/categories";
 import type { Item, Profile, Purchase } from "@/lib/types";
 import { watchesFor } from "@/lib/watches";
+import { seeList } from "@/lib/fresh";
 import { questionsForList, openQuestions, MAX_QUESTION, type Question } from "@/lib/questions";
 import { addItem, answerAboutItem, askAboutItem, removeQuestion, addSurprise, removeSurprise, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { MAX_MUST_HAVES } from "@/lib/wishes";
@@ -181,6 +182,9 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const pledges = recipient ? [] : pledgesForList(list.id);
   const watches = watchesFor(user.id, list.id);
   const questions = questionsForList(list.id, user.id);
+  // Shoppers get a "new" mark on wishes added since their last visit.
+  const seenAt = owner ? undefined : seeList(user.id, list.id);
+  const isNew = (it: Item) => seenAt !== undefined && it.created_at > seenAt && it.added_by !== user.id;
   const unanswered = owner ? openQuestions(list.id) : 0;
   const byItem = new Map<number, Purchase[]>();
   for (const p of purchases) if (p.item_id) byItem.set(p.item_id, [...(byItem.get(p.item_id) ?? []), p]);
@@ -390,6 +394,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         <span className="item-title">{it.title}</span>
                       )}
                       <div className="row gap-8" style={{ marginTop: 2 }}>
+                        {isNew(it) ? <span className="pill good">✨ New</span> : null}
                         {it.needs_approval ? <span className="pill accent">🧒 Waiting for approval</span> : null}
                         {it.surprise ? <span className="pill accent" title={`${list.profile_name} can't see this`}>🤫 Surprise{it.added_by && adders.has(it.added_by) ? ` from ${it.added_by === user.id ? "you" : adders.get(it.added_by)}` : ""}</span> : null}
                         {it.must_have ? <span className="pill must">⭐ Must-have</span> : null}

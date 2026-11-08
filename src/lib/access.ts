@@ -78,6 +78,16 @@ export function listAccess(user: User, list: ListWithOwner): ListAccess {
   return ok ? "viewer" : "none";
 }
 
+// Everyone who shops from a list (sees it without managing it).
+export function listShoppers(listId: number): number[] {
+  return all<{ id: number }>(
+    `SELECT u.id FROM users u WHERE EXISTS (
+       SELECT 1 FROM lists l JOIN profiles p ON p.id = l.profile_id WHERE l.id = ? AND ${VISIBLE_TO.replaceAll(":uid", "u.id")})
+     ORDER BY u.id`,
+    listId,
+  ).map((r) => r.id);
+}
+
 // Only the person a list is for is kept in the dark about claims and purchases.
 // Parents managing a kid profile, and co-owners, see everything so they can coordinate.
 export function isRecipient(userId: number, list: ListWithOwner): boolean {

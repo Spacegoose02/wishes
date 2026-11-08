@@ -12,17 +12,17 @@ export function notify(userId: number, kind: string, message: string, link = "")
 
 // Like notify, but folds repeats into one unread alert (e.g. "3 new wishes on Maya's list"),
 // so a burst of activity doesn't send a burst of emails. Only the first one is delivered.
-export function notifyOnce(userId: number, kind: string, link: string, message: (count: number) => string) {
+export function notifyOnce(userId: number, kind: string, link: string, message: (count: number) => string, add = 1) {
   const open = get<{ id: number; count: number }>(
     "SELECT id, count FROM notifications WHERE user_id = ? AND kind = ? AND link = ? AND read = 0 AND created_at > unixepoch() - 86400 ORDER BY id DESC LIMIT 1",
     userId, kind, link,
   );
   if (open) {
-    run("UPDATE notifications SET count = count + 1, message = ? WHERE id = ?", message(open.count + 1), open.id);
+    run("UPDATE notifications SET count = count + ?, message = ? WHERE id = ?", add, message(open.count + add), open.id);
     return;
   }
-  run("INSERT INTO notifications (user_id, kind, message, link, count) VALUES (?, ?, ?, ?, 1)", userId, kind, message(1), link);
-  deliver(userId, kind, message(1), link);
+  run("INSERT INTO notifications (user_id, kind, message, link, count) VALUES (?, ?, ?, ?, ?)", userId, kind, message(add), link, add);
+  deliver(userId, kind, message(add), link);
 }
 
 type Prefs = { email: string; name: string; alert_email: number; alert_push: number };

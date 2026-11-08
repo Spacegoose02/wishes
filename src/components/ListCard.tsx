@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { ListWithOwner } from "@/lib/access";
 import { daysUntil } from "@/lib/format";
+import type { Freshness } from "@/lib/fresh";
 import { Avatar } from "./Avatar";
 
 const VIS: Record<string, string> = { private: "🔒 Only me", family: "👨‍👩‍👧 Family", custom: "✨ Custom" };
 
-export function ListCard({ list, showOwner }: { list: ListWithOwner; showOwner?: boolean }) {
+export function ListCard({ list, showOwner, fresh }: { list: ListWithOwner; showOwner?: boolean; fresh?: Freshness }) {
   const days = daysUntil(list.event_date);
   return (
     <Link href={`/lists/${list.id}`} className="card list-card">
@@ -26,6 +27,7 @@ export function ListCard({ list, showOwner }: { list: ListWithOwner; showOwner?:
       </div>
       <div className="row gap-6">
         <span className="pill">{list.item_count ?? 0} {list.item_count === 1 ? "wish" : "wishes"}</span>
+        {fresh?.newWishes ? <span className="pill good">✨ {fresh.newWishes} new</span> : fresh?.neverSeen ? <span className="pill good">✨ New list</span> : null}
         {list.occasion && <span className="pill accent">{list.occasion}</span>}
         {days !== undefined && days >= 0 && <span className="pill good">{days === 0 ? "Today!" : `${days} days`}</span>}
       </div>

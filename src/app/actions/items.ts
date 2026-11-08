@@ -11,6 +11,7 @@ import { notify } from "@/lib/notify";
 import { approveItem, archiveWish, peopleBuying, restoreWish, setMustHave } from "@/lib/wishes";
 import { award } from "@/lib/rewards";
 import { checkWatches, setWatch } from "@/lib/watches";
+import { announceWishes } from "@/lib/fresh";
 import { answerQuestion, askQuestion, deleteQuestion, questionOnList } from "@/lib/questions";
 import type { Item, Profile } from "@/lib/types";
 import { noSpoil, s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
@@ -30,6 +31,7 @@ export async function addItem(form: FormData) {
   const f = await withPicture(form, itemFields(form), `/lists/${list.id}`);
   if (!f.title) redirect(`/lists/${list.id}?error=Every+wish+needs+a+name`);
   insertItem(list.id, f, null, false, { addedBy: user.id });
+  announceWishes(list, 1, user.id);
   award(user.id, "first_wish");
   redirect(`/lists/${list.id}?ok=Added`);
 }
@@ -175,6 +177,7 @@ export async function approveWish(form: FormData) {
   if (!item) redirect("/");
   const { user, list } = await ownList(item.list_id);
   noSpoil(item, user, list);
+  if (item.needs_approval) announceWishes(list, 1, user.id);
   approveItem(item.id);
   redirect(`/lists/${list.id}?ok=Approved#item-${item.id}`);
 }
@@ -201,6 +204,7 @@ export async function bulkAddItems(form: FormData) {
       variant: "", color: "", size: "",
     }, null, false, { addedBy: user.id });
   });
+  announceWishes(list, urls.length, user.id);
   award(user.id, "first_wish");
   const msg = `Added ${urls.length} ${urls.length === 1 ? "wish" : "wishes"}${thin ? `; ${thin} need a name or price filled in` : ""}`;
   redirect(`/lists/${list.id}?ok=${encodeURIComponent(msg)}`);

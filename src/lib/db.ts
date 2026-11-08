@@ -410,6 +410,15 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_item_questions_item ON item_questions(item_id);
   `,
+  // 27: when each person last looked at each list, for "new since your last visit"
+  `
+  CREATE TABLE list_seen (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    seen_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, list_id)
+  );
+  `,
 ];
 
 function open(): DatabaseSync {

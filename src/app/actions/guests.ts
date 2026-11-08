@@ -5,6 +5,7 @@ import { getList, isRecipient, listManagers } from "@/lib/access";
 import { randomToken } from "@/lib/crypto";
 import { parseMoney } from "@/lib/format";
 import { notify } from "@/lib/notify";
+import { announceWishes } from "@/lib/fresh";
 import type { Item } from "@/lib/types";
 import { peopleBuying } from "@/lib/wishes";
 import { s, n, ownList, doAutofill, itemFields, insertItem, recomputePurchased, guestByToken, withPicture } from "./_shared";
@@ -31,7 +32,11 @@ export async function guestAddItem(form: FormData) {
   const g = guestByToken(token);
   if (!g || !g.can_edit) redirect("/");
   const f = await withPicture(form, itemFields(form), `/s/${token}`);
-  if (f.title) insertItem(g.list_id, f, g.email);
+  const list = getList(g.list_id);
+  if (f.title && list) {
+    insertItem(g.list_id, f, g.email);
+    announceWishes(list, 1, null);
+  }
   redirect(`/s/${token}?ok=Added`);
 }
 

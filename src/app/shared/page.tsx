@@ -2,12 +2,14 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { sharedWithMe } from "@/lib/access";
 import { ListCard } from "@/components/ListCard";
+import { freshness } from "@/lib/fresh";
 
 export const metadata = { title: "Family lists" };
 
 export default async function SharedPage() {
   const user = await requireUser();
   const lists = sharedWithMe(user.id);
+  const fresh = freshness(user.id, lists.map((l) => l.id));
   const byPerson = new Map<string, typeof lists>();
   for (const l of lists) {
     const k = l.profile_name;
@@ -26,7 +28,7 @@ export default async function SharedPage() {
       {[...byPerson.entries()].map(([name, ls]) => (
         <section key={name} className="section">
           <h2>{name}</h2>
-          <div className="grid">{ls.map((l) => <ListCard key={l.id} list={l} showOwner />)}</div>
+          <div className="grid">{ls.map((l) => <ListCard key={l.id} list={l} showOwner fresh={fresh.get(l.id)} />)}</div>
         </section>
       ))}
     </>
