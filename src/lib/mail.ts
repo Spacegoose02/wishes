@@ -24,7 +24,8 @@ export function siteUrl(): string {
 
 export async function sendMail(to: string, subject: string, body: { text: string; html?: string }): Promise<void> {
   if (!mailEnabled()) throw new Error("Email isn't set up on this server.");
-  const nodemailer = await import("nodemailer");
+  const mod = (await import("nodemailer")) as typeof import("nodemailer") & { default?: typeof import("nodemailer") };
+  const nodemailer = mod.default ?? mod;
   const transport = nodemailer.createTransport(smtpUrl());
   await transport.sendMail({ from: mailFrom(), to, subject, text: body.text, html: body.html });
 }

@@ -16,7 +16,7 @@ async function vapidKeys(): Promise<{ publicKey: string; privateKey: string }> {
   const publicKey = getSetting("vapid_public");
   const privateKey = getSetting("vapid_private");
   if (publicKey && privateKey) return { publicKey, privateKey };
-  const webpush = (await import("web-push")).default;
+  const webpush = await loadWebPush();
   const keys = webpush.generateVAPIDKeys();
   setSetting("vapid_public", keys.publicKey);
   setSetting("vapid_private", keys.privateKey);
@@ -59,7 +59,7 @@ export function pushDeviceCount(userId: number): number {
 export async function pushToUser(userId: number, msg: PushMessage): Promise<number> {
   const subs = all<{ endpoint: string; p256dh: string; auth: string }>("SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?", userId);
   if (!subs.length) return 0;
-  const webpush = (await import("web-push")).default;
+  const webpush = await loadWebPush();
   const keys = await vapidKeys();
   const from = mailFrom().match(/[^<\s]+@[^>\s]+/)?.[0];
   const subject = from ? `mailto:${from}` : siteUrl().startsWith("https:") ? siteUrl() : "mailto:wishes@localhost";
@@ -80,4 +80,10 @@ export async function pushToUser(userId: number, msg: PushMessage): Promise<numb
     }
   }
   return sent;
+}
+
+// web-push is CommonJS; depending on how it's bundled the API is on the module or on .default.
+async function loadWebPush(): Promise<typeof import("web-push")> {
+  const mod = (await import("web-push")) as typeof import("web-push") & { default?: typeof import("web-push") };
+  return mod.default ?? mod;
 }

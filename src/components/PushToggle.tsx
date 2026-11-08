@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { removePushSubscription, savePushSubscription } from "@/app/actions/account";
 
-type State = "checking" | "unsupported" | "denied" | "off" | "on" | "working";
+type State = "checking" | "insecure" | "unsupported" | "denied" | "off" | "on" | "working";
 
 function keyBytes(base64: string): Uint8Array<ArrayBuffer> {
   const pad = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -19,6 +19,7 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
 
   useEffect(() => {
     (async () => {
+      if (!window.isSecureContext) return setState("insecure");
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return setState("unsupported");
       if (Notification.permission === "denied") return setState("denied");
       const reg = await navigator.serviceWorker.getRegistration();
@@ -61,6 +62,9 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
   }
 
   if (state === "checking") return <p className="small muted m0">Checking this device…</p>;
+  if (state === "insecure") {
+    return <p className="small muted m0">Phone and computer alerts only work when Wishes is opened over https (a secure address, usually through your reverse proxy). Email alerts still work.</p>;
+  }
   if (state === "unsupported") {
     return (
       <p className="small muted m0">
