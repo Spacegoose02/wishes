@@ -223,7 +223,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
       )}
 
       {tab === "security" && <SecurityPanel user={user} />}
-      {tab === "admin" && user.is_admin ? <AdminPanel me={user} /> : null}
+      {tab === "admin" && user.is_admin ? (
+        <AdminPanel
+          me={user}
+          reset={typeof sp.reset_token === "string" && sp.reset_token ? { userId: Number(sp.reset_user), link: `${await siteOrigin()}/reset/${sp.reset_token}` } : undefined}
+        />
+      ) : null}
     </div>
   );
 }

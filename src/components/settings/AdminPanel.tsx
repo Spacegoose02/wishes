@@ -9,8 +9,10 @@ import { describeSmtp, mailEnabled, mailFrom, siteUrl, smtpUrl } from "@/lib/mai
 import { getSetting } from "@/lib/db";
 import { Avatar } from "@/components/Avatar";
 import { SubmitButton } from "@/components/SubmitButton";
+import { CopyButton } from "@/components/CopyButton";
+import { ADMIN_RESET_HOURS } from "@/lib/resets";
 
-export function AdminPanel({ me }: { me: User }) {
+export function AdminPanel({ me, reset }: { me: User; reset?: { userId: number; link: string } }) {
   const ai = aiConfig();
   const oidc = oidcConfig();
   const usage = monthUsage();
@@ -94,8 +96,16 @@ export function AdminPanel({ me }: { me: User }) {
         <p className="small m0">Proxy header sign-in: <strong>{process.env.TRUSTED_EMAIL_HEADER ? `on (${process.env.TRUSTED_EMAIL_HEADER})` : "off"}</strong> (TRUSTED_EMAIL_HEADER)</p>
       </section>
 
-      <section className="card">
+      <section id="people" className="card">
         <h2>People ({users.length})</h2>
+        {reset && (
+          <div className="card stack mb-6" role="status">
+            <p className="small m0">
+              <strong>Reset link for {users.find((u) => u.id === reset.userId)?.name ?? "them"}</strong>. Send it to them privately. It works once, for {ADMIN_RESET_HOURS} hours, and won&apos;t be shown again.
+            </p>
+            <div className="row nowrap"><input readOnly value={reset.link} aria-label="Reset link" /><CopyButton text={reset.link} /></div>
+          </div>
+        )}
         <div className="table-wrap">
           <table className="table">
             <tbody>
@@ -113,12 +123,12 @@ export function AdminPanel({ me }: { me: User }) {
                   <td className="text-right">
                     {u.id !== me.id && (
                       <div className="row justify-end gap-6">
-                        {(["toggle-admin", "reset-2fa", "delete"] as const).map((a) => (
+                        {(["toggle-admin", "reset-link", "reset-2fa", "delete"] as const).map((a) => (
                           <form key={a} action={adminUser}>
                             <input type="hidden" name="user_id" value={u.id} />
                             <input type="hidden" name="action" value={a} />
                             <SubmitButton className={`btn small ${a === "delete" ? "danger" : "ghost"}`} confirm={a === "delete" ? `Delete ${u.name}?` : a === "reset-2fa" ? "Reset their 2FA?" : undefined}>
-                              {a === "toggle-admin" ? (u.is_admin ? "Remove admin" : "Make admin") : a === "reset-2fa" ? "Reset 2FA" : "Delete"}
+                              {a === "toggle-admin" ? (u.is_admin ? "Remove admin" : "Make admin") : a === "reset-link" ? "Password link" : a === "reset-2fa" ? "Reset 2FA" : "Delete"}
                             </SubmitButton>
                           </form>
                         ))}

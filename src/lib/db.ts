@@ -383,6 +383,15 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_push_user ON push_subscriptions(user_id);
   `,
+  // 24: one-time password reset links (by email, or made by an admin)
+  `
+  CREATE TABLE password_resets (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at INTEGER NOT NULL,
+    used_at INTEGER
+  );
+  `,
 ];
 
 function open(): DatabaseSync {

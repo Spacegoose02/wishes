@@ -4,6 +4,7 @@ import { run, setSetting } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { PROVIDERS, type AiProvider } from "@/lib/ai";
 import { mailFrom, sendMail } from "@/lib/mail";
+import { ADMIN_RESET_HOURS, createReset } from "@/lib/resets";
 import { s, n } from "./_shared";
 
 export async function saveAiSettings(form: FormData) {
@@ -40,6 +41,10 @@ export async function adminUser(form: FormData) {
   if (action === "delete") run("DELETE FROM users WHERE id = ?", uid);
   if (action === "toggle-admin") run("UPDATE users SET is_admin = 1 - is_admin WHERE id = ?", uid);
   if (action === "reset-2fa") run("UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?", uid);
+  if (action === "reset-link") {
+    const token = createReset(uid, ADMIN_RESET_HOURS);
+    redirect(`/settings?tab=admin&reset_user=${uid}&reset_token=${encodeURIComponent(token)}#people`);
+  }
   redirect("/settings?tab=admin&ok=Done");
 }
 
