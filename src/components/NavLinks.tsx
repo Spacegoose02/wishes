@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AGENT_IMAGE } from "./Avatar";
+import { Avatar, GIFT_RACCOON } from "./Avatar";
 
 type Tab = { href: string; label: string; icon: string; short: string };
 
@@ -29,7 +29,7 @@ export function TopNav({ unread, avatar }: { unread: number; avatar: React.React
     <nav className="nav" aria-label="Main">
       {TABS.map((t) => (
         <Link key={t.href} href={t.href} aria-current={isActive(path, t.href) ? "page" : undefined}>
-          {t.href === "/chat" && <><img src={AGENT_IMAGE} alt="" className="nav-baxter" />{" "}</>}
+          {t.href === "/chat" && <><Avatar id={GIFT_RACCOON} title="" className="nav-baxter" />{" "}</>}
           {t.label}
           {t.href === "/notifications" && <Badge n={unread} />}
         </Link>
@@ -49,7 +49,7 @@ export function BottomNav({ unread }: { unread: number }) {
     <nav className="bottomnav" aria-label="Main">
       {[...BOTTOM, { href: "/settings", label: "Settings", icon: "⚙️", short: "Me" }].map((t) => (
         <Link key={t.href} href={t.href} aria-current={isActive(path, t.href) ? "page" : undefined}>
-          <span className="ico" aria-hidden="true">{t.href === "/chat" ? <img src={AGENT_IMAGE} alt="" className="nav-baxter" /> : t.icon}</span>
+          <span className="ico" aria-hidden="true">{t.href === "/chat" ? <Avatar id={GIFT_RACCOON} title="" className="nav-baxter" /> : t.icon}</span>
           {t.short}
           {t.href === "/notifications" && <Badge n={unread} />}
         </Link>
