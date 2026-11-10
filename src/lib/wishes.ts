@@ -6,6 +6,38 @@ import type { Item } from "./types";
 
 export const MAX_MUST_HAVES = 3;
 
+export type WishFields = {
+  title: string;
+  url: string;
+  store: string;
+  price: number | null;
+  image_url: string;
+  notes: string;
+  priority: number;
+  quantity: number;
+  category: string;
+  variant: string;
+  color: string;
+  size: string;
+  kind?: string;
+};
+
+// Saves a new wish (and its first price, if it has one). Returns the new wish's id.
+export function insertItem(
+  listId: number, f: WishFields, guest: string | null = null, needsApproval = false,
+  opts: { addedBy?: number; surprise?: boolean } = {},
+): number {
+  const r = run(
+    `INSERT INTO items (list_id, title, url, store, price_cents, image_url, notes, priority, quantity, created_by_guest, price_checked_at, category, variant, color, size, needs_approval, kind, added_by, surprise)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    listId, f.title, f.url, f.store, f.price, f.image_url, f.notes, f.priority, f.quantity, guest,
+    null, f.category, f.variant, f.color, f.size, needsApproval ? 1 : 0, f.kind ?? "product", opts.addedBy ?? null, opts.surprise ? 1 : 0,
+  );
+  const id = Number(r.lastInsertRowid);
+  if (f.price) run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", id, f.price, f.store);
+  return id;
+}
+
 export function mustHaveCount(listId: number): number {
   return get<{ n: number }>("SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND must_have = 1 AND archived_at IS NULL AND surprise = 0", listId)!.n;
 }
