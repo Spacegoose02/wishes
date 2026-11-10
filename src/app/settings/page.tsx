@@ -3,7 +3,10 @@ import { requireUser } from "@/lib/auth";
 import { familyProfiles, myProfiles } from "@/lib/access";
 import type { Profile } from "@/lib/types";
 import { logout } from "../actions/auth";
-import { deleteProfile, resetCalendarLink, rollAvatar, saveAccount, saveAlerts, saveProfile, sendTestAlert } from "../actions/account";
+import { deleteProfile, resetCalendarLink, revokeApiKey, rollAvatar, saveAccount, saveAlerts, saveProfile, sendTestAlert } from "../actions/account";
+import { listApiTokens } from "@/lib/apitokens";
+import { formatDate } from "@/lib/format";
+import { ApiKeyMaker } from "@/components/settings/ApiKeyMaker";
 import { mailEnabled } from "@/lib/mail";
 import { pushDeviceCount, vapidPublicKey } from "@/lib/push";
 import { PushToggle } from "@/components/PushToggle";
@@ -244,7 +247,33 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
         </>
       )}
 
-      {tab === "security" && <SecurityPanel user={user} />}
+      {tab === "security" && (
+        <>
+          <SecurityPanel user={user} />
+          <section id="api-keys" className="card stack">
+            <h2 className="m0">🔌 Connected apps</h2>
+            <p className="small muted m0">
+              An API key lets another of your apps, like Den Duty, add wishes to your kids&apos; lists. Wishes it sends wait
+              for your OK, just like kid mode. A key can&apos;t see who&apos;s buying what. Keep keys to yourself, and revoke one
+              if it ever leaks.
+            </p>
+            {listApiTokens(user.id).map((t) => (
+              <div key={t.id} className="row gap-8">
+                <div className="grow">
+                  <strong>{t.name}</strong>
+                  <div className="tiny muted">Made {formatDate(t.created_at)} · {t.last_used_at ? `last used ${formatDate(t.last_used_at, true)}` : "not used yet"}</div>
+                </div>
+                <form action={revokeApiKey}>
+                  <input type="hidden" name="token_id" value={t.id} />
+                  <SubmitButton className="btn small danger" confirm="Apps using this key stop working. Sure?">Revoke</SubmitButton>
+                </form>
+              </div>
+            ))}
+            <ApiKeyMaker />
+            <p className="tiny muted m0">How apps use it: <code>docs/api.md</code> in the Wishes code.</p>
+          </section>
+        </>
+      )}
       {tab === "admin" && user.is_admin ? (
         <AdminPanel
           me={user}

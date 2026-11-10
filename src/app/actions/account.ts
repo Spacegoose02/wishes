@@ -9,6 +9,7 @@ import { rollAvatar as roll } from "@/components/Avatar";
 import { parseCollection } from "@/components/AvatarPicker";
 import { spendBonusRoll } from "@/lib/rewards";
 import { calendarToken } from "@/lib/calendar";
+import { createApiToken, revokeApiToken } from "@/lib/apitokens";
 import { sizesFromForm } from "@/lib/profile";
 import { notify } from "@/lib/notify";
 import { removeSubscription, saveSubscription, validSubscription } from "@/lib/push";
@@ -148,4 +149,19 @@ export async function sendTestAlert() {
   const user = await requireUser();
   notify(user.id, "info", "This is a test alert from Wishes. If you can read it here, it works! 🎉", "/settings?tab=alerts");
   redirect("/settings?tab=alerts&ok=" + encodeURIComponent("Test alert sent. It can take a minute to arrive."));
+}
+
+// API keys for other apps (Den Duty and friends). The key comes back to the page once and is never shown again.
+export async function makeApiKey(_prev: { token?: string; error?: string; name?: string }, form: FormData): Promise<{ token?: string; error?: string; name?: string }> {
+  const user = await requireUser();
+  const r = createApiToken(user.id, s(form, "name"));
+  if (!r.ok) return { error: r.error };
+  revalidatePath("/settings");
+  return { token: r.token, name: s(form, "name") };
+}
+
+export async function revokeApiKey(form: FormData) {
+  const user = await requireUser();
+  const ok = revokeApiToken(user.id, n(form, "token_id"));
+  redirect("/settings?tab=security&" + (ok ? "ok=" + encodeURIComponent("Key revoked. Apps using it are cut off.") : "error=Key+not+found") + "#api-keys");
 }

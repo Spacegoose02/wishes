@@ -12,6 +12,7 @@ import { sizesFromForm } from "@/lib/profile";
 import { imageFromForm, isUploadUrl } from "@/lib/uploads";
 import { validKind } from "@/lib/kinds";
 import type { Item, User } from "@/lib/types";
+export { insertItem } from "@/lib/wishes";
 import { isValidAvatar, AVATARS } from "@/components/Avatar";
 import { parseCollection } from "@/components/AvatarPicker";
 
@@ -97,21 +98,6 @@ export async function withPicture<F extends { image_url: string }>(form: FormDat
   const pic = await imageFromForm(form);
   if (pic && !pic.ok) redirect(`${back}${back.includes("?") ? "&" : "?"}error=${encodeURIComponent(pic.error)}`);
   return pic ? { ...f, image_url: pic.url } : f;
-}
-
-export function insertItem(
-  listId: number, f: Omit<ReturnType<typeof itemFields>, "kind"> & { kind?: string }, guest: string | null = null, needsApproval = false,
-  opts: { addedBy?: number; surprise?: boolean } = {},
-): number {
-  const r = run(
-    `INSERT INTO items (list_id, title, url, store, price_cents, image_url, notes, priority, quantity, created_by_guest, price_checked_at, category, variant, color, size, needs_approval, kind, added_by, surprise)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    listId, f.title, f.url, f.store, f.price, f.image_url, f.notes, f.priority, f.quantity, guest,
-    null, f.category, f.variant, f.color, f.size, needsApproval ? 1 : 0, f.kind ?? "product", opts.addedBy ?? null, opts.surprise ? 1 : 0,
-  );
-  const id = Number(r.lastInsertRowid);
-  if (f.price) run("INSERT INTO price_history (item_id, price_cents, store) VALUES (?, ?, ?)", id, f.price, f.store);
-  return id;
 }
 
 export function isSearchLink(url: string): boolean {

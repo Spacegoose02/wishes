@@ -32,6 +32,7 @@ Self-hosted family wishlists for kids and grown-ups. Raccoons and geese welcome.
 - **Rank wishes**: drag them into order; shoppers see that order under Most wanted.
 - **Works offline**: lists you've opened stay readable with no signal.
 - **Currency and region**: pick the household's currency and date style in Settings → Server.
+- **Connected apps (API)**: make an API key in Settings → Sign-in & 2FA so another app (like Den Duty) can add wishes to your kids' lists. They wait for a grown-up's OK unless the app says one already approved. See [docs/api.md](docs/api.md).
 - **Themes**: Auto (follows OS dark mode), Sunny, Night, Candy, Forest, Ocean, Arcade. Mobile-first layout with a bottom tab bar, installable as a home-screen app.
 
 ## Run it on Unraid
