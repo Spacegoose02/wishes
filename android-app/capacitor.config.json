@@ -1,0 +1,13 @@
+{
+  "appId": "io.github.spacegoose02.wishes",
+  "appName": "Wishes",
+  "webDir": "www",
+  "android": {
+    "appendUserAgent": "WishesAndroid/1.0",
+    "backgroundColor": "#fdfaf4"
+  },
+  "server": {
+    "androidScheme": "https",
+    "errorPath": "error.html"
+  }
+}

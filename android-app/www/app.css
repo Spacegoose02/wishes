@@ -1,0 +1,43 @@
+:root {
+  --bg: #fdfaf4; --card: #ffffff; --text: #2b2925; --muted: #6f6a62; --border: #ece5d8;
+  --accent: #ff7a59; --accent-text: #ffffff; --error: #b3261e; --error-bg: #fdecea;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #15161a; --card: #1f2026; --text: #f3efe8; --muted: #a7a196; --border: #2e2f36; --error: #ffb4ab; --error-bg: #3b1c1a; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 16px/1.45 "Nunito", ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  padding-top: calc(24px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  display: flex; justify-content: center;
+}
+main { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 16px; }
+.hero { text-align: center; margin-top: 4vh; }
+.hero img { width: 96px; height: 96px; border-radius: 24px; box-shadow: 0 6px 20px rgb(255 122 89 / 0.3); }
+h1 { font-size: 1.6rem; margin: 12px 0 4px; font-weight: 800; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 0.9rem; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+label { font-weight: 700; }
+input {
+  width: 100%; font: inherit; font-size: 1.05rem; padding: 12px 14px; border-radius: 12px;
+  border: 2px solid var(--border); background: var(--bg); color: var(--text);
+}
+input:focus { outline: none; border-color: var(--accent); }
+.btn {
+  display: block; width: 100%; font: inherit; font-weight: 800; font-size: 1.05rem; text-align: center;
+  padding: 13px 16px; border-radius: 999px; border: 0; background: var(--accent); color: var(--accent-text);
+  cursor: pointer; text-decoration: none;
+}
+.btn:disabled { opacity: 0.6; }
+.btn.secondary { background: transparent; color: var(--text); border: 2px solid var(--border); }
+.error { background: var(--error-bg); color: var(--error); border-radius: 12px; padding: 10px 12px; font-weight: 600; }
+.hidden { display: none !important; }
+ul { margin: 0; padding-left: 20px; }
+li { margin: 2px 0; }
+code { font-family: ui-monospace, monospace; font-size: 0.9em; }

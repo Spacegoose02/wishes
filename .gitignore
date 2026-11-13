@@ -22,3 +22,8 @@ Thumbs.db
 *.log
 .vscode/
 .idea/
+
+# Android app (android-app/)
+android-app/node_modules/
+*.keystore
+*.jks

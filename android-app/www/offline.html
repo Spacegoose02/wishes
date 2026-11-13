@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Can't reach Wishes</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main>
+  <div class="hero">
+    <img src="icon.png" alt="">
+    <h1>Can't reach Wishes</h1>
+    <p class="muted" id="where">The app couldn't reach your Wishes server.</p>
+  </div>
+  <div class="card">
+    <p class="small">Check that this phone has signal or Wi‑Fi. If your server is only on your home network, connect to your home Wi‑Fi or VPN.</p>
+    <p class="muted small" id="reason"></p>
+    <button id="retry" type="button" class="btn">Try again</button>
+    <a class="btn secondary" href="index.html">Switch server</a>
+  </div>
+</main>
+<script src="app.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const failed = q.get("url");
+  if (failed) {
+    try { document.getElementById("where").textContent = "The app couldn't reach " + new URL(failed).host + "."; } catch (e) {}
+  }
+  if (q.get("reason")) document.getElementById("reason").textContent = "(" + q.get("reason") + ")";
+  document.getElementById("retry").addEventListener("click", () => {
+    if (failed) location.replace(failed);
+    else WishesApp.call("open");
+  });
+</script>
+</body>
+</html>

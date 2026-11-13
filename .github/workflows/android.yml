@@ -1,0 +1,100 @@
+name: Android app
+
+# Builds the Wishes Android app (android-app/). Every run uploads an APK you can install;
+# a v* tag also attaches it to that GitHub release.
+on:
+  push:
+    branches: [master, main]
+    tags: ["v*"]
+    paths: ["android-app/**", ".github/workflows/android.yml"]
+  pull_request:
+    paths: ["android-app/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android-app
+    env:
+      HAS_SIGNING_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: android-app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Version
+        run: |
+          base=$(node -p "require('./package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then name="${GITHUB_REF_NAME#v}"; else name="$base-build.$GITHUB_RUN_NUMBER"; fi
+          echo "WISHES_VERSION_NAME=$name" >> "$GITHUB_ENV"
+          echo "WISHES_VERSION_CODE=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          echo "Building Wishes for Android $name ($GITHUB_RUN_NUMBER)"
+
+      - run: npm ci
+      - run: npx cap sync android
+
+      - name: Build test APK
+        working-directory: android-app/android
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Build signed release (APK for sideloading, AAB for Google Play)
+        if: env.HAS_SIGNING_KEY == 'true'
+        working-directory: android-app/android
+        env:
+          WISHES_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          WISHES_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          WISHES_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/wishes.keystore"
+          export WISHES_KEYSTORE_PATH="$RUNNER_TEMP/wishes.keystore"
+          ./gradlew --no-daemon assembleRelease bundleRelease
+
+      - name: Collect files
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/wishes-android-$WISHES_VERSION_NAME-test.apk"
+          if [ "$HAS_SIGNING_KEY" = "true" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "out/wishes-android-$WISHES_VERSION_NAME.apk"
+            cp android/app/build/outputs/bundle/release/app-release.aab "out/wishes-android-$WISHES_VERSION_NAME.aab"
+          fi
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wishes-android-${{ env.WISHES_VERSION_NAME }}
+          path: android-app/out/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*

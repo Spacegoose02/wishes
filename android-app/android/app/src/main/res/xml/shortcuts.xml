@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon for these. They match the shortcuts in the web app's manifest. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_list"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher_round"
+        android:shortcutShortLabel="@string/shortcut_new_list">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="io.github.spacegoose02.wishes"
+            android:targetClass="io.github.spacegoose02.wishes.MainActivity">
+            <extra android:name="io.github.spacegoose02.wishes.PATH" android:value="/lists/new" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="family_lists"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher_round"
+        android:shortcutShortLabel="@string/shortcut_family">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="io.github.spacegoose02.wishes"
+            android:targetClass="io.github.spacegoose02.wishes.MainActivity">
+            <extra android:name="io.github.spacegoose02.wishes.PATH" android:value="/shared" />
+        </intent>
+    </shortcut>
+</shortcuts>

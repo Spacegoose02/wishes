@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Wishes</string>
+    <string name="title_activity_main">Wishes</string>
+    <string name="package_name">io.github.spacegoose02.wishes</string>
+    <string name="custom_url_scheme">io.github.spacegoose02.wishes</string>
+    <string name="share_label">Add to Wishes</string>
+    <string name="shortcut_new_list">New list</string>
+    <string name="shortcut_family">Family lists</string>
+</resources>
