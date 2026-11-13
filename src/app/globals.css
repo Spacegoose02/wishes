@@ -148,7 +148,10 @@ p { margin: 0 0 0.75em; }
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
+  /* The Android app draws under the status bar; keep the header clear of it. */
+  padding-top: env(safe-area-inset-top);
 }
+body:not(:has(> .topbar)) .shell { padding-top: calc(16px + env(safe-area-inset-top)); }
 .topbar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 16px; }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.2rem; color: var(--text); }
 .brand:hover { text-decoration: none; }

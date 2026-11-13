@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { removePushSubscription, savePushSubscription } from "@/app/actions/account";
+import { isAndroidApp } from "@/lib/android-app";
 
-type State = "checking" | "insecure" | "unsupported" | "denied" | "off" | "on" | "working";
+type State = "checking" | "app" | "insecure" | "unsupported" | "denied" | "off" | "on" | "working";
 
 function keyBytes(base64: string): Uint8Array<ArrayBuffer> {
   const pad = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -19,6 +20,8 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
 
   useEffect(() => {
     (async () => {
+      // Android's in-app web view has no web push; the app gets alerts by email for now.
+      if (isAndroidApp()) return setState("app");
       if (!window.isSecureContext) return setState("insecure");
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return setState("unsupported");
       if (Notification.permission === "denied") return setState("denied");
@@ -62,6 +65,9 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
   }
 
   if (state === "checking") return <p className="small muted m0">Checking this device…</p>;
+  if (state === "app") {
+    return <p className="small muted m0">The Android app can&apos;t show phone alerts yet, so alerts come by email. To get them on this phone too, open Wishes in Chrome and turn them on there.</p>;
+  }
   if (state === "insecure") {
     return <p className="small muted m0">Phone and computer alerts only work when Wishes is opened over https (a secure address, usually through your reverse proxy). Email alerts still work.</p>;
   }

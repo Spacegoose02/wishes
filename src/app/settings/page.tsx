@@ -10,6 +10,7 @@ import { ApiKeyMaker } from "@/components/settings/ApiKeyMaker";
 import { mailEnabled } from "@/lib/mail";
 import { pushDeviceCount, vapidPublicKey } from "@/lib/push";
 import { PushToggle } from "@/components/PushToggle";
+import { AndroidAppServer } from "@/components/AndroidAppServer";
 import { BookmarkletLink } from "@/components/BookmarkletLink";
 import { CopyButton } from "@/components/CopyButton";
 import { siteOrigin } from "@/lib/origin";
@@ -122,6 +123,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
 
       {tab === "me" && (
         <>
+          <AndroidAppServer />
           <section className="card stack">
             <h2>Your critter</h2>
             <div className="row">

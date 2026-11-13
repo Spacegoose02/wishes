@@ -5,7 +5,7 @@ import nextTs from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores([".next/**", "node_modules/**", "data/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", "node_modules/**", "data/**", "next-env.d.ts", "android-app/**"]),
   {
     rules: {
       // Store and avatar images are remote URLs we don't proxy; plain <img> is intended.
