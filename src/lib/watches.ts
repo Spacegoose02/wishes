@@ -1,7 +1,7 @@
 import "server-only";
 import { all, get, run } from "./db";
 import { formatMoney } from "./format";
-import { notify } from "./prices";
+import { notify } from "./notify";
 
 // Price-drop watchlist: anyone who can see a wish can ask to hear when it reaches their
 // target price. Watches are private to the person who set them.

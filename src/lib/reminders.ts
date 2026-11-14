@@ -2,7 +2,7 @@ import "server-only";
 import { all, get, run } from "./db";
 import { getList, listAccess } from "./access";
 import { daysUntil } from "./format";
-import { notify } from "./prices";
+import { notify } from "./notify";
 import type { User } from "./types";
 
 // A week before a list's day: nudge family who haven't picked anything, and remind

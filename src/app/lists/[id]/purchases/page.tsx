@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { getList, isManager, isRecipient, listAccess } from "@/lib/access";
 import { all } from "@/lib/db";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatDate } from "@/lib/format";
 import type { Purchase } from "@/lib/types";
 import { reviewPurchase, undoPurchase } from "../../../actions/purchases";
 import { Flash, type SP } from "@/components/Flash";
@@ -84,7 +84,7 @@ export default async function PurchasesPage({ params, searchParams }: { params: 
                     </td>
                     <td>{p.buyer_name}</td>
                     <td>{p.price_cents ? formatMoney(p.price_cents * p.quantity) : "—"}{p.store && <div className="tiny muted">{p.store}</div>}</td>
-                    <td className="small">{new Date(p.created_at * 1000).toLocaleDateString()}</td>
+                    <td className="small">{formatDate(p.created_at)}</td>
                     <td className="small">{STATUS[p.status]}</td>
                     <td>
                       {(p.buyer_user_id === user.id || manager) && (

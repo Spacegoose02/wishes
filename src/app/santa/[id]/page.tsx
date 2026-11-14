@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { sharedWithMe } from "@/lib/access";
-import { daysUntil, formatMoney } from "@/lib/format";
+import { daysUntil, formatMoney, formatDate } from "@/lib/format";
 import { eligiblePeople, getExchange, isFamilyAdmin, myMatch, participants } from "@/lib/santa";
 import { deleteExchange, drawExchange, markSantaDone, saveExchange } from "../../actions/santa";
 import { Avatar } from "@/components/Avatar";
@@ -33,7 +33,7 @@ export default async function ExchangePage({ params, searchParams }: { params: P
       <h1 className="mb-4">🎅 {ex.name}</h1>
       <div className="row gap-6">
         {ex.budget_cents ? <span className="pill accent">{formatMoney(ex.budget_cents)} budget</span> : null}
-        {ex.exchange_date && <span className="pill">{new Date(ex.exchange_date + "T00:00:00").toLocaleDateString()}</span>}
+        {ex.exchange_date && <span className="pill">{formatDate(ex.exchange_date)}</span>}
         {days !== undefined && days >= 0 && <span className="pill good">{days === 0 ? "Today!" : `${days} days to go`}</span>}
       </div>
 

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Connect to Wishes</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main>
+  <div class="hero">
+    <img src="icon.png" alt="">
+    <h1>Welcome to Wishes</h1>
+    <p class="muted">Wishes runs on your family's own server. Type its address to connect.</p>
+  </div>
+
+  <form id="connect" class="card" novalidate>
+    <label for="url">Server address</label>
+    <input id="url" name="url" type="text" inputmode="url" autocomplete="url" autocapitalize="off" autocorrect="off" spellcheck="false"
+           placeholder="wishes.example.com" required>
+    <p class="muted small">The same address you open Wishes at in a browser. For example <code>wishes.example.com</code> or <code>192.168.1.20:3000</code>.</p>
+    <p id="error" class="error hidden" role="alert"></p>
+    <div id="unverified" class="hidden">
+      <p class="small" style="margin-bottom:10px">Your server asked for a sign-in before showing Wishes, so the app couldn't double check it. If that's expected, carry on.</p>
+      <button id="anyway" type="button" class="btn secondary">Use it anyway</button>
+    </div>
+    <button id="go" type="submit" class="btn">Connect</button>
+  </form>
+
+  <button id="back" type="button" class="btn secondary hidden"></button>
+
+  <details class="small muted">
+    <summary>Where do I find the address?</summary>
+    <ul>
+      <li>Ask whoever set up Wishes for your family.</li>
+      <li>If you run it yourself on Unraid or Docker, it's your server's address and port, like <code>192.168.1.20:3000</code>. That only works on your home Wi‑Fi (or a VPN).</li>
+      <li>To use it anywhere, put Wishes behind a reverse proxy with https, then use that address.</li>
+    </ul>
+  </details>
+  <p id="version" class="muted small" style="text-align:center"></p>
+</main>
+<script src="app.js"></script>
+<script>
+  const form = document.getElementById("connect");
+  const input = document.getElementById("url");
+  const go = document.getElementById("go");
+  const error = document.getElementById("error");
+  const unverified = document.getElementById("unverified");
+  const back = document.getElementById("back");
+
+  function show(el, on) { el.classList.toggle("hidden", !on); }
+
+  async function connect(force) {
+    show(error, false);
+    show(unverified, false);
+    go.disabled = true;
+    go.textContent = "Checking…";
+    try {
+      const r = await WishesApp.call("connect", { url: input.value, force });
+      if (r.verified || force) {
+        go.textContent = "Opening Wishes…";
+      } else {
+        show(unverified, true);
+        go.textContent = "Connect";
+      }
+    } catch (e) {
+      error.textContent = WishesApp.message(e);
+      show(error, true);
+      go.textContent = "Connect";
+    } finally {
+      go.disabled = false;
+    }
+  }
+
+  form.addEventListener("submit", (e) => { e.preventDefault(); connect(false); });
+  document.getElementById("anyway").addEventListener("click", () => connect(true));
+  back.addEventListener("click", () => WishesApp.call("open"));
+
+  WishesApp.call("getState").then((s) => {
+    if (s.version) document.getElementById("version").textContent = "Wishes for Android " + s.version;
+    if (s.server) {
+      input.value = s.server;
+      back.textContent = "Back to " + s.server.replace(/^https?:\/\//, "");
+      show(back, true);
+      document.querySelector(".hero h1").textContent = "Switch server";
+    } else {
+      input.focus();
+    }
+  }).catch(() => {});
+</script>
+</body>
+</html>

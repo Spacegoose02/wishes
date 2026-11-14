@@ -21,7 +21,7 @@ export function copyList(from: WishList, profile: Profile, title: string, byUser
     run(
       `INSERT INTO items (list_id, title, url, store, price_cents, currency, image_url, notes, priority, quantity, category, variant, color, size, kind)
        SELECT ?, title, url, store, price_cents, currency, image_url, notes, priority, quantity, category, variant, color, size, kind
-       FROM items WHERE list_id = ? AND archived_at IS NULL AND needs_approval = 0 ORDER BY id`,
+       FROM items WHERE list_id = ? AND archived_at IS NULL AND needs_approval = 0 AND surprise = 0 ORDER BY id`,
       id, from.id,
     );
     if (profile.user_id !== byUserId) run("INSERT OR IGNORE INTO list_owners (list_id, user_id) VALUES (?, ?)", id, byUserId);

@@ -13,6 +13,9 @@ export type User = {
   badges: string;
   bonus_rolls: number;
   calendar_token: string | null;
+  alert_email: number;
+  alert_push: number;
+  alert_new_wishes: number;
   created_at: number;
 };
 
@@ -82,6 +85,9 @@ export type Item = {
   archived_at: number | null;
   kind: "product" | "experience" | "gift_card" | "fund";
   archive_reason: "" | "received" | "unwanted";
+  surprise: number;
+  rank: number | null;
+  added_by: number | null;
   created_at: number;
 };
 

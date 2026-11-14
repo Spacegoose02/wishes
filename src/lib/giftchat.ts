@@ -68,7 +68,7 @@ Only include the keys you learned. Never include either block when there's nothi
 // comes after the cached brief.
 export function chatContext(list: ListWithOwner, profile: Profile, chatterName: string, isRecipient: boolean, giver?: GiverContext): string {
   const items = all<{ title: string; price_cents: number | null; priority: number }>(
-    "SELECT title, price_cents, priority FROM items WHERE list_id = ? AND needs_approval = 0 AND archived_at IS NULL ORDER BY priority DESC LIMIT 60", list.id,
+    "SELECT title, price_cents, priority FROM items WHERE list_id = ? AND needs_approval = 0 AND archived_at IS NULL AND surprise = 0 ORDER BY priority DESC LIMIT 60", list.id,
   );
   const days = daysUntil(list.event_date);
   return [

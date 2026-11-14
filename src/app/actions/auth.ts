@@ -6,6 +6,9 @@ import { createSession, createUser, destroySession, getPending2faUser, requireUs
 import { hashPassword, newTotpSecret, verifyPassword, verifyTotp } from "@/lib/crypto";
 import type { User } from "@/lib/types";
 import { nextQuery, safeNext } from "@/lib/next";
+import { mailEnabled, sendMail } from "@/lib/mail";
+import { siteOrigin } from "@/lib/origin";
+import { createReset, EMAIL_RESET_HOURS, redeemReset } from "@/lib/resets";
 
 const s = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -110,4 +113,38 @@ export async function changePassword(form: FormData) {
   run("UPDATE users SET password_hash = ? WHERE id = ?", hashPassword(next), user.id);
   run("DELETE FROM sessions WHERE user_id = ? AND pending_2fa = 0 AND rowid NOT IN (SELECT MAX(rowid) FROM sessions WHERE user_id = ?)", user.id, user.id);
   redirect("/settings?tab=security&ok=Password+updated");
+}
+
+// "Forgot password": always the same answer, so it can't be used to find out who has an account.
+export async function requestReset(form: FormData) {
+  const email = s(form, "email").toLowerCase();
+  const ip = await clientIp();
+  const key = `reset:${ip}`;
+  if (throttled(key, 5)) redirect("/forgot?error=Too+many+tries.+Try+again+in+a+few+minutes.");
+  fail(key);
+  const sent = "/forgot?sent=1";
+  if (!mailEnabled() || !email.includes("@")) redirect(sent);
+  const user = get<User>("SELECT * FROM users WHERE email = ?", email);
+  if (user) {
+    const token = createReset(user.id, EMAIL_RESET_HOURS);
+    const url = `${await siteOrigin()}/reset/${token}`;
+    try {
+      await sendMail(user.email, "Wishes: reset your password", {
+        text: `Hi ${user.name},\n\nSomeone (hopefully you) asked to reset your Wishes password. This link works once, for the next hour:\n\n${url}\n\nIf it wasn't you, ignore this email and nothing changes.`,
+      });
+    } catch (e) {
+      console.error("reset email failed", e);
+    }
+  }
+  redirect(sent);
+}
+
+export async function finishReset(form: FormData) {
+  const token = s(form, "token");
+  const password = s(form, "password");
+  if (password.length < 8) redirect(`/reset/${encodeURIComponent(token)}?error=Password+must+be+at+least+8+characters`);
+  if (password !== s(form, "confirm")) redirect(`/reset/${encodeURIComponent(token)}?error=The+two+passwords+don't+match`);
+  const uid = redeemReset(token, hashPassword(password));
+  if (!uid) redirect("/forgot?error=" + encodeURIComponent("That reset link has expired or was already used. Ask for a new one."));
+  redirect("/login?ok=" + encodeURIComponent("Password changed. Sign in with your new one."));
 }

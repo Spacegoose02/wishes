@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["qrcode"],
+  serverExternalPackages: ["qrcode", "nodemailer", "web-push"],
   images: { unoptimized: true },
   // Photos are shrunk in the browser first; the extra room means an unshrunk photo gets a
   // friendly "too big" message from the app instead of a crash page.

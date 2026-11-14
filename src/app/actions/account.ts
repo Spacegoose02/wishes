@@ -9,7 +9,10 @@ import { rollAvatar as roll } from "@/components/Avatar";
 import { parseCollection } from "@/components/AvatarPicker";
 import { spendBonusRoll } from "@/lib/rewards";
 import { calendarToken } from "@/lib/calendar";
+import { createApiToken, revokeApiToken } from "@/lib/apitokens";
 import { sizesFromForm } from "@/lib/profile";
+import { notify } from "@/lib/notify";
+import { removeSubscription, saveSubscription, validSubscription } from "@/lib/push";
 import { s, n, THEMES, avatarFor, details } from "./_shared";
 
 export async function saveAccount(form: FormData) {
@@ -110,4 +113,55 @@ export async function confirmSizes(form: FormData) {
   if (!profile || !canEditProfile(user.id, profile)) redirect("/");
   run("UPDATE profiles SET sizes_updated_at = unixepoch() WHERE id = ?", profile.id);
   redirect("/?ok=" + encodeURIComponent(`Thanks! We'll ask about ${profile.name}'s sizes again in six months.`));
+}
+
+// Which alerts go out besides the Alerts page.
+export async function saveAlerts(form: FormData) {
+  const user = await requireUser();
+  run(
+    "UPDATE users SET alert_email = ?, alert_push = ?, alert_new_wishes = ? WHERE id = ?",
+    form.get("alert_email") ? 1 : 0, form.get("alert_push") ? 1 : 0, form.get("alert_new_wishes") ? 1 : 0, user.id,
+  );
+  redirect("/settings?tab=alerts&ok=Alert+settings+saved");
+}
+
+// Called by the browser after it subscribes (or unsubscribes) this device for push.
+export async function savePushSubscription(json: string): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireUser();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return { ok: false, error: "That subscription didn't make sense." };
+  }
+  const sub = validSubscription(parsed);
+  if (!sub) return { ok: false, error: "This browser's push service isn't supported." };
+  saveSubscription(user.id, sub);
+  return { ok: true };
+}
+
+export async function removePushSubscription(endpoint: string): Promise<void> {
+  const user = await requireUser();
+  removeSubscription(user.id, endpoint);
+}
+
+export async function sendTestAlert() {
+  const user = await requireUser();
+  notify(user.id, "info", "This is a test alert from Wishes. If you can read it here, it works! 🎉", "/settings?tab=alerts");
+  redirect("/settings?tab=alerts&ok=" + encodeURIComponent("Test alert sent. It can take a minute to arrive."));
+}
+
+// API keys for other apps (Den Duty and friends). The key comes back to the page once and is never shown again.
+export async function makeApiKey(_prev: { token?: string; error?: string; name?: string }, form: FormData): Promise<{ token?: string; error?: string; name?: string }> {
+  const user = await requireUser();
+  const r = createApiToken(user.id, s(form, "name"));
+  if (!r.ok) return { error: r.error };
+  revalidatePath("/settings");
+  return { token: r.token, name: s(form, "name") };
+}
+
+export async function revokeApiKey(form: FormData) {
+  const user = await requireUser();
+  const ok = revokeApiToken(user.id, n(form, "token_id"));
+  redirect("/settings?tab=security&" + (ok ? "ok=" + encodeURIComponent("Key revoked. Apps using it are cut off.") : "error=Key+not+found") + "#api-keys");
 }

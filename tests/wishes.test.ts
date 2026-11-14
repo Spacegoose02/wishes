@@ -83,3 +83,19 @@ describe("removing a wish", () => {
     expect(w.peopleBuying(t.item(l.id))).toEqual([]);
   });
 });
+
+describe("ranking", () => {
+  it("puts ranked wishes first in the owner's order, ignoring other lists' ids", () => {
+    const l = t.list(t.profileOf(t.user("ranker")));
+    const other = t.list(t.profileOf(t.user("other")));
+    const [a, b, c] = ["A", "B", "C"].map((x) => t.item(l.id, x));
+    const stranger = t.item(other.id, "Not mine");
+    expect(w.setRanks(l.id, [c.id, stranger.id, a.id, c.id])).toBe(2);
+    const rows = t.db.all<Item>(`SELECT * FROM items WHERE list_id = ? ORDER BY ${w.RANK_ORDER}`, l.id);
+    expect(rows.map((r) => r.title)).toEqual(["C", "A", "B"]);
+    expect([...rows].reverse().sort(w.compareRank).map((r) => r.title)).toEqual(["C", "A", "B"]);
+    expect(fresh(stranger).rank).toBeNull();
+    w.clearRanks(l.id);
+    expect(fresh(b).rank).toBeNull();
+  });
+});

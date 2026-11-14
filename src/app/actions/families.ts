@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { all, get, run, tx } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { notify } from "@/lib/prices";
+import { notify } from "@/lib/notify";
 import { s, n, inviteCode, familyAdmin } from "./_shared";
 
 export async function createFamily(form: FormData) {

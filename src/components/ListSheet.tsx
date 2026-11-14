@@ -3,12 +3,13 @@ import { formatMoney } from "@/lib/format";
 import { categoryIcon } from "@/lib/categories";
 import { kindInfo } from "@/lib/kinds";
 import type { Item } from "@/lib/types";
+import { RANK_ORDER } from "@/lib/wishes";
 
 // A plain, spoiler-free rundown of a list's wishes: no claims, pledges or purchases,
 // so it's fine on paper, on the fridge or behind a QR code.
 export function ListSheet({ listId }: { listId: number }) {
   const items = all<Item>(
-    "SELECT * FROM items WHERE list_id = ? AND needs_approval = 0 AND archived_at IS NULL ORDER BY must_have DESC, priority DESC, created_at DESC",
+    `SELECT * FROM items WHERE list_id = ? AND needs_approval = 0 AND archived_at IS NULL AND surprise = 0 ORDER BY ${RANK_ORDER}`,
     listId,
   );
   if (!items.length) return <p className="muted">No wishes yet.</p>;
@@ -22,7 +23,7 @@ export function ListSheet({ listId }: { listId: number }) {
             <div className="grow min-0">
               <strong>{it.must_have ? "⭐ " : ""}{it.title}</strong> {"★".repeat(it.priority)}
               <div className="small">
-                {[it.price_cents ? formatMoney(it.price_cents, it.currency) : "", it.store, ...details].filter(Boolean).join(" · ")}
+                {[it.price_cents ? formatMoney(it.price_cents) : "", it.store, ...details].filter(Boolean).join(" · ")}
               </div>
               {it.notes && <div className="small">{it.notes}</div>}
               {it.url && <a className="tiny" href={it.url} target="_blank" rel="noopener noreferrer nofollow">{it.url.length > 70 ? it.url.slice(0, 67) + "…" : it.url}</a>}

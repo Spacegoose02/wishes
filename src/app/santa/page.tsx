@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { myFamilies } from "@/lib/access";
 import { myExchanges } from "@/lib/santa";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatDate } from "@/lib/format";
 import { createExchange } from "../actions/santa";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -29,7 +29,7 @@ export default async function SantaPage({ searchParams }: { searchParams: SP }) 
               {e.drawn_at ? <span className="pill good">Names drawn</span> : <span className="pill">Not drawn yet</span>}
             </div>
             <p className="small muted m0 mt-4">
-              {[e.exchange_date && new Date(e.exchange_date + "T00:00:00").toLocaleDateString(), e.budget_cents && `${formatMoney(e.budget_cents)} budget`, !e.in_it && "you're organizing"].filter(Boolean).join(" · ")}
+              {[e.exchange_date && formatDate(e.exchange_date), e.budget_cents && `${formatMoney(e.budget_cents)} budget`, !e.in_it && "you're organizing"].filter(Boolean).join(" · ")}
             </p>
           </Link>
         ))}

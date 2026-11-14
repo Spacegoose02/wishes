@@ -3,7 +3,14 @@ import { requireUser } from "@/lib/auth";
 import { familyProfiles, myProfiles } from "@/lib/access";
 import type { Profile } from "@/lib/types";
 import { logout } from "../actions/auth";
-import { deleteProfile, resetCalendarLink, rollAvatar, saveAccount, saveProfile } from "../actions/account";
+import { deleteProfile, resetCalendarLink, revokeApiKey, rollAvatar, saveAccount, saveAlerts, saveProfile, sendTestAlert } from "../actions/account";
+import { listApiTokens } from "@/lib/apitokens";
+import { formatDate } from "@/lib/format";
+import { ApiKeyMaker } from "@/components/settings/ApiKeyMaker";
+import { mailEnabled } from "@/lib/mail";
+import { pushDeviceCount, vapidPublicKey } from "@/lib/push";
+import { PushToggle } from "@/components/PushToggle";
+import { AndroidAppServer } from "@/components/AndroidAppServer";
 import { BookmarkletLink } from "@/components/BookmarkletLink";
 import { CopyButton } from "@/components/CopyButton";
 import { siteOrigin } from "@/lib/origin";
@@ -22,6 +29,7 @@ export const metadata = { title: "Settings" };
 const TABS = [
   { id: "me", label: "👤 Me & look" },
   { id: "profiles", label: "🧒 Kids & profiles" },
+  { id: "alerts", label: "🔔 Alerts" },
   { id: "security", label: "🔐 Sign-in & 2FA" },
   { id: "admin", label: "🛠️ Server", admin: true },
 ] as const;
@@ -115,6 +123,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
 
       {tab === "me" && (
         <>
+          <AndroidAppServer />
           <section className="card stack">
             <h2>Your critter</h2>
             <div className="row">
@@ -160,6 +169,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
             ) : (
               <form action={resetCalendarLink}><SubmitButton className="btn small secondary">Turn on calendar feed</SubmitButton></form>
             )}
+          </section>
+          <section id="export" className="card stack">
+            <h2 className="m0">📦 Download your lists</h2>
+            <p className="small muted m0">Every list you manage, with all its wishes. Open the spreadsheet in Excel, Numbers or Google Sheets, or import it into another list here.</p>
+            <div className="row gap-6">
+              <a className="btn small secondary" href="/export?format=csv" download>Spreadsheet (CSV)</a>
+              <a className="btn small ghost" href="/export?format=json" download>JSON</a>
+            </div>
           </section>
           <form action={saveAccount} className="card stack">
             <h2>You</h2>
@@ -209,8 +226,62 @@ export default async function SettingsPage({ searchParams }: { searchParams: SP 
         </>
       )}
 
-      {tab === "security" && <SecurityPanel user={user} />}
-      {tab === "admin" && user.is_admin ? <AdminPanel me={user} /> : null}
+      {tab === "alerts" && (
+        <>
+          <form action={saveAlerts} className="card stack">
+            <h2 className="m0">🔔 How you hear about things</h2>
+            <p className="small muted m0">Everything always shows up on the <Link href="/notifications">Alerts</Link> page. You can also get each alert by email or as a notification on your phone or computer.</p>
+            <label className="inline">
+              <input type="checkbox" name="alert_email" defaultChecked={!!user.alert_email} disabled={!mailEnabled()} /> Email me alerts at {user.email}
+            </label>
+            {!mailEnabled() && <p className="tiny muted m0">Email isn&apos;t set up on this server yet{user.is_admin ? <>. Set it up in <Link href="/settings?tab=admin#email">Server</Link>.</> : ", so ask whoever runs Wishes."}</p>}
+            {!mailEnabled() && user.alert_email ? <input type="hidden" name="alert_email" value="1" /> : null}
+            <label className="inline"><input type="checkbox" name="alert_push" defaultChecked={!!user.alert_push} /> Send alerts to devices I turned on below</label>
+            <label className="inline"><input type="checkbox" name="alert_new_wishes" defaultChecked={!!user.alert_new_wishes} /> Tell me when family members add new wishes</label>
+            <SubmitButton className="btn">Save</SubmitButton>
+          </form>
+          <section className="card stack">
+            <h2 className="m0">📱 This device</h2>
+            <p className="small muted m0">Turn alerts on separately on each phone, tablet or computer. {pushDeviceCount(user.id) > 0 && `On for ${pushDeviceCount(user.id)} device${pushDeviceCount(user.id) === 1 ? "" : "s"} so far.`}</p>
+            <PushToggle publicKey={await vapidPublicKey()} />
+            <form action={sendTestAlert}><SubmitButton className="btn small secondary">Send me a test alert</SubmitButton></form>
+          </section>
+        </>
+      )}
+
+      {tab === "security" && (
+        <>
+          <SecurityPanel user={user} />
+          <section id="api-keys" className="card stack">
+            <h2 className="m0">🔌 Connected apps</h2>
+            <p className="small muted m0">
+              An API key lets another of your apps, like Den Duty, add wishes to your kids&apos; lists. Wishes it sends wait
+              for your OK, just like kid mode. A key can&apos;t see who&apos;s buying what. Keep keys to yourself, and revoke one
+              if it ever leaks.
+            </p>
+            {listApiTokens(user.id).map((t) => (
+              <div key={t.id} className="row gap-8">
+                <div className="grow">
+                  <strong>{t.name}</strong>
+                  <div className="tiny muted">Made {formatDate(t.created_at)} · {t.last_used_at ? `last used ${formatDate(t.last_used_at, true)}` : "not used yet"}</div>
+                </div>
+                <form action={revokeApiKey}>
+                  <input type="hidden" name="token_id" value={t.id} />
+                  <SubmitButton className="btn small danger" confirm="Apps using this key stop working. Sure?">Revoke</SubmitButton>
+                </form>
+              </div>
+            ))}
+            <ApiKeyMaker />
+            <p className="tiny muted m0">How apps use it: <code>docs/api.md</code> in the Wishes code.</p>
+          </section>
+        </>
+      )}
+      {tab === "admin" && user.is_admin ? (
+        <AdminPanel
+          me={user}
+          reset={typeof sp.reset_token === "string" && sp.reset_token ? { userId: Number(sp.reset_user), link: `${await siteOrigin()}/reset/${sp.reset_token}` } : undefined}
+        />
+      ) : null}
     </div>
   );
 }

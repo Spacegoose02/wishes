@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { run } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { parseMoney } from "@/lib/format";
-import { notify } from "@/lib/prices";
+import { notify } from "@/lib/notify";
 import { award } from "@/lib/rewards";
 import { getExchange, participants, runDraw, setParticipants } from "@/lib/santa";
 import { s, n, familyAdmin } from "./_shared";
