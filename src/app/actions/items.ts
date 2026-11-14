@@ -30,10 +30,15 @@ export async function autofill(url: string): Promise<{ ok: true; info: ProductIn
 
 // The "Add to Wishes" bookmark sends the product page the person has open; this reads it and
 // says where the add form lives, already filled in.
-export async function clipPage(url: string, html: string): Promise<{ ok: true; next: string } | { ok: false; error: string }> {
+// The page arrives as a file in the form: React refuses a plain string argument over about 1 MB,
+// and most store pages are bigger than that.
+export async function clipPage(form: FormData): Promise<{ ok: true; next: string } | { ok: false; error: string }> {
   await requireUser();
-  if (typeof url !== "string" || typeof html !== "string") return { ok: false, error: "Nothing came through from that page." };
+  const url = form.get("url");
+  const page = form.get("html");
+  if (typeof url !== "string" || !(page instanceof Blob)) return { ok: false, error: "Nothing came through from that page." };
   try {
+    const html = await page.text();
     const info = parseProduct(url, html);
     return { ok: true, next: `/share?${clipParams({ ...info, category: guessCategory(info.title ?? "", info.store) })}` };
   } catch (e) {

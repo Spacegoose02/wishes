@@ -28,7 +28,10 @@ export function ClipReceiver() {
       if (done || e.source !== opener || d?.type !== "wishes-clip" || typeof d.url !== "string" || typeof d.html !== "string") return;
       done = true;
       setMsg("Got it! Filling in the wish…");
-      const r = await clipPage(d.url, d.html).catch(() => null);
+      const form = new FormData();
+      form.set("url", d.url);
+      form.set("html", new Blob([d.html], { type: "text/html" }), "page.html");
+      const r = await clipPage(form).catch(() => null);
       if (r?.ok) router.replace(r.next);
       else fail(r?.error ?? "Couldn't read that page. Copy its link and paste it into a list instead.");
     };
