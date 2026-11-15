@@ -4,6 +4,7 @@ export type User = {
   name: string;
   password_hash: string | null;
   oidc_sub: string | null;
+  sso_link_email: string | null;
   avatar: string;
   theme: string;
   totp_secret: string | null;

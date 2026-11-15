@@ -58,8 +58,8 @@ All settings are environment variables; see [.env.example](.env.example).
 | --- | --- |
 | `APP_URL` | Public URL. Needed for OIDC redirects behind a proxy. |
 | `ALLOW_SIGNUP` | `false` closes sign-ups after the first account. |
-| `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_NAME` | Single sign-on. Redirect URI: `${APP_URL}/auth/oidc/callback`. |
-| `OIDC_AUTO_CREATE`, `OIDC_SKIP_2FA` | Create accounts on first SSO login (default on); skip local 2FA for SSO users. |
+| `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_NAME`, `OIDC_SCOPES` | Fallbacks for single sign-on, which is easier to set up in Settings → Server. Redirect URI: `${APP_URL}/auth/oidc/callback`. |
+| `OIDC_AUTO_CREATE`, `OIDC_SKIP_2FA`, `OIDC_SHOW_BUTTON` | Create accounts on first SSO login (default on); skip local 2FA for SSO users; show the button on the sign-in page (default on). |
 | `TRUSTED_EMAIL_HEADER` | Forward-auth header with the signed-in email, e.g. `Remote-Email`. Only set this when Wishes is reachable *only* through your proxy. |
 | `DISABLE_PASSWORD_LOGIN` | `true` for SSO-only. |
 | `PRICE_CHECK_HOURS` | Price re-check interval per item (default 24, `0` off). |
@@ -72,7 +72,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ### Tinyauth
 
 Tinyauth works either way:
-- **OIDC**: if your Tinyauth version acts as an OIDC provider, register a client with the redirect URI above and set the `OIDC_*` variables.
+- **OIDC**: create a client in Tinyauth with the redirect URI shown in Settings → Server → Single sign-on (`https://your-wishes-address/auth/oidc/callback`), then paste the issuer URL, client ID and secret into that card. The secret is stored in the Wishes database, never in the code. Everyone can link their own account under Settings → Sign-in & 2FA, and admins can link anyone by their Tinyauth email under People.
 - **Forward auth**: put Wishes behind Tinyauth in your proxy and set `TRUSTED_EMAIL_HEADER=Remote-Email`.
 
 ## Develop

@@ -14,7 +14,8 @@ export default async function LoginPage({ searchParams }: { searchParams: SP }) 
   const next = safeNext((await searchParams).next);
   if (await getUser()) redirect(next);
   if (userCount() === 0) redirect("/register");
-  const oidc = oidcConfig();
+  const cfg = oidcConfig();
+  const oidc = cfg?.showButton ? cfg : null;
   const passwordOn = process.env.DISABLE_PASSWORD_LOGIN !== "true";
   return (
     <div className="auth-wrap">

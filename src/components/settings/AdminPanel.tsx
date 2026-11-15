@@ -2,9 +2,10 @@ import { all } from "@/lib/db";
 import { aiConfig, CLAUDE_MODELS, PROVIDERS } from "@/lib/ai";
 import { webSearchEnabled } from "@/lib/baxter";
 import { dailyCap, monthUsage } from "@/lib/chatstore";
-import { oidcConfig } from "@/lib/oidc";
+import { headers } from "next/headers";
+import { appUrl, CALLBACK_PATH, oidcConfig, oidcSettings } from "@/lib/oidc";
 import type { User } from "@/lib/types";
-import { adminUser, saveAiSettings, saveMailSettings, saveRegion, saveScrapeSettings, sendTestEmail } from "@/app/actions/admin";
+import { adminUser, saveAiSettings, saveOidcSettings, saveMailSettings, saveRegion, saveScrapeSettings, sendTestEmail } from "@/app/actions/admin";
 import { describeSmtp, mailEnabled, mailFrom, siteUrl, smtpUrl } from "@/lib/mail";
 import { getSetting } from "@/lib/db";
 import { Avatar } from "@/components/Avatar";
@@ -14,13 +15,16 @@ import { ADMIN_RESET_HOURS } from "@/lib/resets";
 import { CURRENCIES, LOCALES } from "@/lib/regions";
 import { formatDate, formatMoney, region } from "@/lib/format";
 
-export function AdminPanel({ me, reset }: { me: User; reset?: { userId: number; link: string } }) {
+export async function AdminPanel({ me, reset }: { me: User; reset?: { userId: number; link: string } }) {
   const ai = aiConfig();
   const oidc = oidcConfig();
+  const sso = oidcSettings();
+  const redirectUri = `${appUrl("http://localhost:3000", await headers())}${CALLBACK_PATH}`;
+  const families = all<{ id: number; name: string }>("SELECT id, name FROM families ORDER BY name COLLATE NOCASE");
   const usage = monthUsage();
   const money = (usd: number) => (usd < 0.01 && usd > 0 ? "under 1¢" : `$${usd.toFixed(2)}`);
-  const users = all<{ id: number; name: string; email: string; avatar: string; is_admin: number; totp_enabled: number; oidc_sub: string | null }>(
-    "SELECT id, name, email, avatar, is_admin, totp_enabled, oidc_sub FROM users ORDER BY created_at",
+  const users = all<{ id: number; name: string; email: string; avatar: string; is_admin: number; totp_enabled: number; oidc_sub: string | null; sso_link_email: string | null }>(
+    "SELECT id, name, email, avatar, is_admin, totp_enabled, oidc_sub, sso_link_email FROM users ORDER BY created_at",
   );
   return (
     <>
@@ -108,12 +112,47 @@ export function AdminPanel({ me, reset }: { me: User; reset?: { userId: number; 
         {mailEnabled() && <form action={sendTestEmail}><SubmitButton className="btn small secondary" pendingLabel="Sending…">Send me a test email</SubmitButton></form>}
       </section>
 
-      <section className="card stack">
-        <h2>Sign-in</h2>
-        <p className="small m0">
-          Single sign-on: {oidc ? <strong>on ({oidc.name}, {oidc.issuer})</strong> : <span className="muted">off. Set OIDC_ISSUER, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET in the container.</span>}
+      <form id="sso" action={saveOidcSettings} className="card stack">
+        <h2>🔑 Single sign-on</h2>
+        <p className="small muted m0">
+          Let people sign in with your own login server: TinyAuth, Authelia, Authentik, Pocket ID, Keycloak, or anything else that speaks OpenID Connect.
         </p>
+        <p className="small m0">Status: {oidc ? <strong>on, {oidc.showButton ? `"Sign in with ${oidc.name}" shows on the sign-in page` : "button hidden (people can still link it in Settings)"}</strong> : <span className="muted">off</span>}</p>
+        <div className="stack gap-6">
+          <strong className="small">Redirect URI (add this to the client in your provider)</strong>
+          <div className="row nowrap"><input readOnly value={redirectUri} aria-label="Redirect URI" /><CopyButton text={redirectUri} /></div>
+        </div>
+        <p className="tiny muted m0">If that address looks wrong, set the site address under Email (or APP_URL) to the address people use to reach Wishes.</p>
+        <div className="form-grid">
+          <label>Name on the sign-in button<input name="name" defaultValue={sso.name === "Single sign-on" ? "" : sso.name} placeholder="TinyAuth" maxLength={40} /></label>
+          <label>Issuer URL<input name="issuer" type="url" defaultValue={sso.issuer} placeholder="https://auth.example.com" autoComplete="off" /></label>
+          <label>Client ID<input name="client_id" defaultValue={sso.clientId} autoComplete="off" spellCheck={false} /></label>
+          <label>Client secret<input name="client_secret" type="password" autoComplete="new-password" placeholder={sso.clientSecret ? "Saved; leave empty to keep it" : "Not set"} /></label>
+          <label className="full">Extra scopes (optional)<input name="scopes" defaultValue={sso.extraScopes} placeholder="openid, profile and email are always asked for" /></label>
+        </div>
+        {sso.clientSecret && <label className="inline"><input type="checkbox" name="clear_secret" /> Clear saved secret</label>}
+        <label className="inline"><input type="checkbox" name="auto_create" defaultChecked={sso.autoCreate} /> Make a Wishes account for anyone who signs in with it</label>
+        <p className="tiny muted m0">
+          Only turn this on for a provider that only lets in people you trust, like your own TinyAuth. With Google it would let anyone with a Google account in.
+          New accounts are grown-up accounts (not admins) with their own wishlist. Kids stay as profiles on a parent&apos;s account, so they don&apos;t need a login.
+          When it&apos;s off, people who already have an account can still link it under Sign-in &amp; 2FA, and anyone whose email matches an account is linked to it.
+        </p>
+        <label>Put new accounts in this family
+          <select name="family_id" defaultValue={sso.familyId ?? ""}>
+            <option value="">No family (they join with an invite code)</option>
+            {families.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+        </label>
+        <label className="inline"><input type="checkbox" name="show_button" defaultChecked={sso.showButton} /> Show on the sign-in page</label>
+        <label className="inline"><input type="checkbox" name="skip_2fa" defaultChecked={sso.skip2fa} /> Skip the Wishes 2FA code for these sign-ins (your provider does its own)</label>
+        <p className="tiny muted m0">Clear the issuer URL and save to turn single sign-on off. Values saved here override the OIDC_* container variables.</p>
+        <SubmitButton className="btn">Save single sign-on</SubmitButton>
+      </form>
+
+      <section className="card stack">
+        <h2>Other sign-in options</h2>
         <p className="small m0">Open sign-ups: <strong>{process.env.ALLOW_SIGNUP === "false" ? "closed" : "open"}</strong> (ALLOW_SIGNUP)</p>
+        <p className="small m0">Password sign-in: <strong>{process.env.DISABLE_PASSWORD_LOGIN === "true" ? "off" : "on"}</strong> (DISABLE_PASSWORD_LOGIN)</p>
         <p className="small m0">Proxy header sign-in: <strong>{process.env.TRUSTED_EMAIL_HEADER ? `on (${process.env.TRUSTED_EMAIL_HEADER})` : "off"}</strong> (TRUSTED_EMAIL_HEADER)</p>
       </section>
 
@@ -138,8 +177,25 @@ export function AdminPanel({ me, reset }: { me: User; reset?: { userId: number; 
                       <span>{u.name}<div className="tiny muted">{u.email}</div></span>
                       {u.is_admin ? <span className="pill accent">admin</span> : null}
                       {u.totp_enabled ? <span className="pill good">2FA</span> : null}
-                      {u.oidc_sub ? <span className="pill">SSO</span> : null}
+                      {u.oidc_sub ? <span className="pill">{oidc?.name ?? "SSO"} linked</span> : null}
                     </span>
+                    {oidc && u.id !== me.id && (
+                      u.oidc_sub ? (
+                        <form action={adminUser} className="row gap-6 mt-6">
+                          <input type="hidden" name="user_id" value={u.id} />
+                          <input type="hidden" name="action" value="sso-unlink" />
+                          <SubmitButton className="btn small ghost" confirm={`Unlink ${u.name}'s ${oidc.name} login?`}>Unlink {oidc.name}</SubmitButton>
+                        </form>
+                      ) : (
+                        <form action={adminUser} className="row nowrap gap-6 mt-6">
+                          <input type="hidden" name="user_id" value={u.id} />
+                          <input type="hidden" name="action" value="sso-link" />
+                          <input name="sso_email" type="email" className="small" defaultValue={u.sso_link_email ?? ""} placeholder={`Their ${oidc.name} email`} aria-label={`${u.name}'s ${oidc.name} email`} />
+                          <SubmitButton className="btn small ghost">{u.sso_link_email ? "Change" : `Link ${oidc.name}`}</SubmitButton>
+                        </form>
+                      )
+                    )}
+                    {oidc && !u.oidc_sub && u.sso_link_email && <div className="tiny muted">Links when {u.sso_link_email} next signs in with {oidc.name}</div>}
                   </td>
                   <td className="text-right">
                     {u.id !== me.id && (
