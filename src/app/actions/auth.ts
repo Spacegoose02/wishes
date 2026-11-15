@@ -9,6 +9,7 @@ import { nextQuery, safeNext } from "@/lib/next";
 import { mailEnabled, sendMail } from "@/lib/mail";
 import { siteOrigin } from "@/lib/origin";
 import { createReset, EMAIL_RESET_HOURS, redeemReset } from "@/lib/resets";
+import { unlinkSso } from "@/lib/sso";
 
 const s = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -147,4 +148,10 @@ export async function finishReset(form: FormData) {
   const uid = redeemReset(token, hashPassword(password));
   if (!uid) redirect("/forgot?error=" + encodeURIComponent("That reset link has expired or was already used. Ask for a new one."));
   redirect("/login?ok=" + encodeURIComponent("Password changed. Sign in with your new one."));
+}
+
+export async function unlinkSsoAction() {
+  const user = await requireUser();
+  const r = unlinkSso(user);
+  redirect(`/settings?tab=security&${r.ok ? "ok=Unlinked" : "error=" + encodeURIComponent(r.error)}#sso`);
 }

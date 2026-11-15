@@ -436,6 +436,10 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_api_tokens_user ON api_tokens(user_id);
   `,
+  // 30: an admin can say which single sign-on email belongs to someone; it links on their next sign-in.
+  `
+  ALTER TABLE users ADD COLUMN sso_link_email TEXT COLLATE NOCASE;
+  `,
 ];
 
 function open(): DatabaseSync {
