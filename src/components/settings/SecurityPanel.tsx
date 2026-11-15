@@ -1,14 +1,34 @@
 import QRCode from "qrcode";
 import { totpUri } from "@/lib/crypto";
 import type { User } from "@/lib/types";
-import { changePassword, confirmTotp, disableTotp, startTotp } from "@/app/actions/auth";
+import { changePassword, confirmTotp, disableTotp, startTotp, unlinkSsoAction } from "@/app/actions/auth";
+import { oidcConfig } from "@/lib/oidc";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export async function SecurityPanel({ user }: { user: User }) {
   const settingUp = !!user.totp_secret && !user.totp_enabled;
   const qr = settingUp ? await QRCode.toDataURL(totpUri(user.totp_secret!, user.email), { margin: 1, width: 220 }) : null;
+  const sso = oidcConfig();
   return (
     <>
+      {sso && (
+        <section id="sso" className="card stack">
+          <h2>🔑 {sso.name} sign-in</h2>
+          {user.oidc_sub ? (
+            <>
+              <p className="alert ok m0">Linked. You can use &quot;Sign in with {sso.name}&quot; to get into this account.</p>
+              <form action={unlinkSsoAction}>
+                <SubmitButton className="btn small secondary" confirm={`Stop signing in with ${sso.name}?`}>Unlink</SubmitButton>
+              </form>
+            </>
+          ) : (
+            <>
+              <p className="small muted m0">Link your {sso.name} login to this account, so you can sign in with it instead of your password.</p>
+              <a className="btn" href="/auth/oidc/start?link=1">Link {sso.name}</a>
+            </>
+          )}
+        </section>
+      )}
       <section className="card stack">
         <h2>Two-factor sign-in</h2>
         {user.totp_enabled ? (

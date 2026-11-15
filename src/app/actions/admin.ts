@@ -7,6 +7,8 @@ import { mailFrom, sendMail } from "@/lib/mail";
 import { ADMIN_RESET_HOURS, createReset } from "@/lib/resets";
 import { setRegion } from "@/lib/format";
 import { CURRENCIES, LOCALES } from "@/lib/regions";
+import { discover, forgetDiscovery, joinScopes } from "@/lib/oidc";
+import { adminLinkSso, adminUnlinkSso } from "@/lib/sso";
 import { s, n } from "./_shared";
 
 export async function saveAiSettings(form: FormData) {
@@ -42,6 +44,11 @@ export async function adminUser(form: FormData) {
   const action = s(form, "action");
   if (action === "delete") run("DELETE FROM users WHERE id = ?", uid);
   if (action === "toggle-admin") run("UPDATE users SET is_admin = 1 - is_admin WHERE id = ?", uid);
+  if (action === "sso-link") {
+    const r = adminLinkSso(uid, s(form, "sso_email"));
+    redirect(`/settings?tab=admin&${r.ok ? "ok=" + encodeURIComponent("They'll be linked the next time they sign in with it") : "error=" + encodeURIComponent(r.error)}#people`);
+  }
+  if (action === "sso-unlink") adminUnlinkSso(uid);
   if (action === "reset-2fa") run("UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?", uid);
   if (action === "reset-link") {
     const token = createReset(uid, ADMIN_RESET_HOURS);
@@ -82,4 +89,33 @@ export async function saveRegion(form: FormData) {
   setSetting("locale", locale);
   setRegion({ currency, locale });
   redirect("/settings?tab=admin&ok=" + encodeURIComponent("Money and dates updated") + "#region");
+}
+
+export async function saveOidcSettings(form: FormData) {
+  await requireAdmin();
+  const back = (q: string) => redirect(`/settings?tab=admin&${q}#sso`);
+  const issuer = s(form, "issuer").replace(/\/+$/, "");
+  const clientId = s(form, "client_id");
+  if (issuer && !/^https?:\/\//.test(issuer)) back("error=" + encodeURIComponent("The issuer URL should start with https://"));
+  if (issuer && !clientId) back("error=" + encodeURIComponent("Add the client ID from your provider"));
+  setSetting("oidc_name", s(form, "name").slice(0, 40) || "Single sign-on");
+  setSetting("oidc_issuer", issuer);
+  setSetting("oidc_client_id", clientId);
+  if (s(form, "client_secret")) setSetting("oidc_client_secret", s(form, "client_secret"));
+  if (form.get("clear_secret")) setSetting("oidc_client_secret", "");
+  // openid, profile and email are always asked for; keep only the extras.
+  setSetting("oidc_scopes", joinScopes(s(form, "scopes")).split(" ").slice(3).join(" "));
+  setSetting("oidc_auto_create", form.get("auto_create") ? "1" : "0");
+  setSetting("oidc_show_button", form.get("show_button") ? "1" : "0");
+  setSetting("oidc_skip_2fa", form.get("skip_2fa") ? "1" : "0");
+  const fam = n(form, "family_id");
+  setSetting("oidc_family_id", Number.isInteger(fam) && fam > 0 ? String(fam) : "");
+  forgetDiscovery();
+  if (!issuer) back("ok=" + encodeURIComponent("Single sign-on is off"));
+  try {
+    await discover({ issuer });
+  } catch (e) {
+    back("error=" + encodeURIComponent(`Saved, but Wishes couldn't read ${issuer}/.well-known/openid-configuration (${(e as Error).message}). Check the issuer URL.`));
+  }
+  back("ok=" + encodeURIComponent("Single sign-on saved and your provider answered"));
 }
