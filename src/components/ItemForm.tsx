@@ -15,7 +15,7 @@ export type ItemDefaults = {
 };
 
 export function ItemForm({
-  action, autofill, hidden, defaults = {}, submitLabel = "Add wish", autoFetch = false,
+  action, autofill, hidden, defaults = {}, submitLabel = "Add wish", autoFetch = false, extra,
 }: {
   action: (f: FormData) => void | Promise<void>;
   autofill: AutofillFn;
@@ -24,6 +24,8 @@ export function ItemForm({
   submitLabel?: string;
   // Look up defaults.url right away (e.g. a link shared from another app).
   autoFetch?: boolean;
+  // More fields from the page, just above the button (e.g. "Shared with").
+  extra?: React.ReactNode;
 }) {
   const [url, setUrl] = useState(defaults.url ?? "");
   const [title, setTitle] = useState(defaults.title ?? "");
@@ -164,6 +166,7 @@ export function ItemForm({
         </details>
         <label className="full">Notes<textarea name="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything that helps someone buy the right one" /></label>
       </div>
+      {extra}
       <SubmitButton className="btn" disabled={pending || shrinking}>{submitLabel}</SubmitButton>
     </form>
   );

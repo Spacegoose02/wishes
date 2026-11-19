@@ -1,3 +1,4 @@
+import { sharedInto } from "@/lib/sharedwishes";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
@@ -23,6 +24,8 @@ export default async function KidMode({ params, searchParams }: { params: Promis
   const sp = await searchParams;
   const list = lists.find((l) => l.id === Number(sp.list)) ?? (lists.length === 1 ? lists[0] : undefined);
   const items = list ? all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NULL AND surprise = 0 ORDER BY created_at DESC", list.id) : [];
+  // Wishes shared with a brother or sister show here too.
+  const shared = list ? sharedInto(list.id).filter((i) => !i.needs_approval) : [];
 
   return (
     <div className="kid narrow-760">
@@ -69,11 +72,12 @@ export default async function KidMode({ params, searchParams }: { params: Promis
           </form>
 
           <div className="kid-grid mt-16">
-            {items.map((it) => (
+            {[...items, ...shared].map((it) => (
               <div key={it.id} className="kid-tile">
                 <span className="kid-pic">{it.image_url ? <img src={it.image_url} alt="" referrerPolicy="no-referrer" /> : <span aria-hidden="true">{categoryIcon(it.category)}</span>}</span>
                 <span>{it.title}</span>
                 {it.needs_approval ? <span className="pill">⏳ Waiting for a grown-up</span> : null}
+                {it.list_id !== list.id ? <span className="pill">👫 Shared</span> : null}
               </div>
             ))}
           </div>

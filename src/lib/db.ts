@@ -440,6 +440,15 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE users ADD COLUMN sso_link_email TEXT COLLATE NOCASE;
   `,
+  // 31: shared wishes: one wish that also shows on a sibling's list, so one claim covers both kids
+  `
+  CREATE TABLE item_shares (
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    PRIMARY KEY (item_id, list_id)
+  );
+  CREATE INDEX idx_item_shares_list ON item_shares(list_id);
+  `,
 ];
 
 function open(): DatabaseSync {

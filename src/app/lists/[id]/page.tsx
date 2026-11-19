@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getUser, requireUser } from "@/lib/auth";
-import { canEditProfile, getList, isRecipient, listAccess, listProfile, myLists } from "@/lib/access";
+import { canEditProfile, getList, isManager, isRecipient, listAccess, listProfile, myLists } from "@/lib/access";
+import { isForUser, sharedInto, sharePeople, sharedWithLabel, shareTargets } from "@/lib/sharedwishes";
+import { SharePicker, ShareAvatars } from "@/components/SharePicker";
 import { AboutProfile } from "@/components/AboutProfile";
 import { RenameKid } from "@/components/RenameKid";
 import { all, get } from "@/lib/db";
@@ -48,17 +50,18 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return { title: list.profile_is_primary && list.owner_user_id === user.id ? list.title : `${list.title} (${list.profile_name})` };
 }
 
-function Hidden({ item, action }: { item: number; action?: string }) {
+function Hidden({ item, action, from }: { item: number; action?: string; from?: number }) {
   return (
     <>
       <input type="hidden" name="item_id" value={item} />
+      {from ? <input type="hidden" name="from" value={from} /> : null}
       {action && <input type="hidden" name="action" value={action} />}
     </>
   );
 }
 
 // Chip-in progress toward one wish, for shoppers only.
-function GroupGift({ item, pledges, userId }: { item: Item; pledges: Pledge[]; userId: number }) {
+function GroupGift({ item, pledges, userId, from }: { item: Item; pledges: Pledge[]; userId: number; from?: number }) {
   const p = pledgeProgress(pledgeGoal(item), pledges);
   const mine = pledges.find((x) => x.user_id === userId);
   return (
@@ -75,7 +78,7 @@ function GroupGift({ item, pledges, userId }: { item: Item; pledges: Pledge[]; u
       )}
       {(!p.full || mine) && (
         <form action={pledgeToItem} className="row mt-8 items-end">
-          <Hidden item={item.id} />
+          <Hidden item={item.id} from={from} />
           <label className="grow min-180">{mine ? "Change your pledge (0 to withdraw)" : "Chip in"}
             <input name="amount" inputMode="decimal" defaultValue={mine ? (mine.amount_cents / 100).toFixed(2) : ""} placeholder={(Math.min(p.remaining, 2000) / 100).toFixed(2)} />
           </label>
@@ -87,7 +90,7 @@ function GroupGift({ item, pledges, userId }: { item: Item; pledges: Pledge[]; u
 }
 
 // Anonymous Q&A on one wish. Shoppers ask; the list's people answer.
-function Questions({ item, qs, listId, canAnswer, canAsk }: { item: Item; qs: Question[]; listId: number; canAnswer: boolean; canAsk: boolean }) {
+function Questions({ item, qs, listId, canAnswer, canAsk, from }: { item: Item; qs: Question[]; listId: number; canAnswer: boolean; canAsk: boolean; from?: number }) {
   if (!qs.length && !canAsk) return null;
   const open = qs.some((q) => !q.answered_at);
   return (
@@ -122,6 +125,7 @@ function Questions({ item, qs, listId, canAnswer, canAsk }: { item: Item; qs: Qu
         {canAsk && (
           <form action={askAboutItem} className="row items-end">
             <input type="hidden" name="item_id" value={item.id} />
+            {from ? <input type="hidden" name="from" value={from} /> : null}
             <label className="grow min-180">Ask a question (they won&apos;t see who asked)
               <input name="question" maxLength={MAX_QUESTION} placeholder="Which color? What size? Still want it?" required />
             </label>
@@ -159,6 +163,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const sort = (typeof sp.sort === "string" && sp.sort in SORTS ? sp.sort : "priority") as keyof typeof SORTS;
   const maxPrice = Number(sp.max) || 0;
   const must = sp.must === "1";
+  const sharedOnly = sp.shared === "1";
   const board = sp.view === "board";
   // A link shared into the app (see /share) opens the add form already filled in.
   const shared = owner && typeof sp.add === "string" ? sp.add : "";
@@ -166,8 +171,22 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const clipped = shared ? clipDefaults(sp) : null;
 
   // Kid-mode wishes stay with the list's managers until one of them approves.
-  const allItems = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NULL ORDER BY purchased, priority DESC, created_at DESC", list.id)
-    .filter((i) => (owner || !i.needs_approval) && !(recipient && i.surprise));
+  // Shared wishes from a sibling's list show here too (still one wish, so one claim covers both).
+  const ownItems = all<Item>("SELECT * FROM items WHERE list_id = ? AND archived_at IS NULL ORDER BY purchased, priority DESC, created_at DESC", list.id);
+  const sharedIn = sharedInto(list.id);
+  const sharedInIds = sharedIn.map((i) => i.id);
+  const shares = sharePeople([...ownItems.map((i) => i.id), ...sharedInIds]);
+  // A shared-in wish is managed from its own list, by whoever manages that one.
+  const managedHomes = new Set([...new Set(sharedIn.map((i) => i.list_id))].filter((id) => {
+    const home = getList(id);
+    return !!home && isManager(user.id, home);
+  }));
+  const canManage = (it: Item) => owner && (it.list_id === list.id || managedHomes.has(it.list_id));
+  // The person a shared wish is for never sees who's getting it, on any of the lists it's on.
+  const forViewer = (it: Item) => recipient || isForUser(shares.get(it.id), user.id);
+  const fromHere = (it: Item) => (it.list_id === list.id ? undefined : list.id);
+  const allItems = [...ownItems, ...sharedIn]
+    .filter((i) => (canManage(i) || !i.needs_approval) && !(recipient && i.surprise));
   // Who added each surprise gift, for the other shoppers.
   const adders = new Map(all<{ id: number; name: string }>(
     "SELECT id, name FROM users WHERE id IN (SELECT added_by FROM items WHERE list_id = ? AND surprise = 1)", list.id,
@@ -185,6 +204,21 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const pledges = recipient ? [] : pledgesForList(list.id);
   const watches = watchesFor(user.id, list.id);
   const questions = questionsForList(list.id, user.id);
+  for (const homeId of new Set(sharedIn.map((i) => i.list_id))) {
+    const keep = (id: number) => sharedInIds.includes(id);
+    if (!recipient) pledges.push(...pledgesForList(homeId).filter((x) => keep(x.item_id)));
+    for (const [k, v] of watchesFor(user.id, homeId)) if (keep(k)) watches.set(k, v);
+    for (const [k, v] of questionsForList(homeId, user.id)) if (keep(k)) questions.set(k, v);
+  }
+  if (sharedInIds.length) {
+    const marks = sharedInIds.map(() => "?").join(",");
+    purchases.push(...(recipient
+      ? all<Purchase>(`SELECT * FROM purchases WHERE item_id IN (${marks}) AND buyer_user_id = ? ORDER BY created_at`, ...sharedInIds, user.id)
+      : all<Purchase>(`SELECT * FROM purchases WHERE item_id IN (${marks}) AND status != 'rejected' ORDER BY created_at`, ...sharedInIds)));
+    for (const o of all<(typeof offerRows)[number]>(`SELECT * FROM offers WHERE item_id IN (${marks}) ORDER BY price_cents`, ...sharedInIds)) {
+      offersByItem.set(o.item_id, [...(offersByItem.get(o.item_id) ?? []), o]);
+    }
+  }
   // Shoppers get a "new" mark on wishes added since their last visit.
   const seenAt = owner ? undefined : seeList(user.id, list.id);
   const isNew = (it: Item) => seenAt !== undefined && it.created_at > seenAt && it.added_by !== user.id;
@@ -196,6 +230,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
     if (q && !`${it.title} ${it.store} ${it.notes} ${it.color} ${it.variant}`.toLowerCase().includes(q)) return false;
     if (cat && it.category !== cat) return false;
     if (must && !it.must_have) return false;
+    if (sharedOnly && !shares.has(it.id)) return false;
     if (maxPrice && (it.price_cents ?? 0) > maxPrice * 100) return false;
     if (status === "available") return !it.claimed_by && !it.purchased;
     if (status === "claimed") return !!it.claimed_by && !it.purchased;
@@ -217,10 +252,15 @@ export default async function ListPage({ params, searchParams }: { params: Param
   const usedCats = CATEGORIES.filter((c) => allItems.some((i) => i.category === c.id));
   const pastCount = get<{ n: number }>(`SELECT COUNT(*) AS n FROM items WHERE list_id = ? AND archived_at IS NOT NULL AND needs_approval = 0${recipient ? " AND surprise = 0" : ""}`, list.id)!.n;
   const pendingIdeas = owner ? get<{ n: number }>("SELECT COUNT(*) AS n FROM suggestions WHERE list_id = ? AND status = 'pending'", list.id)!.n : 0;
-  const pendingReviews = owner && !recipient ? purchases.filter((p) => p.status === "pending").length : 0;
+  const pendingReviews = owner && !recipient ? purchases.filter((p) => p.status === "pending" && p.list_id === list.id).length : 0;
   const days = daysUntil(list.event_date);
   const total = items.reduce((sum, i) => sum + (i.price_cents ?? 0) * i.quantity, 0);
-  const filtered = q || cat || status || maxPrice || must;
+  const filtered = q || cat || status || maxPrice || must || sharedOnly;
+  const sharedCount = allItems.filter((i) => shares.has(i.id)).length;
+  // Siblings' lists a wish here can be shared into, per list a wish lives on.
+  const targetsFor = new Map<number, ReturnType<typeof shareTargets>>();
+  const targets = (homeId: number) => targetsFor.get(homeId)
+    ?? targetsFor.set(homeId, shareTargets(user.id, homeId === list.id ? list : getList(homeId)!)).get(homeId)!;
   const mustCount = allItems.filter((i) => i.must_have).length;
   const groups = sort === "category"
     ? [...new Set(items.map((i) => i.category || "other"))].map((c) => ({ key: c, items: items.filter((i) => (i.category || "other") === c) }))
@@ -277,7 +317,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
       {owner && (
         <details className="card mt-12" open={allItems.length === 0 || !!shared}>
           <summary>Add a wish</summary>
-          <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} defaults={shared ? { url: shared, ...clipped } : undefined} autoFetch={!!shared && !clipped} />
+          <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} defaults={shared ? { url: shared, ...clipped } : undefined} autoFetch={!!shared && !clipped} extra={<SharePicker targets={targets(list.id)} />} />
           <details className="mt-12">
             <summary className="small pointer fw-700">📋 Paste many links at once</summary>
             <form action={bulkAddItems} className="stack mt-10">
@@ -317,6 +357,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
       {allItems.length > 0 && (
         <form className="card filters" method="get">
           {must && <input type="hidden" name="must" value="1" />}
+          {sharedOnly && <input type="hidden" name="shared" value="1" />}
           {board && <input type="hidden" name="view" value="board" />}
           <input name="q" defaultValue={q} placeholder="Search this list" aria-label="Search" />
           <select name="cat" defaultValue={cat} aria-label="Category">
@@ -339,11 +380,18 @@ export default async function ListPage({ params, searchParams }: { params: Param
           {filtered ? <Link href={`/lists/${list.id}`} className="btn small ghost">Clear</Link> : null}
         </form>
       )}
-      {mustCount > 0 && (
+      {(mustCount > 0 || sharedCount > 0) && (
         <div className="row chips gap-6 mt-10">
-          <Link href={must ? `/lists/${list.id}?sort=${sort}` : `/lists/${list.id}?must=1&sort=${sort}`} className={`pill must ${must ? "accent" : ""}`} aria-pressed={must}>
-            ⭐ Must-haves only ({mustCount})
-          </Link>
+          {mustCount > 0 && (
+            <Link href={must ? `/lists/${list.id}?sort=${sort}` : `/lists/${list.id}?must=1&sort=${sort}`} className={`pill must ${must ? "accent" : ""}`} aria-pressed={must}>
+              ⭐ Must-haves only ({mustCount})
+            </Link>
+          )}
+          {sharedCount > 0 && (
+            <Link href={sharedOnly ? `/lists/${list.id}?sort=${sort}` : `/lists/${list.id}?shared=1&sort=${sort}`} className={`pill ${sharedOnly ? "accent" : ""}`} aria-pressed={sharedOnly}>
+              👫 Shared wishes ({sharedCount})
+            </Link>
+          )}
         </div>
       )}
       {usedCats.length > 1 && (
@@ -366,8 +414,8 @@ export default async function ListPage({ params, searchParams }: { params: Param
             {total > 0 && <span className="muted small">About {formatMoney(total)} total</span>}
             {allItems.length > 0 && (
               <div className="seg" role="group" aria-label="View">
-                <Link href={`/lists/${list.id}?${new URLSearchParams({ ...(q && { q }), ...(cat && { cat }), ...(must && { must: "1" }), sort })}`} aria-current={!board || undefined}>☰ List</Link>
-                <Link href={`/lists/${list.id}?${new URLSearchParams({ ...(q && { q }), ...(cat && { cat }), ...(must && { must: "1" }), sort, view: "board" })}`} aria-current={board || undefined}>🖼️ Dream board</Link>
+                <Link href={`/lists/${list.id}?${new URLSearchParams({ ...(q && { q }), ...(cat && { cat }), ...(must && { must: "1" }), ...(sharedOnly && { shared: "1" }), sort })}`} aria-current={!board || undefined}>☰ List</Link>
+                <Link href={`/lists/${list.id}?${new URLSearchParams({ ...(q && { q }), ...(cat && { cat }), ...(must && { must: "1" }), ...(sharedOnly && { shared: "1" }), sort, view: "board" })}`} aria-current={board || undefined}>🖼️ Dream board</Link>
               </div>
             )}
           </div>
@@ -381,7 +429,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
             {items.map((it) => (
               <a key={it.id} href={`/lists/${list.id}?sort=${sort}#item-${it.id}`} className={`board-tile${!recipient && it.purchased ? " claimed" : ""}`}>
                 {it.image_url ? <img src={it.image_url} alt="" referrerPolicy="no-referrer" loading="lazy" /> : <span className="board-icon" aria-hidden="true">{categoryIcon(it.category)}</span>}
-                <span className="board-cap">{it.must_have ? "⭐ " : ""}{it.title}{it.price_cents ? ` · ${formatMoney(it.price_cents)}` : ""}</span>
+                <span className="board-cap">{it.must_have ? "⭐ " : ""}{shares.has(it.id) ? "👫 " : ""}{it.title}{it.price_cents ? ` · ${formatMoney(it.price_cents)}` : ""}</span>
               </a>
             ))}
           </div>
@@ -391,7 +439,11 @@ export default async function ListPage({ params, searchParams }: { params: Param
             <div className="items">
               {g.items.map((it) => {
                 const claimedByMe = it.claimed_by === user.id;
-                const showClaims = !recipient;
+                const people = shares.get(it.id);
+                const mine = forViewer(it);
+                const manage = canManage(it);
+                const from = fromHere(it);
+                const showClaims = !mine;
                 const claimed = showClaims && !!it.claimed_by;
                 const ps = byItem.get(it.id) ?? [];
                 const boughtQty = ps.reduce((s, p) => s + p.quantity, 0);
@@ -414,6 +466,11 @@ export default async function ListPage({ params, searchParams }: { params: Param
                         {isNew(it) ? <span className="pill good">✨ New</span> : null}
                         {it.needs_approval ? <span className="pill accent">🧒 Waiting for approval</span> : null}
                         {it.surprise ? <span className="pill accent" title={`${list.profile_name} can't see this`}>🤫 Surprise{it.added_by && adders.has(it.added_by) ? ` from ${it.added_by === user.id ? "you" : adders.get(it.added_by)}` : ""}</span> : null}
+                        {people ? (
+                          <span className="pill shared" title={`One wish for ${people.map((p) => p.profile_name).join(" and ")}. Claiming it covers everyone.`}>
+                            <ShareAvatars people={people} /> Shared with {sharedWithLabel(people, list.profile_id)}
+                          </span>
+                        ) : null}
                         {it.must_have ? <span className="pill must">⭐ Must-have</span> : null}
                         {it.kind !== "product" && <span className="pill accent">{kindInfo(it.kind).icon} {kindInfo(it.kind).label}</span>}
                         {it.price_cents ? <span className="item-price">{formatMoney(it.price_cents)}</span> : null}
@@ -437,13 +494,13 @@ export default async function ListPage({ params, searchParams }: { params: Param
                                   <SubmitButton className="linkish">undo</SubmitButton>
                                 </form>
                               )}
-                              {!recipient && canSeeTracking(p, user.id, owner) && <Tracking p={p} back={`/lists/${list.id}`} />}
+                              {!mine && canSeeTracking(p, user.id, manage) && <Tracking p={p} back={`/lists/${list.id}`} />}
                             </div>
                           ))}
                           {claimed && !it.purchased && <div>🎀 {claimedByMe ? "You're getting this" : `${it.claimed_name ?? "Someone"} is getting this`}</div>}
                         </div>
                       )}
-                      {it.created_by_guest && owner && <p className="tiny muted m0 mt-4">Added by {it.created_by_guest}</p>}
+                      {it.created_by_guest && manage && <p className="tiny muted m0 mt-4">Added by {it.created_by_guest}</p>}
                       {offers.length > 0 && (
                         <div className="offers">
                           {cheaper && <span className="pill good">💰 {formatMoney(it.price_cents! - cheaper.price_cents)} cheaper at {cheaper.store}</span>}
@@ -458,40 +515,40 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       {it.url && it.price_checked_at ? <p className="tiny muted m0 mt-4">Price checked {ago(it.price_checked_at)}{it.offers_checked_at ? `, stores compared ${ago(it.offers_checked_at)}` : ""}</p> : null}
                     </div>
                     <div className="item-actions">
-                      {owner && it.needs_approval ? (
-                        <form action={approveWish}><Hidden item={it.id} /><SubmitButton className="btn small">✔ Approve</SubmitButton></form>
+                      {manage && it.needs_approval ? (
+                        <form action={approveWish}><Hidden item={it.id} from={from} /><SubmitButton className="btn small">✔ Approve</SubmitButton></form>
                       ) : null}
                       {!it.needs_approval && !isFund(it.kind) && ((showClaims && !it.claimed_by) || (claimedByMe && boughtQty === 0)) && !it.purchased && (
-                        <ClaimButton itemId={it.id} claimed={claimedByMe} action={claimItem} />
+                        <ClaimButton itemId={it.id} claimed={claimedByMe} action={claimItem} from={from} />
                       )}
-                      {owner && (
-                        <form action={deleteItem}><Hidden item={it.id} /><SubmitButton className="btn small danger" confirm="Tap again to remove">🗑️ Remove item</SubmitButton></form>
+                      {manage && (
+                        <form action={deleteItem}><Hidden item={it.id} from={from} /><SubmitButton className="btn small danger" confirm="Tap again to remove">🗑️ Remove item</SubmitButton></form>
                       )}
                       <Menu label={`More for ${it.title}`}>
                         {it.url && (
-                          <form action={refreshItem}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Checking…">↻ Check price</SubmitButton></form>
+                          <form action={refreshItem}><Hidden item={it.id} from={from} /><SubmitButton className="menu-item" pendingLabel="Checking…">↻ Check price</SubmitButton></form>
                         )}
-                        <form action={compareStores}><Hidden item={it.id} /><SubmitButton className="menu-item" pendingLabel="Comparing…">⚖️ Compare stores</SubmitButton></form>
-                        {it.surprise && it.added_by === user.id && !owner ? (
-                          <form action={removeSurprise}><Hidden item={it.id} /><SubmitButton className="menu-item danger" confirm="Tap again to remove">🗑️ Remove surprise</SubmitButton></form>
+                        <form action={compareStores}><Hidden item={it.id} from={from} /><SubmitButton className="menu-item" pendingLabel="Comparing…">⚖️ Compare stores</SubmitButton></form>
+                        {it.surprise && it.added_by === user.id && !manage ? (
+                          <form action={removeSurprise}><Hidden item={it.id} from={from} /><SubmitButton className="menu-item danger" confirm="Tap again to remove">🗑️ Remove surprise</SubmitButton></form>
                         ) : null}
-                        {owner && !it.surprise && (it.must_have || mustCount < MAX_MUST_HAVES) ? (
+                        {manage && !it.surprise && (it.must_have || mustCount < MAX_MUST_HAVES) ? (
                           <form action={toggleMustHave}>
-                            <Hidden item={it.id} action={it.must_have ? "unstar" : "star"} />
+                            <Hidden item={it.id} from={from} action={it.must_have ? "unstar" : "star"} />
                             <SubmitButton className="menu-item">{it.must_have ? "☆ Not a must-have" : "⭐ Make a must-have"}</SubmitButton>
                           </form>
                         ) : null}
-                        {owner && (
+                        {manage && (
                           <>
-                            <form action={archiveItem}><Hidden item={it.id} /><input type="hidden" name="reason" value="received" /><SubmitButton className="menu-item">🎁 Got it!</SubmitButton></form>
-                            <form action={archiveItem}><Hidden item={it.id} /><input type="hidden" name="reason" value="unwanted" /><SubmitButton className="menu-item">🙅 Don&apos;t want it anymore</SubmitButton></form>
+                            <form action={archiveItem}><Hidden item={it.id} from={from} /><input type="hidden" name="reason" value="received" /><SubmitButton className="menu-item">🎁 Got it!</SubmitButton></form>
+                            <form action={archiveItem}><Hidden item={it.id} from={from} /><input type="hidden" name="reason" value="unwanted" /><SubmitButton className="menu-item">🙅 Don&apos;t want it anymore</SubmitButton></form>
                           </>
                         )}
                       </Menu>
                     </div>
-                    {recipient && remaining > 0 && (
+                    {mine && remaining > 0 && (
                       <form action={recordPurchase} className="full">
-                        <Hidden item={it.id} />
+                        <Hidden item={it.id} from={from} />
                         <input type="hidden" name="note" value="Got it myself" />
                         <SubmitButton className="btn small ghost">✔ I got this myself</SubmitButton>
                       </form>
@@ -500,25 +557,25 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       <details className="buy full">
                         <summary className="small pointer fw-700 text-accent">🛍️ I bought this</summary>
                         <form action={recordPurchase} className="form-grid mt-10">
-                          <Hidden item={it.id} />
+                          <Hidden item={it.id} from={from} />
                           {it.quantity > 1 && <label>How many?<input name="quantity" type="number" min={1} max={remaining} defaultValue={remaining} /></label>}
                           <label>{it.quantity > 1 ? "Price each" : "Price paid"}<input name="price" inputMode="decimal" defaultValue={it.price_cents ? (it.price_cents / 100).toFixed(2) : ""} /></label>
                           <label>Where<input name="store" defaultValue={it.store} /></label>
                           <label className="full">Note (optional)<input name="note" placeholder="Wrapped and in the closet" /></label>
                           <SubmitButton className="btn small">Save purchase</SubmitButton>
-                          {list.review_purchases && !owner ? <p className="tiny muted full m0">A list manager will confirm this purchase.</p> : null}
+                          {list.review_purchases && !manage ? <p className="tiny muted full m0">A list manager will confirm this purchase.</p> : null}
                         </form>
                       </details>
                     )}
                     {showClaims && it.price_cents && !it.needs_approval && (!it.purchased || pledges.some((x) => x.item_id === it.id)) ? (
-                      <GroupGift item={it} pledges={pledges.filter((x) => x.item_id === it.id)} userId={user.id} />
+                      <GroupGift item={it} pledges={pledges.filter((x) => x.item_id === it.id)} userId={user.id} from={from} />
                     ) : null}
                     {/* Shown to the list's own person whether or not it was bought, so it can't give a gift away. */}
-                    {it.url && it.price_cents && (recipient || !it.purchased) && !it.needs_approval ? (
+                    {it.url && it.price_cents && (mine || !it.purchased) && !it.needs_approval ? (
                       <details className="full">
                         <summary className="small muted pointer">🎯 {watches.has(it.id) ? `Watching for ${formatMoney(watches.get(it.id))} or less` : "Watch the price"}</summary>
                         <form action={watchPrice} className="row mt-8 items-end">
-                          <Hidden item={it.id} />
+                          <Hidden item={it.id} from={from} />
                           <label className="grow min-180">Tell me when it&apos;s at or below
                             <input name="target" inputMode="decimal" defaultValue={watches.has(it.id) ? (watches.get(it.id)! / 100).toFixed(2) : ((it.price_cents * 0.85) / 100).toFixed(2)} />
                           </label>
@@ -528,17 +585,18 @@ export default async function ListPage({ params, searchParams }: { params: Param
                       </details>
                     ) : null}
                     {!it.surprise && !it.needs_approval ? (
-                      <Questions item={it} qs={questions.get(it.id) ?? []} listId={list.id} canAnswer={owner} canAsk={!recipient && !owner} />
+                      <Questions item={it} qs={questions.get(it.id) ?? []} listId={it.list_id} canAnswer={manage} canAsk={!mine && !manage} from={from} />
                     ) : null}
-                    {owner && (
+                    {manage && (
                       <details className="full">
                         <summary className="small muted pointer">Edit</summary>
                         <div className="mt-10">
                           <ItemForm
                             action={updateItem}
                             autofill={autofill}
-                            hidden={{ item_id: it.id }}
+                            hidden={{ item_id: it.id, ...(from && { from }) }}
                             submitLabel="Save changes"
+                            extra={<SharePicker targets={targets(it.list_id)} checked={people?.slice(1).map((p) => p.list_id)} />}
                             defaults={{
                               title: it.title, url: it.url, store: it.store,
                               price: it.price_cents ? (it.price_cents / 100).toFixed(2) : "",
@@ -548,7 +606,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                           />
                           {otherLists.length > 0 && (
                             <form action={moveItem} className="row mt-12 items-end">
-                              <Hidden item={it.id} />
+                              <Hidden item={it.id} from={from} />
                               <label className="grow min-200">Move to another list
                                 <select name="to_list_id" defaultValue="">
                                   <option value="" disabled>Pick a list…</option>
