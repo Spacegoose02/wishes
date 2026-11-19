@@ -194,6 +194,64 @@ async function complete(text: string, schema?: Record<string, unknown>): Promise
   return converse("", [{ role: "user", content: text }], { json: true, schema });
 }
 
+export type ImageInput = { mime: "image/png" | "image/jpeg" | "image/webp" | "image/gif"; base64: string };
+
+// One picture plus an instruction, for any provider whose model can see images. Local models
+// often can't; their error comes back as a normal failure.
+export async function describeImage(instruction: string, image: ImageInput, schema?: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
+  const c = aiConfig();
+  const dataUrl = "data:" + image.mime + ";base64," + image.base64;
+  switch (c.provider) {
+    case "anthropic": {
+      const response = await claudeClient(c.apiKey).beta.messages.create(
+        {
+          model: c.model,
+          max_tokens: 4000,
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+          output_config: { effort: "low", ...(schema ? { format: { type: "json_schema", schema } } : {}) },
+          messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: image.mime, data: image.base64 } }, { type: "text", text: instruction }] }],
+        },
+        { signal },
+      );
+      if (response.stop_reason === "refusal") throw new AiError("Claude couldn't read that picture.");
+      return response.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+    }
+    case "gemini": {
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(c.model) + ":generateContent", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": c.apiKey },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ inline_data: { mime_type: image.mime, data: image.base64 } }, { text: instruction }] }],
+          generationConfig: { responseMimeType: "application/json" },
+        }),
+        signal,
+      });
+      if (!res.ok) throw new Error("AI request failed (" + res.status + "): " + (await res.text()).slice(0, 200));
+      const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+      return data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    }
+    case "openai":
+    case "meta":
+    case "local": {
+      const res = await fetch(c.baseUrl + "/chat/completions", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(c.apiKey ? { authorization: "Bearer " + c.apiKey } : {}) },
+        body: JSON.stringify({
+          model: c.model,
+          messages: [{ role: "user", content: [{ type: "text", text: instruction + "\n\nReply with only JSON." }, { type: "image_url", image_url: { url: dataUrl } }] }],
+        }),
+        signal,
+      });
+      if (!res.ok) throw new Error("AI request failed (" + res.status + "). The AI model may not be able to read pictures.");
+      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      return data.choices?.[0]?.message?.content ?? "";
+    }
+    default:
+      throw new Error("AI is turned off. An admin can enable it in Settings → Server.");
+  }
+}
+
 const str = { type: "string" } as const;
 const IDEAS_SCHEMA = {
   type: "object",

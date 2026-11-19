@@ -462,6 +462,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .sticker-pick span { display: inline-block; font-size: 1.5rem; padding: 4px 6px; border-radius: 10px; border: 2px solid transparent; }
 .sticker-pick input:checked + span { border-color: var(--accent); background: var(--bg-2); }
 .sticker-pick input:focus-visible + span { outline: 2px solid var(--accent); }
+.shot-btn:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 3px; }
 @keyframes wiggle { 0%, 80%, 100% { transform: rotate(0); } 85% { transform: rotate(-5deg); } 90% { transform: rotate(5deg); } 95% { transform: rotate(-3deg); } }
 @keyframes unwrap { from { opacity: 0; transform: scale(0.6) rotate(-4deg); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
