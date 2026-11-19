@@ -8,7 +8,7 @@ import { notify } from "@/lib/notify";
 import { announceWishes } from "@/lib/fresh";
 import type { Item } from "@/lib/types";
 import { peopleBuying } from "@/lib/wishes";
-import { s, n, ownList, doAutofill, itemFields, insertItem, recomputePurchased, guestByToken, withPicture } from "./_shared";
+import { s, n, ownList, doAutofill, doReadScreenshot, itemFields, insertItem, recomputePurchased, guestByToken, withPicture } from "./_shared";
 
 export async function addGuest(form: FormData) {
   const { list } = await ownList(n(form, "list_id"));
@@ -98,4 +98,10 @@ export async function guestAutofill(token: string, url: string) {
   const g = guestByToken(token);
   if (!g || !g.can_edit) return { ok: false as const, error: "This link no longer works." };
   return doAutofill(url);
+}
+
+export async function guestReadScreenshot(token: string, form: FormData) {
+  const g = guestByToken(token);
+  if (!g || !g.can_edit) return { ok: false as const, error: "This link no longer works." };
+  return doReadScreenshot(form, "guest:" + g.id);
 }

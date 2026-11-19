@@ -13,7 +13,7 @@ import type { Item, Purchase } from "@/lib/types";
 import { watchesFor } from "@/lib/watches";
 import { seeList } from "@/lib/fresh";
 import { questionsForList, openQuestions, MAX_QUESTION, type Question } from "@/lib/questions";
-import { addItem, importWishes, answerAboutItem, askAboutItem, removeQuestion, addSurprise, removeSurprise, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
+import { addItem, importWishes, answerAboutItem, askAboutItem, removeQuestion, addSurprise, removeSurprise, approveWish, archiveItem, bulkAddItems, watchPrice, autofill, readScreenshot, claimItem, compareStores, deleteItem, moveItem, refreshItem, toggleMustHave, updateItem } from "../../actions/items";
 import { compareRank, MAX_MUST_HAVES } from "@/lib/wishes";
 import { isFund, kindInfo } from "@/lib/kinds";
 import { pledgeToItem, recordPurchase, undoPurchase } from "../../actions/purchases";
@@ -277,7 +277,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
       {owner && (
         <details className="card mt-12" open={allItems.length === 0 || !!shared}>
           <summary>Add a wish</summary>
-          <ItemForm action={addItem} autofill={autofill} hidden={{ list_id: list.id }} defaults={shared ? { url: shared, ...clipped } : undefined} autoFetch={!!shared && !clipped} />
+          <ItemForm action={addItem} autofill={autofill} screenshot={aiEnabled() ? readScreenshot : undefined} hidden={{ list_id: list.id }} defaults={shared ? { url: shared, ...clipped } : undefined} autoFetch={!!shared && !clipped} />
           <details className="mt-12">
             <summary className="small pointer fw-700">📋 Paste many links at once</summary>
             <form action={bulkAddItems} className="stack mt-10">
@@ -310,7 +310,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
           <p className="small muted m0 mb-6">
             Getting {list.profile_name} something that isn&apos;t on the list? Add it here so nobody else buys the same thing. Everyone shopping for {list.profile_name} sees it, but {list.profile_name} never will.
           </p>
-          <ItemForm action={addSurprise} autofill={autofill} hidden={{ list_id: list.id, claim: 1 }} submitLabel="Add surprise" />
+          <ItemForm action={addSurprise} autofill={autofill} screenshot={aiEnabled() ? readScreenshot : undefined} hidden={{ list_id: list.id, claim: 1 }} submitLabel="Add surprise" />
         </details>
       )}
 
@@ -537,6 +537,7 @@ export default async function ListPage({ params, searchParams }: { params: Param
                           <ItemForm
                             action={updateItem}
                             autofill={autofill}
+                            screenshot={aiEnabled() ? readScreenshot : undefined}
                             hidden={{ item_id: it.id }}
                             submitLabel="Save changes"
                             defaults={{

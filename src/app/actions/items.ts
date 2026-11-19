@@ -16,7 +16,7 @@ import { announceWishes } from "@/lib/fresh";
 import { amazonListUrl, MAX_IMPORT, parseAmazonList, wishesFromCsv, type ImportedWish } from "@/lib/importer";
 import { answerQuestion, askQuestion, deleteQuestion, questionOnList } from "@/lib/questions";
 import type { Item, Profile } from "@/lib/types";
-import { noSpoil, s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
+import { noSpoil, s, n, ownList, viewList, doAutofill, doReadScreenshot, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
 import { guessCategory, validCategory } from "@/lib/categories";
 import { extractUrls, mapLimit } from "@/lib/links";
 import { storeFromHost } from "@/lib/scrape/stores";
@@ -26,6 +26,12 @@ const MAX_BULK_LINKS = 15;
 export async function autofill(url: string): Promise<{ ok: true; info: ProductInfo & { category: string } } | { ok: false; error: string }> {
   await requireUser();
   return doAutofill(url);
+}
+
+// "Fill in from a screenshot" for wishes without a link to read.
+export async function readScreenshot(form: FormData) {
+  const user = await requireUser();
+  return doReadScreenshot(form, "user:" + user.id);
 }
 
 // The "Add to Wishes" bookmark sends the product page the person has open; this reads it and

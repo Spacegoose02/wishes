@@ -5,8 +5,9 @@ import { getList } from "@/lib/access";
 import { formatMoney } from "@/lib/format";
 import { categoryIcon } from "@/lib/categories";
 import type { Item, Purchase } from "@/lib/types";
-import { guestAddItem, guestAutofill, guestDeleteItem, guestRecordPurchase, guestUndoPurchase } from "../../actions/guests";
+import { guestAddItem, guestAutofill, guestReadScreenshot, guestDeleteItem, guestRecordPurchase, guestUndoPurchase } from "../../actions/guests";
 import { ItemForm } from "@/components/ItemForm";
+import { aiEnabled } from "@/lib/ai";
 import { Avatar } from "@/components/Avatar";
 import { Flash, type SP } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -40,7 +41,7 @@ export default async function GuestListPage({ params, searchParams }: { params: 
       {guest.can_edit ? (
         <details className="card mt-16" open={items.length === 0}>
           <summary>Add a wish</summary>
-          <ItemForm action={guestAddItem} autofill={guestAutofill.bind(null, token)} hidden={{ token }} />
+          <ItemForm action={guestAddItem} autofill={guestAutofill.bind(null, token)} screenshot={aiEnabled() ? guestReadScreenshot.bind(null, token) : undefined} hidden={{ token }} />
         </details>
       ) : null}
       <div className="items section">
