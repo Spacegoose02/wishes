@@ -16,7 +16,8 @@ import { announceWishes } from "@/lib/fresh";
 import { amazonListUrl, MAX_IMPORT, parseAmazonList, wishesFromCsv, type ImportedWish } from "@/lib/importer";
 import { answerQuestion, askQuestion, deleteQuestion, questionOnList } from "@/lib/questions";
 import type { Item, Profile } from "@/lib/types";
-import { noSpoil, s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture } from "./_shared";
+import { noSpoil, s, n, ownList, viewList, doAutofill, itemFields, insertItem, recomputePurchased, withPicture, pageFor, isForThem, saveShares } from "./_shared";
+import { unshare } from "@/lib/sharedwishes";
 import { guessCategory, validCategory } from "@/lib/categories";
 import { extractUrls, mapLimit } from "@/lib/links";
 import { storeFromHost } from "@/lib/scrape/stores";
@@ -50,7 +51,8 @@ export async function addItem(form: FormData) {
   const { user, list } = await ownList(n(form, "list_id"));
   const f = await withPicture(form, itemFields(form), `/lists/${list.id}`);
   if (!f.title) redirect(`/lists/${list.id}?error=Every+wish+needs+a+name`);
-  insertItem(list.id, f, null, false, { addedBy: user.id });
+  const id = insertItem(list.id, f, null, false, { addedBy: user.id });
+  saveShares(form, { id, list_id: list.id, surprise: 0 }, user.id);
   announceWishes(list, 1, user.id);
   award(user.id, "first_wish");
   redirect(`/lists/${list.id}?ok=Added`);
@@ -70,7 +72,8 @@ export async function updateItem(form: FormData) {
     f.title || item.title, f.url, f.store, f.price, f.image_url, f.notes, f.priority, f.quantity, f.category, f.variant, f.color, f.size, f.kind, item.id,
   );
   recomputePurchased(item.id);
-  redirect(`/lists/${list.id}?ok=Updated#item-${item.id}`);
+  saveShares(form, item, user.id);
+  redirect(`${pageFor(form, item, list)}?ok=Updated#item-${item.id}`);
 }
 
 export async function deleteItem(form: FormData) {
@@ -79,12 +82,13 @@ export async function deleteItem(form: FormData) {
   const { user, list } = await ownList(item.list_id);
   noSpoil(item, user, list);
   // Let anyone getting it know, so a removed wish doesn't just vanish from their shopping.
-  const tell = peopleBuying(item).filter((uid) => uid !== user.id && !isRecipient(uid, list));
+  const tell = peopleBuying(item).filter((uid) => uid !== user.id && !isForThem(uid, item, list));
+  const page = pageFor(form, item, list);
   run("DELETE FROM items WHERE id = ?", item.id);
   for (const uid of tell) {
     notify(uid, "unwanted", `${item.title} was taken off ${list.profile_name}'s list "${list.title}". If you already got it, check with them.`, `/lists/${list.id}`);
   }
-  revalidatePath(`/lists/${list.id}`);
+  revalidatePath(page);
 }
 
 export async function claimItem(form: FormData) {
@@ -92,14 +96,14 @@ export async function claimItem(form: FormData) {
   if (!item) redirect("/");
   const { user, list } = await viewList(item.list_id);
   noSpoil(item, user, list);
-  if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
+  if (isForThem(user.id, item, list)) redirect(pageFor(form, item, list));
   const action = s(form, "action");
   if (action === "claim" && !item.claimed_by && !item.needs_approval) {
     run("UPDATE items SET claimed_by = ?, claimed_name = ? WHERE id = ?", user.id, user.name, item.id);
   } else if (action === "unclaim" && item.claimed_by === user.id) {
     run("UPDATE items SET claimed_by = NULL, claimed_name = NULL WHERE id = ?", item.id);
   }
-  revalidatePath(`/lists/${list.id}`);
+  revalidatePath(pageFor(form, item, list));
 }
 
 export async function refreshItem(form: FormData) {
@@ -107,7 +111,7 @@ export async function refreshItem(form: FormData) {
   if (!item || !item.url) redirect("/");
   const { user, list } = await viewList(item.list_id);
   noSpoil(item, user, list);
-  const back = (key: "ok" | "error", msg: string) => redirect(`/lists/${list.id}?${key}=${encodeURIComponent(msg)}#item-${item.id}`);
+  const back = (key: "ok" | "error", msg: string) => redirect(`${pageFor(form, item, list)}?${key}=${encodeURIComponent(msg)}#item-${item.id}`);
   let info: ProductInfo;
   try {
     info = await fetchProduct(item.url);
@@ -146,6 +150,7 @@ export async function moveItem(form: FormData) {
   tx(() => {
     run("UPDATE items SET list_id = ? WHERE id = ?", to.id, item.id);
     run("UPDATE purchases SET list_id = ? WHERE item_id = ?", to.id, item.id);
+    unshare(item.id, to.id);
   });
   redirect(`/lists/${from.id}?ok=${encodeURIComponent(`Moved to ${to.title}`)}`);
 }
@@ -159,10 +164,10 @@ export async function compareStores(form: FormData) {
   try {
     count = (await compareItem(item)).length;
   } catch {
-    redirect(`/lists/${list.id}?error=${encodeURIComponent("Couldn't search the stores right now.")}#item-${item.id}`);
+    redirect(`${pageFor(form, item, list)}?error=${encodeURIComponent("Couldn't search the stores right now.")}#item-${item.id}`);
   }
   const msg = count ? `Found it at ${count} other store${count === 1 ? "" : "s"}.` : "No close matches at Walmart or Amazon.";
-  redirect(`/lists/${list.id}?ok=${encodeURIComponent(msg)}#item-${item.id}`);
+  redirect(`${pageFor(form, item, list)}?ok=${encodeURIComponent(msg)}#item-${item.id}`);
 }
 
 export async function toggleMustHave(form: FormData) {
@@ -171,8 +176,8 @@ export async function toggleMustHave(form: FormData) {
   const { user, list } = await ownList(item.list_id);
   noSpoil(item, user, list);
   const r = setMustHave(item, s(form, "action") === "star");
-  if (!r.ok) redirect(`/lists/${list.id}?error=${encodeURIComponent(r.error)}#item-${item.id}`);
-  revalidatePath(`/lists/${list.id}`);
+  if (!r.ok) redirect(`${pageFor(form, item, list)}?error=${encodeURIComponent(r.error)}#item-${item.id}`);
+  revalidatePath(pageFor(form, item, list));
 }
 
 // Kid mode: a wish typed (or drawn) by a kid on a parent's device. It waits for a parent's OK.
@@ -199,7 +204,7 @@ export async function approveWish(form: FormData) {
   noSpoil(item, user, list);
   if (item.needs_approval) announceWishes(list, 1, user.id);
   approveItem(item.id);
-  redirect(`/lists/${list.id}?ok=Approved#item-${item.id}`);
+  redirect(`${pageFor(form, item, list)}?ok=Approved#item-${item.id}`);
 }
 
 // Paste a pile of links; each one is looked up and added as its own wish.
@@ -240,7 +245,7 @@ export async function archiveItem(form: FormData) {
   for (const uid of archiveWish(item, reason)) {
     notify(uid, "unwanted", `${list.profile_name} doesn't want ${item.title} anymore, so no need to get it.`, "/purchases");
   }
-  redirect(`/lists/${list.id}?ok=${encodeURIComponent(reason === "received" ? "Yay! Moved to past gifts" : "Moved to past gifts")}`);
+  redirect(`${pageFor(form, item, list)}?ok=${encodeURIComponent(reason === "received" ? "Yay! Moved to past gifts" : "Moved to past gifts")}`);
 }
 
 export async function restoreItem(form: FormData) {
@@ -262,7 +267,7 @@ export async function watchPrice(form: FormData) {
   const target = form.get("stop") ? null : parseMoney(form.get("target"));
   setWatch(user.id, item.id, target);
   if (target && item.price_cents && item.price_cents <= target) checkWatches(item.id, item.price_cents);
-  redirect(`/lists/${list.id}?ok=${encodeURIComponent(target ? `We'll tell you when it's ${formatMoney(target)} or less` : "Stopped watching")}#item-${item.id}`);
+  redirect(`${pageFor(form, item, list)}?ok=${encodeURIComponent(target ? `We'll tell you when it's ${formatMoney(target)} or less` : "Stopped watching")}#item-${item.id}`);
 }
 
 // A surprise gift: a shopper adds something that isn't on the list (so others don't buy the
@@ -298,7 +303,7 @@ export async function askAboutItem(form: FormData) {
   noSpoil(item, user, list);
   if (item.needs_approval && !isManager(user.id, list)) redirect(`/lists/${list.id}`);
   const id = askQuestion(item, list, user.id, s(form, "question"));
-  redirect(`/lists/${list.id}?${id ? `ok=${encodeURIComponent("Asked! You'll get an alert when they answer.")}` : `error=${encodeURIComponent("Type a question first.")}`}#item-${item.id}`);
+  redirect(`${pageFor(form, item, list)}?${id ? `ok=${encodeURIComponent("Asked! You'll get an alert when they answer.")}` : `error=${encodeURIComponent("Type a question first.")}`}#item-${item.id}`);
 }
 
 export async function answerAboutItem(form: FormData) {

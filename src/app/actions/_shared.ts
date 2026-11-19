@@ -12,6 +12,7 @@ import { sizesFromForm } from "@/lib/profile";
 import { imageFromForm, isUploadUrl } from "@/lib/uploads";
 import { validKind } from "@/lib/kinds";
 import type { Item, User } from "@/lib/types";
+import { isSharedInto, setShares, sharedWithUser } from "@/lib/sharedwishes";
 export { insertItem } from "@/lib/wishes";
 import { isValidAvatar, AVATARS } from "@/components/Avatar";
 import { parseCollection } from "@/components/AvatarPicker";
@@ -45,6 +46,24 @@ export async function viewList(listId: number) {
 // A surprise gift doesn't exist as far as the person it's for can tell, even if they guess its id.
 export function noSpoil(item: Pick<Item, "surprise">, user: User, list: ListWithOwner) {
   if (item.surprise && isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
+}
+
+// A shared wish shows on more than one list; send people back to the one they were looking at.
+export function pageFor(form: FormData, item: Pick<Item, "id">, list: Pick<ListWithOwner, "id">): string {
+  const from = n(form, "from");
+  return from && from !== list.id && isSharedInto(item.id, from) ? `/lists/${from}` : `/lists/${list.id}`;
+}
+
+// The person a wish is for (on its own list, or a sibling's list it's shared into) never
+// sees who's getting it, and can't claim it for themselves.
+export function isForThem(userId: number, item: Pick<Item, "id">, list: ListWithOwner): boolean {
+  return isRecipient(userId, list) || sharedWithUser(item.id, userId);
+}
+
+// The add and edit forms carry "Shared with" checkboxes only when there's a sibling to pick.
+export function saveShares(form: FormData, item: Pick<Item, "id" | "list_id" | "surprise">, userId: number) {
+  if (!form.get("share_form")) return;
+  setShares(item, form.getAll("share_list_id").map(Number).filter((x) => Number.isInteger(x) && x > 0), userId);
 }
 
 export function inviteCode(): string {

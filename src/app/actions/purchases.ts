@@ -12,7 +12,8 @@ import { setBudget } from "@/lib/shopping";
 import { canSeeTracking, cleanTracking, detectCarrier } from "@/lib/tracking";
 import { requireUser } from "@/lib/auth";
 import type { Item } from "@/lib/types";
-import { noSpoil, s, n, ownList, viewList, recomputePurchased } from "./_shared";
+import { sharedListIds } from "@/lib/sharedwishes";
+import { noSpoil, s, n, ownList, viewList, recomputePurchased, pageFor, isForThem } from "./_shared";
 
 export async function recordPurchase(form: FormData) {
   const item = get<Item>("SELECT * FROM items WHERE id = ?", n(form, "item_id"));
@@ -20,7 +21,7 @@ export async function recordPurchase(form: FormData) {
   const { user, list } = await viewList(item.list_id);
   noSpoil(item, user, list);
   if (item.needs_approval && !isManager(user.id, list)) redirect(`/lists/${list.id}`);
-  const self = isRecipient(user.id, list); // the list's own person marking "I got it myself"
+  const self = isForThem(user.id, item, list); // the list's own person marking "I got it myself"
   const manager = isManager(user.id, list);
   const pending = !!list.review_purchases && !manager && !self;
   const qty = Math.min(99, Math.max(1, n(form, "quantity") || 1));
@@ -37,7 +38,7 @@ export async function recordPurchase(form: FormData) {
       if (!isRecipient(uid, list)) notify(uid, "purchase", `${user.name} bought ${item.title}. Please review it.`, `/lists/${list.id}/purchases`);
     }
   }
-  redirect(`/lists/${list.id}?ok=${encodeURIComponent(pending ? "Marked bought. A list manager will review it." : self ? "Marked as got it" : "Marked bought")}#item-${item.id}`);
+  redirect(`${pageFor(form, item, list)}?ok=${encodeURIComponent(pending ? "Marked bought. A list manager will review it." : self ? "Marked as got it" : "Marked bought")}#item-${item.id}`);
 }
 
 export async function reviewPurchase(form: FormData) {
@@ -63,6 +64,8 @@ export async function undoPurchase(form: FormData) {
   if (p.item_id) recomputePurchased(p.item_id);
   revalidatePath(`/lists/${list.id}`);
   revalidatePath(`/lists/${list.id}/purchases`);
+  // A shared wish shows on the siblings' lists too.
+  for (const id of p.item_id ? sharedListIds(p.item_id) : []) revalidatePath(`/lists/${id}`);
 }
 
 // Chip in toward a group gift. An empty or zero amount withdraws your pledge.
@@ -71,8 +74,8 @@ export async function pledgeToItem(form: FormData) {
   if (!item) redirect("/");
   const { user, list } = await viewList(item.list_id);
   noSpoil(item, user, list);
-  if (isRecipient(user.id, list)) redirect(`/lists/${list.id}`);
-  const back = (key: "ok" | "error", msg: string) => redirect(`/lists/${list.id}?${key}=${encodeURIComponent(msg)}#item-${item.id}`);
+  if (isForThem(user.id, item, list)) redirect(pageFor(form, item, list));
+  const back = (key: "ok" | "error", msg: string) => redirect(`${pageFor(form, item, list)}?${key}=${encodeURIComponent(msg)}#item-${item.id}`);
   if (!item.price_cents || item.purchased || item.needs_approval) return back("error", "This wish can't take pledges right now.");
   const { amount, progress, justFunded } = setPledge(item, user.id, parseMoney(form.get("amount")) ?? 0);
   if (justFunded) {
