@@ -9,7 +9,9 @@ import { storeFromHost } from "@/lib/scrape/stores";
 import { parseMoney } from "@/lib/format";
 import { guessCategory, validCategory } from "@/lib/categories";
 import { sizesFromForm } from "@/lib/profile";
-import { imageFromForm, isUploadUrl } from "@/lib/uploads";
+import { imageFromForm, isUploadUrl, sniffImage } from "@/lib/uploads";
+import { aiEnabled, describeImage, friendlyError } from "@/lib/ai";
+import { parseScreenshotReply, SCREENSHOT_PROMPT, SCREENSHOT_SCHEMA, type ScreenshotInfo } from "@/lib/screenshot";
 import { validKind } from "@/lib/kinds";
 import type { Item, User } from "@/lib/types";
 import { isSharedInto, setShares, sharedWithUser } from "@/lib/sharedwishes";
@@ -85,6 +87,35 @@ export async function doAutofill(url: string): Promise<{ ok: true; info: Product
     return { ok: true, info: { ...info, category: guessCategory(info.title ?? "", info.store) } };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
+  }
+}
+
+const SCREENSHOT_MAX_BYTES = 5_000_000;
+const SCREENSHOT_LIMIT = 30; // per person per hour, so a stuck button can't run up the AI bill
+const screenshotUses = new Map<string, number[]>();
+const MIME = { png: "image/png", jpg: "image/jpeg", webp: "image/webp", gif: "image/gif" } as const;
+
+// Reads a screenshot of a product with the AI and returns wish details to fill in the form.
+// `who` keys the hourly limit (a user id or a guest link).
+export async function doReadScreenshot(form: FormData, who: string): Promise<{ ok: true; info: ScreenshotInfo } | { ok: false; error: string }> {
+  if (!aiEnabled()) return { ok: false, error: "Reading screenshots needs AI turned on. An admin can do that in Settings → Server." };
+  const file = form.get("screenshot");
+  if (!(file instanceof Blob) || !file.size) return { ok: false, error: "Pick a screenshot first." };
+  if (file.size > SCREENSHOT_MAX_BYTES) return { ok: false, error: "That picture is too big. Try a smaller screenshot." };
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const ext = sniffImage(bytes);
+  if (!ext) return { ok: false, error: "That file isn't a picture we can read. Try a PNG or JPEG screenshot." };
+  const now = Date.now();
+  const recent = (screenshotUses.get(who) ?? []).filter((t) => now - t < 3_600_000);
+  if (recent.length >= SCREENSHOT_LIMIT) return { ok: false, error: "That's a lot of screenshots! Take a little break and try again later." };
+  screenshotUses.set(who, [...recent, now]);
+  try {
+    const reply = await describeImage(SCREENSHOT_PROMPT, { mime: MIME[ext], base64: Buffer.from(bytes).toString("base64") }, SCREENSHOT_SCHEMA, AbortSignal.timeout(60_000));
+    const info = parseScreenshotReply(reply);
+    if (!info.found) return { ok: false, error: "Hmm, we couldn't spot a wish in that picture. Try a screenshot that shows the product's name." };
+    return { ok: true, info };
+  } catch (e) {
+    return { ok: false, error: friendlyError(e) };
   }
 }
 

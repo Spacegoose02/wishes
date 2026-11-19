@@ -4,10 +4,12 @@ import { CATEGORIES } from "@/lib/categories";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DrawPad } from "@/components/DrawPad";
 import { kindInfo, WISH_KINDS } from "@/lib/kinds";
-import { shrinkPhoto } from "@/lib/shrink";
+import { PHOTO_LIMIT, shrinkPhoto } from "@/lib/shrink";
+import { cropRect, type ScreenshotInfo } from "@/lib/screenshot";
 
 type Info = { blocked?: boolean; title?: string; price_cents?: number; image_url?: string; store: string; description?: string; category?: string };
 type AutofillFn = (url: string) => Promise<{ ok: true; info: Info } | { ok: false; error: string }>;
+type ScreenshotFn = (form: FormData) => Promise<{ ok: true; info: ScreenshotInfo } | { ok: false; error: string }>;
 
 export type ItemDefaults = {
   title?: string; url?: string; store?: string; price?: string; image_url?: string; notes?: string; priority?: number; quantity?: number;
@@ -15,10 +17,12 @@ export type ItemDefaults = {
 };
 
 export function ItemForm({
-  action, autofill, hidden, defaults = {}, submitLabel = "Add wish", autoFetch = false, extra,
+  action, autofill, screenshot, hidden, defaults = {}, submitLabel = "Add wish", autoFetch = false, extra,
 }: {
   action: (f: FormData) => void | Promise<void>;
   autofill: AutofillFn;
+  // Reads a screenshot with AI. Left out when AI is off, which hides the button.
+  screenshot?: ScreenshotFn;
   hidden: Record<string, string | number>;
   defaults?: ItemDefaults;
   submitLabel?: string;
@@ -34,6 +38,10 @@ export function ItemForm({
   const [image, setImage] = useState(defaults.image_url ?? "");
   const [notes, setNotes] = useState(defaults.notes ?? "");
   const [category, setCategory] = useState(defaults.category ?? "");
+  const [variant, setVariant] = useState(defaults.variant ?? "");
+  const [color, setColor] = useState(defaults.color ?? "");
+  const [size, setSize] = useState(defaults.size ?? "");
+  const photoInput = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [lastFetched, setLastFetched] = useState("");
@@ -61,6 +69,70 @@ export function ItemForm({
     }
     setPhoto(URL.createObjectURL(r.file));
   }
+  // Puts a picture into the Photo field, as if the person had picked it there.
+  function setPhotoFile(file: File) {
+    const input = photoInput.current;
+    if (!input) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    setPhotoMsg(null);
+    setPhoto(URL.createObjectURL(file));
+  }
+
+  // Cuts the product photo out of the screenshot, where the AI said it is.
+  async function cropProduct(file: File, box: NonNullable<ScreenshotInfo["box"]>): Promise<File | null> {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const r = cropRect(box, bitmap.width, bitmap.height);
+      const canvas = document.createElement("canvas");
+      canvas.width = r.sw;
+      canvas.height = r.sh;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, r.sw, r.sh);
+      ctx.drawImage(bitmap, r.sx, r.sy, r.sw, r.sh, 0, 0, r.sw, r.sh);
+      bitmap.close();
+      const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.88));
+      return blob && blob.size <= PHOTO_LIMIT ? new File([blob], "wish-photo.jpg", { type: "image/jpeg" }) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function readShot(input: HTMLInputElement) {
+    const f = input.files?.[0];
+    input.value = "";
+    if (!f || !screenshot) return;
+    setMsg("Reading your screenshot… 🔍");
+    const small = await shrinkPhoto(f);
+    if (!small.ok) return setMsg(small.error);
+    const fd = new FormData();
+    fd.append("screenshot", small.file);
+    start(async () => {
+      const r = await screenshot(fd);
+      if (!r.ok) return setMsg(r.error);
+      const i = r.info;
+      setKind("product");
+      setTitle(i.title);
+      if (i.price_cents) setPrice((i.price_cents / 100).toFixed(2));
+      if (i.store) setStore(i.store);
+      if (i.url && !url.trim()) { setUrl(i.url); setLastFetched(i.url); }
+      if (i.category) setCategory(i.category);
+      if (i.variant) setVariant(i.variant);
+      if (i.color) setColor(i.color);
+      if (i.size) setSize(i.size);
+      if (i.notes) setNotes((n) => n || i.notes);
+      // A product photo from a real store link is sharper than a crop, so keep that one.
+      if (i.box && !image) {
+        const crop = await cropProduct(small.file, i.box);
+        if (crop) setPhotoFile(crop);
+      }
+      setMsg(`Filled in from your screenshot! Check everything looks right${i.price_cents ? "" : " and add the price"}.`);
+    });
+  }
+
   const [kind, setKind] = useState(defaults.kind ?? "product");
   const product = kind === "product";
 
@@ -121,7 +193,19 @@ export function ItemForm({
           </button>
         </div>
       </label>
-      {msg && <p className="small muted m0">{msg}</p>}
+      {screenshot && (
+        <div className="row items-center">
+          <label className="btn small secondary pointer shot-btn">
+            📸 No link? Use a screenshot
+            <input
+              type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="sr-only" disabled={pending}
+              onChange={(e) => { void readShot(e.currentTarget); }}
+            />
+          </label>
+          <span className="small muted">We&apos;ll read the name, price and store from the picture.</span>
+        </div>
+      )}
+      {msg && <p className="small muted m0" role="status">{msg}</p>}
       <div className="row items-start nowrap">
         {(photo || image) && <div className="item-img"><img src={photo || image} alt="" referrerPolicy="no-referrer" /></div>}
         <div className="form-grid grow">
@@ -137,9 +221,9 @@ export function ItemForm({
             {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
           </select>
         </label>
-        <label>Type / style<input name="variant" defaultValue={defaults.variant} placeholder="Crew neck, 64 GB, Eau de Parfum" /></label>
-        <label>Color<input name="color" defaultValue={defaults.color} placeholder="Navy" /></label>
-        <label>Size<input name="size" defaultValue={defaults.size} placeholder="Kids M (8), 3.4 oz" /></label>
+        <label>Type / style<input name="variant" value={variant} onChange={(e) => setVariant(e.target.value)} placeholder="Crew neck, 64 GB, Eau de Parfum" /></label>
+        <label>Color<input name="color" value={color} onChange={(e) => setColor(e.target.value)} placeholder="Navy" /></label>
+        <label>Size<input name="size" value={size} onChange={(e) => setSize(e.target.value)} placeholder="Kids M (8), 3.4 oz" /></label>
         <label>How much do you want it?
           <select name="priority" defaultValue={defaults.priority ?? 2}>
             <option value={3}>★★★ Really, really want</option>
@@ -154,7 +238,7 @@ export function ItemForm({
           <div className="stack mt-10">
             <label>Photo (big phone photos are shrunk automatically)
               <input
-                name="photo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                ref={photoInput} name="photo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
                 onChange={(e) => { void pickPhoto(e.currentTarget); }}
               />
             </label>
