@@ -6,6 +6,7 @@ import { DrawPad } from "@/components/DrawPad";
 import { kindInfo, WISH_KINDS } from "@/lib/kinds";
 import { PHOTO_LIMIT, shrinkPhoto } from "@/lib/shrink";
 import { cropRect, type ScreenshotInfo } from "@/lib/screenshot";
+import { formForPaste, isTextEntry, pastedImage } from "@/lib/paste";
 
 type Info = { blocked?: boolean; title?: string; price_cents?: number; image_url?: string; store: string; description?: string; category?: string };
 type AutofillFn = (url: string) => Promise<{ ok: true; info: Info } | { ok: false; error: string }>;
@@ -54,6 +55,11 @@ export function ItemForm({
     const f = input.files?.[0];
     setPhotoMsg(null);
     if (!f) return setPhoto("");
+    await takePhoto(f, input);
+  }
+  async function takePhoto(f: File, input = photoInput.current) {
+    if (!input) return;
+    setPhotoMsg(null);
     setShrinking(true);
     const r = await shrinkPhoto(f);
     setShrinking(false);
@@ -62,7 +68,7 @@ export function ItemForm({
       setPhoto("");
       return setPhotoMsg(r.error);
     }
-    if (r.file !== f) {
+    if (r.file !== f || input.files?.[0] !== f) {
       const dt = new DataTransfer();
       dt.items.add(r.file);
       input.files = dt.files;
@@ -101,9 +107,7 @@ export function ItemForm({
     }
   }
 
-  async function readShot(input: HTMLInputElement) {
-    const f = input.files?.[0];
-    input.value = "";
+  async function readShot(f: File | undefined) {
     if (!f || !screenshot) return;
     setMsg("Reading your screenshot… 🔍");
     const small = await shrinkPhoto(f);
@@ -159,6 +163,37 @@ export function ItemForm({
     });
   }
 
+  // Ctrl+V / Cmd+V with a picture on the clipboard: read it like a screenshot (or, with AI off or
+  // while in the Photo section, use it as the wish's photo). Listening on the whole page means it
+  // works without clicking into a box first; text pastes are left alone.
+  const formRef = useRef<HTMLFormElement>(null);
+  const photoBox = useRef<HTMLDetailsElement>(null);
+  const onPaste = useRef<(e: ClipboardEvent) => void>(() => {});
+  useEffect(() => { onPaste.current = (e) => {
+    const me = formRef.current;
+    if (!me || e.defaultPrevented || pending || shrinking) return;
+    const file = pastedImage(e.clipboardData);
+    if (!file) return;
+    const target = e.target instanceof Element ? e.target : null;
+    const typing = isTextEntry(target as HTMLElement | null);
+    if (typing && e.clipboardData?.getData("text/plain")) return; // copied text goes in the box as usual
+    const forms = Array.from(document.querySelectorAll<HTMLFormElement>("form[data-item-form]")).map((form) => ({
+      form, contains: !!target && form.contains(target), visible: form.getClientRects().length > 0,
+    }));
+    if (formForPaste(forms, typing) !== me) return;
+    e.preventDefault();
+    const intoPhoto = !screenshot || (!!target && !!photoBox.current?.contains(target));
+    if (intoPhoto) {
+      if (photoBox.current) photoBox.current.open = true;
+      void takePhoto(file);
+    } else void readShot(file);
+  }; });
+  useEffect(() => {
+    const h = (e: ClipboardEvent) => onPaste.current(e);
+    document.addEventListener("paste", h);
+    return () => document.removeEventListener("paste", h);
+  }, []);
+
   const fetched = useRef(false);
   useEffect(() => {
     if (!autoFetch || fetched.current || !defaults.url) return;
@@ -169,7 +204,7 @@ export function ItemForm({
   }, []);
 
   return (
-    <form action={action} className="stack">
+    <form ref={formRef} action={action} className="stack" data-item-form="">
       {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       <fieldset className="kind-pick">
         <legend className="small fw-700">What kind of wish?</legend>
@@ -199,10 +234,10 @@ export function ItemForm({
             📸 No link? Use a screenshot
             <input
               type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="sr-only" disabled={pending}
-              onChange={(e) => { void readShot(e.currentTarget); }}
+              onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ""; void readShot(f); }}
             />
           </label>
-          <span className="small muted">We&apos;ll read the name, price and store from the picture.</span>
+          <span className="small muted">We&apos;ll read the name, price and store from the picture. You can also paste one with Ctrl+V.</span>
         </div>
       )}
       {msg && <p className="small muted m0" role="status">{msg}</p>}
@@ -233,10 +268,10 @@ export function ItemForm({
         </label>
         <label>How many?<input name="quantity" type="number" min={1} max={99} defaultValue={defaults.quantity ?? 1} /></label>
         <label className="full">Image link<input name="image_url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="Filled in automatically" /></label>
-        <details className="full">
+        <details className="full" ref={photoBox}>
           <summary className="small pointer fw-700">📷 Add a photo or 🎨 draw it</summary>
           <div className="stack mt-10">
-            <label>Photo (big phone photos are shrunk automatically)
+            <label>Photo (big phone photos are shrunk automatically, or paste one with Ctrl+V)
               <input
                 ref={photoInput} name="photo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
                 onChange={(e) => { void pickPhoto(e.currentTarget); }}
